@@ -11,10 +11,12 @@ Post-Deployment Script Template
 */
 
 
--- Insert sample data
-INSERT INTO Employees (FirstName, LastName, Department, HireDate, Salary)
-VALUES 
-    ('Anna', 'de Vries', 'Engineering', '2022-03-15', 65000.00),
-    ('Bram', 'Jansen', 'Sales', '2021-07-01', 52000.00),
-    ('Chloe', 'Bakker', 'Engineering', '2023-01-10', 71000.00),
-    ('Daan', 'Visser', 'Marketing', '2020-11-20', 48000.00);
+IF NOT EXISTS (SELECT 1 FROM Employees)
+BEGIN
+    INSERT INTO Employees (FirstName, LastName, Department, HireDate, Salary)
+    VALUES 
+        ('Anna', 'de Vries', 'Engineering', '2022-03-15', 65000.00),
+        ('Bram', 'Jansen', 'Sales', '2021-07-01', 52000.00),
+        ('Chloe', 'Bakker', 'Engineering', '2023-01-10', 71000.00),
+        ('Daan', 'Visser', 'Marketing', '2020-11-20', 48000.00);
+END
