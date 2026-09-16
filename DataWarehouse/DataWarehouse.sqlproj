@@ -19,6 +19,9 @@
     <Folder Include="dbo\Views\" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="DataWarehouse.Environment.publish.xml" />
+  </ItemGroup>
+  <ItemGroup>
     <PostDeploy Include="PostDeploymentScript.sql" />
   </ItemGroup>
 </Project>
