@@ -1,4 +1,4 @@
---TODO check if table exists
+--Checking if table needs to be created is handled by the publish script
 CREATE TABLE Employees (
     EmployeeID INT IDENTITY(1,1) PRIMARY KEY,
     FirstName NVARCHAR(50) NOT NULL,
