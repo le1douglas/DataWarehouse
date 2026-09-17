@@ -1,0 +1,33 @@
+date_time,subject,notes,type,ec,ec_pore,ec_bulk,ph,mc,temp,device,media,tags
+2026-09-17T11:28:16.853408,ONE-A1F0 - Measurement,1000,measurement,2.16,,,5.87,,24.8,,,
+2026-09-17T11:28:05.254410,ONE-A1F0 - Measurement,1500,measurement,1.91,,,5.90,,24.9,,,
+2026-09-17T11:27:45.045288,ONE-A1F0 - Measurement,1000,measurement,1.31,,,6.26,,25.3,,,
+2026-09-17T11:27:35.594117,ONE-A1F0 - Measurement,1400,measurement,1.35,,,6.25,,24.6,,,1.28
+2026-09-17T11:26:15.138430,ONE-A1F0 - Measurement,No drain,measurement,-0.01,,,6.02,,24.2,,,
+2026-09-17T11:26:09.275755,ONE-A1F0 - Measurement,0 no drain,measurement,-0.01,,,6.03,,24.4,,,
+2026-09-17T11:26:02.705056,ONE-A1F0 - Measurement,400,measurement,2.44,,,6.03,,24.8,,,
+2026-09-17T11:25:48.645552,ONE-A1F0 - Measurement,400,measurement,2.25,,,6.18,,24.4,,,1.30
+2026-09-17T11:22:59.495063,ONE-A1F0 - Measurement,2500,measurement,1.91,,,6.35,,24.1,,,
+2026-09-17T11:22:52.198816,ONE-A1F0 - Measurement,2400,measurement,1.71,,,6.22,,24.0,,,
+2026-09-17T11:22:41.979495,ONE-A1F0 - Measurement,2300 overflowing,measurement,1.31,,,6.22,,24.1,,,
+2026-09-17T11:22:18.090403,ONE-A1F0 - Measurement,1900,measurement,1.30,,,6.37,,24.1,,,1.25
+2026-09-17T11:21:04.791123,ONE-A1F0 - Measurement,1400,measurement,1.64,,,6.62,,25.0,,,
+2026-09-17T11:20:54.137175,ONE-A1F0 - Measurement,2000,measurement,1.45,,,6.76,,25.2,,,
+2026-09-17T11:19:53.929400,ONE-A1F0 - Measurement,1000,measurement,1.25,,,6.39,,25.7,,,
+2026-09-17T11:19:39.054847,ONE-A1F0 - Measurement,1300,measurement,1.24,,,6.42,,25.4,,,1.27
+2026-09-17T11:17:55.750508,ONE-A1F0 - Measurement,1600,measurement,1.59,,,6.51,,25.2,,,
+2026-09-17T11:17:26.977401,ONE-A1F0 - Measurement,1700,measurement,1.73,,,6.43,,25.2,,,
+2026-09-17T11:17:14.888540,ONE-A1F0 - Measurement,900,measurement,1.72,,,6.06,,25.1,,,
+2026-09-17T11:17:02.347283,ONE-A1F0 - Measurement,1100,measurement,2.05,,,5.99,,25.1,,,1.26
+2026-09-17T11:14:38.545619,ONE-A1F0 - Measurement,1500,measurement,3.17,,,6.02,,24.0,,,
+2026-09-17T11:14:22.616728,ONE-A1F0 - Measurement,2500,measurement,1.94,,,6.55,,24.0,,,
+2026-09-17T11:12:57.509525,ONE-A1F0 - Measurement,600,measurement,1.20,,,6.51,,25.0,,,
+2026-09-17T11:12:44.511411,ONE-A1F0 - Measurement,600,measurement,1.33,,,6.45,,24.3,,,1.24
+2026-09-17T11:09:30.511208,ONE-A1F0 - Measurement,2000,measurement,1.74,,,6.45,,24.6,,,
+2026-09-17T11:08:37.202036,ONE-A1F0 - Measurement,2100,measurement,1.57,,,6.16,,24.7,,,
+2026-09-17T11:08:13.181687,ONE-A1F0 - Measurement,1900,measurement,1.32,,,6.08,,25.3,,,
+2026-09-17T11:07:52.280622,ONE-A1F0 - Measurement,2200,measurement,1.38,,,5.93,,25.1,,,0.32
+2026-09-17T11:06:16.189023,ONE-A1F0 - Measurement,500,measurement,3.33,,,4.93,,24.4,,,
+2026-09-17T11:05:49.352190,ONE-A1F0 - Measurement,200,measurement,4.11,,,5.45,,24.0,,,
+2026-09-17T11:05:24.277389,ONE-A1F0 - Measurement,1200,measurement,2.14,,,5.77,,24.4,,,
+2026-09-17T11:05:03.746258,ONE-A1F0 - Measurement,1200,measurement,2.14,,,5.98,,24.5,,,0.33
