@@ -11,9 +11,9 @@ Post-Deployment Script Template
 */
 
 
-IF NOT EXISTS (SELECT 1 FROM Employees)
+IF NOT EXISTS (SELECT 1 FROM Bronze.Employees)
 BEGIN
-    INSERT INTO Employees (FirstName, LastName, Department, HireDate, Salary)
+    INSERT INTO Bronze.Employees (FirstName, LastName, Department, HireDate, Salary)
     VALUES 
         ('Anna', 'de Vries', 'Engineering', '2022-03-15', 65000.00),
         ('Bram', 'Jansen', 'Sales', '2021-07-01', 52000.00),

@@ -8,6 +8,7 @@
     <ProjectGuid>bf10f72c-5262-47d5-b2d1-da049c4c5f1c</ProjectGuid>
   </PropertyGroup>
   <ItemGroup>
+    <Build Remove="03_Gold\Facts\Schema.sql" />
     <Build Remove="PostDeploymentScript.sql" />
     <Build Remove="Scripts\PostDeployment.sql" />
   </ItemGroup>
@@ -19,6 +20,10 @@
     <Folder Include="02_Silver\Tables\" />
     <Folder Include="03_Gold\Dimensions\" />
     <Folder Include="03_Gold\Facts\" />
-    <Folder Include="ETL\" />
+    <Folder Include="ETL\Bronze_To_Silver\" />
+    <Folder Include="ETL\Silver_To_Gold\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DataWarehouse.Environment.publish.xml" />
   </ItemGroup>
 </Project>
