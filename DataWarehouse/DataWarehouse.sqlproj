@@ -9,19 +9,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Build Remove="PostDeploymentScript.sql" />
+    <Build Remove="Scripts\PostDeployment.sql" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="dbo\Functions\" />
-    <Folder Include="dbo\Security\" />
-    <Folder Include="dbo\StoredProcedures\" />
-    <Folder Include="dbo\Tables\" />
-    <Folder Include="dbo\UserDefinedTypes\" />
-    <Folder Include="dbo\Views\" />
+    <PostDeploy Include="Scripts\PostDeployment.sql" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="DataWarehouse.Environment.publish.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <PostDeploy Include="PostDeploymentScript.sql" />
+    <Folder Include="02_Silver\Views\" />
+    <Folder Include="02_Silver\Tables\" />
+    <Folder Include="03_Gold\Dimensions\" />
+    <Folder Include="03_Gold\Facts\" />
+    <Folder Include="ETL\" />
   </ItemGroup>
 </Project>
