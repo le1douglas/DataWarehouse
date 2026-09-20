@@ -133,7 +133,8 @@ def load_to_database(df: pd.DataFrame, engine, schema: str, table: str):
 
 def main():
 
-    filepath = JOURNAL_ENTRIES_CSV
+    filepath = JOURNAL_ENTRIES_MALFORMED_CSV
+    print(f"Loading CSV file: {filepath}")
 
     connect_to_database(engine, DB_SERVER, DB_NAME)
 
