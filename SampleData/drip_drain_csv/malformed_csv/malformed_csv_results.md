@@ -15,4 +15,5 @@
 | 13 | `ValueError` | CSV file with extra column (with name starting with underscore) compared to the DB table | `journal-entries-extra-column-underscore.csv` | pass |
 | 14 | `pandas.errors.DatabaseError` | CSV file with string longer than the allowed `nvarchar` size in the DB | `journal-entries-long-string.csv` | TODO |
 | 15 | - | File is not a csv | `journal-entries-wrong-extension.txt` | If formatted like csv still works, but is undefined behaviour. TODO   |
+| 16 | - | CSV File has new line inside of text field | `TODO` | TODO   |
 

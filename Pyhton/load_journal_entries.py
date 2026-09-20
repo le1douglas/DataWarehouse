@@ -63,13 +63,14 @@ def get_table_schema(engine, schema: str, table: str, include_debug_columns: boo
                 #exclude columns that start with an underscore
                 schema_df = schema_df[~schema_df["COLUMN_NAME"].str.startswith("_")]
 
+           
             return schema_df
     except Exception as e:
         print(f"An error occurred while retrieving the table schema: {e}")
         raise
 
 
-def validate_csv_schema(df: pd.DataFrame, engine, schema: str, table: str) -> bool: 
+def validate_csv_schema(df: pd.DataFrame, engine, schema: str, table: str): 
      expected_columns = set(get_table_schema(engine, 
                                          schema, 
                                          table, 
@@ -83,18 +84,35 @@ def validate_csv_schema(df: pd.DataFrame, engine, schema: str, table: str) -> bo
         raise ValueError(f"CSV is missing expected columns: {missing}")
      if len(extra) > 0:
         raise ValueError(f"CSV has unexpected extra columns: {extra}")
-     
-     return True
 
-def validate_csv_empty(df: pd.DataFrame) -> bool:
+def validate_csv_empty(df: pd.DataFrame):
     if len(df) == 0:
         raise pd.errors.EmptyDataError("CSV has columns names, but has no rows") #columns are present, but no rows of data
-    return True
 
-#TODO: implement this function to check that the string lengths in the CSV do not exceed the max lengths defined in the database schema
-# be careful of nvarchar(MAX)
-def validate_csv_string_size(df: pd.DataFrame, engine, schema: str, table: str) -> bool:
-    return True 
+
+#validate that the string values in the CSV do not exceed the max length defined in the database schema for each column
+#call this after validate_csv_schema() to ensure that the CSV has the correct columns before checking their lengths
+def validate_csv_string_size(df: pd.DataFrame, engine, schema: str, table: str):
+    schema_df = get_table_schema(engine, schema, table, include_debug_columns=False)
+
+    if not (schema_df["DATA_TYPE"] == "nvarchar").all():  # all columns must be nvarchar
+        raise ValueError(f"All columns in the table {schema}.{table} must be of type nvarchar (with the exception of debug columns that start with an underscore)")
+
+
+    max_sizes_df = schema_df.set_index("COLUMN_NAME")["CHARACTER_MAXIMUM_LENGTH"]
+    max_sizes_df = max_sizes_df[max_sizes_df != -1] # nvarchar(MAX) has a max length of -1 in the schema, no need to check length for these columns
+    print(max_sizes_df)
+
+    for col in max_sizes_df.index:
+        if col not in df.columns:
+            raise ValueError(f" Column '{col}' is not in table {schema}.{table} schema. Call validate_csv_schema() first to check for missing/extra columns.")
+
+    #check if any of the columns in the CSV exceed the max length defined in the schema
+    for col_name, max_length in max_sizes_df.items():
+        csv_max_length = df[col_name].str.len().max()
+        if csv_max_length > max_length: 
+            raise ValueError(f"Column '{col_name}' in CSV has a value that exceeds max length of {max_length} defined in table {schema}.{table} schema. Max length in CSV is {csv_max_length}.")
+
 
 #make initial validation checks on the CSV file before loading it into the database
 def validate_csv(df: pd.DataFrame, engine, schema: str, table: str) -> bool:
@@ -106,10 +124,13 @@ def validate_csv(df: pd.DataFrame, engine, schema: str, table: str) -> bool:
 
     except pd.errors.EmptyDataError as e:
         print(f"CSV file is empty: {e}")
-        raise
+        return False
     except ValueError as e:
         print(f"Schema mismatch, CSV columns don't match target table: {e}")
-        raise
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred during CSV validation: {e}")
+        return False
 
 #should be called after the CSV has been validated, just before loading it into the database
 def add_debug_columns(df: pd.DataFrame, time: pd.Timestamp, source_file: Path) -> pd.DataFrame:
@@ -142,7 +163,7 @@ def main():
 
     if validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES):
         df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), filepath)
-        load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
+        #load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
 
 if __name__ == "__main__":
     main()
