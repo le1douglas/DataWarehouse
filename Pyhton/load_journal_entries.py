@@ -32,12 +32,16 @@ def read_csv_file(csv_path: Path) -> pd.DataFrame:
 
     except (FileNotFoundError, PermissionError, IsADirectoryError) as e:
         print(f"Error opening CSV file; check that the file exists and is not already opened by another program: {e}")
+        raise
     except pd.errors.EmptyDataError as e:
         print(f"CSV file is empty: {e}")
+        raise
     except (pd.errors.ParserError, UnicodeDecodeError) as e:
         print(f"Error parsing CSV file; check that the file is a valid CSV and is encoded as UTF-8: {e}")
+        raise
     except Exception as e:
         print(f"An unexpected error occurred while reading the CSV file: {e}")
+        raise
 
 
 # get the table schema as a dataframe.
@@ -88,13 +92,16 @@ def validate_csv_string_size(df: pd.DataFrame, engine, schema: str, table: str) 
 def validate_csv(df: pd.DataFrame, engine, schema: str, table: str) -> bool:
     try :
         validate_csv_empty(df)
-        validate_csv_schema(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
-        validate_csv_string_size(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
+        validate_csv_schema(df, engine, schema, table)
+        validate_csv_string_size(df, engine, schema, table)
+        return True
 
     except pd.errors.EmptyDataError as e:
         print(f"CSV file is empty: {e}")
+        return False
     except ValueError as e:
         print(f"Schema mismatch, CSV columns don't match target table: {e}")
+        return False
 
 #should be called after the CSV has been validated, just before loading it into the database
 def add_debug_columns(df: pd.DataFrame, time: pd.Timestamp, source_file: Path) -> pd.DataFrame:
@@ -116,13 +123,15 @@ def load_to_database(df: pd.DataFrame, engine, schema: str, table: str):
     )
 
 
+def main():
+    connect_to_database(engine, DB_SERVER, DB_NAME)
+
+    df = read_csv_file(JOURNAL_ENTRIES_CSV)
+
+    if validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES):
+        df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), JOURNAL_ENTRIES_CSV)
+        load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
+
+if __name__ == "__main__":
+    main()
    
-connect_to_database(engine, DB_SERVER, DB_NAME)
-
-df = read_csv_file(JOURNAL_ENTRIES_CSV)
-
-validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
-
-df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), JOURNAL_ENTRIES_CSV)
-
-load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
