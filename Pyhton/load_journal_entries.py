@@ -8,14 +8,13 @@ from sqlalchemy.exc import OperationalError
 from config import DB_NAME, DB_SCHEMA_BRONZE, DB_SERVER, ENGINE_STRING, JOURNAL_ENTRIES_CSV, JOURNAL_ENTRIES_MALFORMED_CSV, TBL_JOURNAL_ENTRIES
 
 
-engine = create_engine(ENGINE_STRING) #doesnt connect to the database yet, just creates a configuration object for the connection
 
  # Test database connection, adds a database connection to the pool.
 def connect_to_database(engine, db_server: str, db_name: str):
     print(f"Connecting to database \"{db_name}\" on server \"{db_server}\"...")
     try:
         with engine.connect() as connection:
-            print("Connection successful")
+            print("Connection successfull")
     except OperationalError as e:
         print(f"Could not reach the server (check server name, is SQL Server running, network/firewall): {e}")
         raise #failing to connect to the database is a fatal error, so we re-raise the exception to stop execution
@@ -25,6 +24,12 @@ def connect_to_database(engine, db_server: str, db_name: str):
 
 
 def read_csv_file(csv_path: Path) -> pd.DataFrame:
+    print(f"Loading CSV file: {csv_path}")
+
+    #check that the file has a .csv extension, case insensitive
+    if csv_path.suffix.lower() != ".csv":
+        raise ValueError(f"Expected a CSV file, got: {csv_path.suffix}")
+
     try:
         #TODO when provided with CSV with more values than columns, it will truncate the extra values silently. Need to find a way to throw an exception.
         df = pd.read_csv(csv_path, dtype=str, delimiter=',', on_bad_lines='error', index_col=False)  # no implicit type conversion on bronze layer, all columns as string
@@ -101,7 +106,6 @@ def validate_csv_string_size(df: pd.DataFrame, engine, schema: str, table: str):
 
     max_sizes_df = schema_df.set_index("COLUMN_NAME")["CHARACTER_MAXIMUM_LENGTH"]
     max_sizes_df = max_sizes_df[max_sizes_df != -1] # nvarchar(MAX) has a max length of -1 in the schema, no need to check length for these columns
-    print(max_sizes_df)
 
     for col in max_sizes_df.index:
         if col not in df.columns:
@@ -153,12 +157,10 @@ def load_to_database(df: pd.DataFrame, engine, schema: str, table: str):
 
 
 def main():
-
-    filepath = JOURNAL_ENTRIES_MALFORMED_CSV
-    print(f"Loading CSV file: {filepath}")
-
+    engine = create_engine(ENGINE_STRING) #doesnt connect to the database yet, just creates a configuration object for the connection
     connect_to_database(engine, DB_SERVER, DB_NAME)
 
+    filepath = JOURNAL_ENTRIES_CSV
     df = read_csv_file(filepath)
 
     if validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES):
