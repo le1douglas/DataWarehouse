@@ -1,9 +1,8 @@
 import datetime
-from sqlite3 import InterfaceError, OperationalError, ProgrammingError
 import pandas as pd
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, OperationalError
 from config import DB_NAME, DB_SCHEMA_BRONZE, DB_SERVER, ENGINE_STRING, JOURNAL_ENTRIES_CSV, TBL_JOURNAL_ENTRIES
 
 
@@ -45,28 +44,33 @@ def read_csv_file(csv_path: Path) -> pd.DataFrame:
 
 
 # get the table schema as a dataframe.
-# includeDebugColumns decides whether to include columns that start with an underscore: these are used for debugging and are part of the db schema, but are not part of the original source file.
-def get_table_schema(engine, schema: str, table: str, includeDebugColumns: bool = False) -> pd.DataFrame:
+# include_debug_columns decides whether to include columns that start with an underscore: these are used for debugging and are part of the db schema, but are not part of the original source file.
+def get_table_schema(engine, schema: str, table: str, include_debug_columns: bool = False) -> pd.DataFrame:
     query = text("""
         SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table
     """)
-    with engine.connect() as conn:
-        result = conn.execute(query, {"schema": schema, "table": table})
-        schema_df = pd.DataFrame(result.fetchall(), columns=result.keys())
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(query, {"schema": schema, "table": table})
+            schema_df = pd.DataFrame(result.fetchall(), columns=result.keys())
 
-        if not includeDebugColumns:
-            #exclude columns that start with an underscore
-            schema_df = schema_df[~schema_df["COLUMN_NAME"].str.startswith("_")]
+            if not include_debug_columns:
+                #exclude columns that start with an underscore
+                schema_df = schema_df[~schema_df["COLUMN_NAME"].str.startswith("_")]
 
-        return schema_df
+            return schema_df
+    except Exception as e:
+        print(f"An error occurred while retrieving the table schema: {e}")
+        raise
+
 
 def validate_csv_schema(df: pd.DataFrame, engine, schema: str, table: str) -> bool: 
      expected_columns = set(get_table_schema(engine, 
                                          schema, 
                                          table, 
-                                         includeDebugColumns=False)["COLUMN_NAME"])
+                                         include_debug_columns=False)["COLUMN_NAME"])
      actual_columns = set(df.columns)
 
      missing = expected_columns - actual_columns
