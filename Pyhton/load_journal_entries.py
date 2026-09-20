@@ -2,8 +2,10 @@ import datetime
 import pandas as pd
 from pathlib import Path
 
-from sqlalchemy import create_engine, text, OperationalError
-from config import DB_NAME, DB_SCHEMA_BRONZE, DB_SERVER, ENGINE_STRING, JOURNAL_ENTRIES_CSV, TBL_JOURNAL_ENTRIES
+
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
+from config import DB_NAME, DB_SCHEMA_BRONZE, DB_SERVER, ENGINE_STRING, JOURNAL_ENTRIES_CSV, JOURNAL_ENTRIES_MALFORMED_CSV, TBL_JOURNAL_ENTRIES
 
 
 engine = create_engine(ENGINE_STRING) #doesnt connect to the database yet, just creates a configuration object for the connection
@@ -24,12 +26,13 @@ def connect_to_database(engine, db_server: str, db_name: str):
 
 def read_csv_file(csv_path: Path) -> pd.DataFrame:
     try:
-        df = pd.read_csv(csv_path, dtype=str)  # no implicit type conversion on bronze layer, all columns as string
+        #TODO when provided with CSV with more values than columns, it will truncate the extra values silently. Need to find a way to throw an exception.
+        df = pd.read_csv(csv_path, dtype=str, delimiter=',', on_bad_lines='error', index_col=False)  # no implicit type conversion on bronze layer, all columns as string
         print(df)
         print(f"Loaded {len(df)} rows")
         return df
 
-    except (FileNotFoundError, PermissionError, IsADirectoryError) as e:
+    except (FileNotFoundError, PermissionError, IsADirectoryError) as e: #unable to trigger IsADirectoryError, pointing to directory triggers a PermissionError
         print(f"Error opening CSV file; check that the file exists and is not already opened by another program: {e}")
         raise
     except pd.errors.EmptyDataError as e:
@@ -89,6 +92,7 @@ def validate_csv_empty(df: pd.DataFrame) -> bool:
     return True
 
 #TODO: implement this function to check that the string lengths in the CSV do not exceed the max lengths defined in the database schema
+# be careful of nvarchar(MAX)
 def validate_csv_string_size(df: pd.DataFrame, engine, schema: str, table: str) -> bool:
     return True 
 
@@ -102,10 +106,10 @@ def validate_csv(df: pd.DataFrame, engine, schema: str, table: str) -> bool:
 
     except pd.errors.EmptyDataError as e:
         print(f"CSV file is empty: {e}")
-        return False
+        raise
     except ValueError as e:
         print(f"Schema mismatch, CSV columns don't match target table: {e}")
-        return False
+        raise
 
 #should be called after the CSV has been validated, just before loading it into the database
 def add_debug_columns(df: pd.DataFrame, time: pd.Timestamp, source_file: Path) -> pd.DataFrame:
@@ -128,12 +132,15 @@ def load_to_database(df: pd.DataFrame, engine, schema: str, table: str):
 
 
 def main():
+
+    filepath = JOURNAL_ENTRIES_CSV
+
     connect_to_database(engine, DB_SERVER, DB_NAME)
 
-    df = read_csv_file(JOURNAL_ENTRIES_CSV)
+    df = read_csv_file(filepath)
 
     if validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES):
-        df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), JOURNAL_ENTRIES_CSV)
+        df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), filepath)
         load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
 
 if __name__ == "__main__":

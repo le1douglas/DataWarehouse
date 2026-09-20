@@ -1,0 +1,56 @@
+Here's a minimal file for each exception case, plus one that sneaks past everything despite being bad. All CSVs use the same header as your reference unless noted.
+
+1. FileNotFoundError - no file to create; just point JOURNAL_ENTRIES_CSV in config.py at a path that doesn't exist.
+status = pass
+
+2. PermissionError - no content to craft; open the real CSV in Excel (or another program that locks it) and run the script while it's open.
+status = unable to lock file
+
+3. IsADirectoryError - point JOURNAL_ENTRIES_CSV at a folder path instead of a file.
+status = unable to trigger IsADirectoryError, pointing to directory triggers a PermissionError
+
+4. pd.errors.EmptyDataError - Empty Csv file
+journal-entries-empty-no-columns.csv
+status = pass
+
+4a. pd.errors.EmptyDataError called manually - Csv file with no rows
+journal-entries-empty-no-rows.csv
+status = pass
+
+5. pd.errors.ParserError - CSV with more values in a row than columns
+journal-entries-inconsinsent-column-count
+staus = silently drops extra values
+
+6. UnicodeDecodeError - csv file formatted as UTF-8 with a couple of raw invalid UTF-8 bytes in it (\xff\xfe)
+journal-entries-invalid-UTF-8.csv
+status = pass
+
+6a. No exception - csv file formatted as UTF-8 with valid but esoteric characters (你好 — é)
+journal-entries-valid-UTF-8.csv
+status=pass
+
+6b. UnicodeDecodeError - csv file formatted as ANSI with invalid characters (你好 — é)
+journal-entries-invalid-ANSI.csv
+status = pass
+
+6c. No exception -  csv file formatted as ANSI with valid characters (€)
+journal-entries-valid-ANSI.csv
+status = pass
+
+
+8. ValueError - csv file with missing column compared to the db table
+journal-entries-missing-column.csv
+status=pass
+
+9. ValueError - csv file with extra column compared to the db table
+journal-entries-extra-column.csv
+status=pass
+
+9a. ValueError - csv file with extra column (with name starting with underscore) compared to the db table
+journal-entries-extra-column-underscore.csv
+status=pass
+
+
+10. pandas.errors.DatabaseError - csv file with string longer that the allowed nvarchar size in the db
+journal-entries-long-string.csv
+status = TODO
