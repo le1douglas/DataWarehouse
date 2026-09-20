@@ -4,7 +4,8 @@ from pathlib import Path
 
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError, DataError, IntegrityError
+
 from config import DB_NAME, DB_SCHEMA_BRONZE, DB_SERVER, ENGINE_STRING, JOURNAL_ENTRIES_CSV, JOURNAL_ENTRIES_MALFORMED_CSV, TBL_JOURNAL_ENTRIES
 
 
@@ -144,16 +145,32 @@ def add_debug_columns(df: pd.DataFrame, time: pd.Timestamp, source_file: Path) -
     return df
 
 
-#TODO Implement Exception handling
-def load_to_database(df: pd.DataFrame, engine, schema: str, table: str):
-    
-    df.to_sql(
-        name= table,
-        schema= schema,
-        con=engine,
-        if_exists="append", 
-        index=False # don't write pandas' row index as a column
-    )
+def load_to_database(df: pd.DataFrame, engine, schema: str, table: str, csv_path: Path):
+
+    # Add debug columns to the dataframe before loading it into the database
+    df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), csv_path)
+
+    try:
+        with engine.begin() as conn:  # starts a transaction; commits on success, rolls back on any exception
+            df.to_sql(name=table, schema=schema, con=conn, if_exists="append", index=False)
+
+        print(f"Loaded {len(df)} rows into {schema}.{table}")
+
+    except ProgrammingError as e:
+        print(f"Table or schema not found — check that {schema}.{table} exists and is deployed, or change the schema/table name in config.py: {e}")
+        raise
+    except DataError as e:
+        print(f"Data truncation or type error during insert (value too long/wrong type) make sure to call validate_csv before loading: {e}")
+        raise
+    except OperationalError as e:
+        print(f"Connection lost during insert: {e}")
+        raise
+    except IntegrityError as e:
+        print(f"Constraint violation during insert: {e}")
+        raise
+    except Exception as e:
+        print(f"Unexpected database error during insert: {e}")
+        raise
 
 
 def main():
@@ -164,8 +181,7 @@ def main():
     df = read_csv_file(filepath)
 
     if validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES):
-        df = add_debug_columns(df, pd.Timestamp.now(datetime.timezone.utc), filepath)
-        #load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES)
+        load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES, filepath)
 
 if __name__ == "__main__":
     main()
