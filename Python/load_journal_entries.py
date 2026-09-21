@@ -177,11 +177,12 @@ def main():
     engine = create_engine(ENGINE_STRING) #doesnt connect to the database yet, just creates a configuration object for the connection
     connect_to_database(engine, DB_SERVER, DB_NAME)
 
-    filepath = JOURNAL_ENTRIES_CSV
+    filepath = JOURNAL_ENTRIES_MALFORMED_CSV
     df = read_csv_file(filepath)
 
     if validate_csv(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES):
         load_to_database(df, engine, DB_SCHEMA_BRONZE, TBL_JOURNAL_ENTRIES, filepath)
+        return
 
 if __name__ == "__main__":
     main()

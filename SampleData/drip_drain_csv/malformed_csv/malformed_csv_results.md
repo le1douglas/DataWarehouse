@@ -14,6 +14,6 @@
 | 12 | `ValueError` | CSV file with extra column compared to the DB table | `journal-entries-extra-column.csv` | pass |
 | 13 | `ValueError` | CSV file with extra column (with name starting with underscore) compared to the DB table | `journal-entries-extra-column-underscore.csv` | pass |
 | 14 | `ValueError` | CSV file with string longer than the allowed `nvarchar` size in the DB | `journal-entries-long-string.csv` | pass |
-| 15 | `ValueError` | File is not a csv | `journal-entries-wrong-extension.txt` | pass |
-| 16 | - | CSV File has new line inside of text field | `TODO` | TODO |
-
+| 15 | `ValueError` | File is not a CSV | `journal-entries-wrong-extension.txt` | pass |
+| 16 | - | CSV File has text fields with quotation marks | `journal-entries-text-with-quotes.csv` | pass |
+| 17 | `pandas.errors.ParserError` | CSV File has text fields without quotation marks | `journal-entries-text-without-quotes.csv` | partial pass, stops testing on first invalid row |
