@@ -1,9 +1,0 @@
-date_time,subject,notes,type,ec,ec_pore,ec_bulk,ph,mc,temp,device,media,tags
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"this text is normal",measurement,1.76,,,5.27,,21.9,,,
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"this text contains, a comma",measurement,1.76,,,5.27,,21.9,,,
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"this text contains ""escaped quotes""",measurement,1.76,,,5.27,,21.9,,,
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"This text contains	a tab",measurement,1.76,,,5.27,,21.9,,,
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"This text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]{}|;':./<>?€",measurement,1.76,,,5.27,,21.9,,,
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"this text contains
-a carriage return and newline.",measurement,1.76,,,5.27,,21.9,,,
-2026-09-18T14:27:51.086331,ONE-A1F0 - Measurement,"this text contains esoteric unicodes: 🚀 Café naïve résumé. مرحبا العالم! 你好世界 — é",measurement,1.76,,,5.27,,21.9,,,

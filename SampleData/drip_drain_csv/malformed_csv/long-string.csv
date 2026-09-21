@@ -1,0 +1,2 @@
+date_time,subject,notes,type,ec,ec_pore,ec_bulk,ph,mc,temp,device,media,tags
+2026-01-01T12:00:00.000000,default_subject,Lorem ipsum dolor sit amet consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes nascetur ridiculus mus. Donec quam felis ultricies nec pellentesque eu pretium quis sem. Nulla consequat massa quis enim. Donec pede justo fringilla vel aliquet nec vulputate eget arcu. In enim justo rhoncus ut imperdiet a venenatis vi,measurement,1.00,,,7.00,,25.0,,,

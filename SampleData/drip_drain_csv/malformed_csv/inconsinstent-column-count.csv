@@ -1,0 +1,2 @@
+date_time,subject,notes,type,ec,ec_pore,ec_bulk,ph,mc,temp,device,media,tags
+2026-01-01T12:00:00.000000,default_subject,default_notes,measurement,1.00,,,7.00,,25.0,,,,EXTRA,EXTRA2,EXTRA3,EXTRA4
