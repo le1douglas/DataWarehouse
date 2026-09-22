@@ -6,7 +6,7 @@ from pathlib import Path
 
 from config import BASE_DIR
 
-OUTPUT_DIR = BASE_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv_generated"
+OUTPUT_DIR = BASE_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
 # Column order of Bronze.journal_entries (without the _load_date_time/_source_file debug columns)
 COLUMNS = ["date_time", "subject", "notes", "type", "ec", "ec_pore", "ec_bulk",
@@ -67,8 +67,6 @@ def write_csv(
     output_dir: Path = OUTPUT_DIR,
 ) -> Path:
   
-    
-
 
     values = dict(zip(COLUMNS, [date_time, subject, notes, type_, ec, ec_pore, ec_bulk,
                                 ph, mc, temp, device, media, tags]))
@@ -134,6 +132,10 @@ def generate_unquoted_version(path: Path, column_name: str = "notes") -> Path | 
 
 def main():
 
+    # -- STANDARD CSV ---
+    write_csv("valid")
+    
+    
     # --- CSV STRUCTURE ERRORS ---
 
     # completely empty file (0 bytes)
