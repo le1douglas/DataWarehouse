@@ -45,7 +45,7 @@ def read_csv_file(csv_path: Path) -> pd.DataFrame:
         print(f"Loaded {len(df)} rows")
         return df
 
-    except (FileNotFoundError, PermissionError) as e:
+    except (FileNotFoundError, PermissionError, IsADirectoryError) as e:
         print(f"Error opening CSV file; check that the file exists and is not already opened by another program: {e}")
         raise
     except pd.errors.EmptyDataError as e:
