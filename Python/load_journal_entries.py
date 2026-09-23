@@ -1,6 +1,6 @@
 import datetime
 import pandas as pd
-import sys
+import csv
 from pathlib import Path
 
 
@@ -30,6 +30,17 @@ def validate_db_table_is_nvarchar(db_table_schema_df: pd.DataFrame):
     if not (db_table_schema_df["DATA_TYPE"] == "nvarchar").all():  # all columns must be nvarchar
             raise ValueError(f"All columns in the database table must be of type nvarchar (with the exception of debug columns that start with an underscore)")
     
+#check if the number of fields in every row matches the column counts
+#TODO find a way to do it in panda
+def validate_fields_number_equals_columns_number(csv_path: Path):
+        with csv_path.open(newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            for row in reader:
+                if row and len(row) != len(header):  # 'row' is [] for a blank line, pandas skips those too
+                    raise pd.errors.ParserError("CSV has a row whose number of fields differs from the header")
+
+
 
 def read_csv_file(csv_path: Path) -> pd.DataFrame:
     #print(f"Loading CSV file: {csv_path}")
@@ -48,6 +59,9 @@ def read_csv_file(csv_path: Path) -> pd.DataFrame:
                          keep_default_na=False,#TODO study this #Pandas treats strings like NA, null and N/A as missing by default 
                          na_values=[""],#TODO study this
                          index_col=False)  # no implicit type conversion on bronze layer, all columns as string
+        
+        validate_fields_number_equals_columns_number(csv_path)
+        
         print(f"Loaded {len(df)} rows")
         return df
 
@@ -119,8 +133,9 @@ def validate_csv_schema(df: pd.DataFrame, db_table_schema_df: pd.DataFrame):
     for col_name, max_length in max_sizes_df.items():
         csv_max_length = df[col_name].str.len().max()
         if csv_max_length > max_length: 
-           raise ValueError(f"Column '{col_name}' in CSV has a value that exceeds max length of {max_length} defined in target table schema. Max length in CSV is {csv_max_length}.")
-   
+           raise ValueError(f"Column '{col_name}' in CSV has a value that exceeds max length of {max_length} defined in target table schema. Max length in CSV is {csv_max_length}.")           
+
+
 def validate_csv_empty(df: pd.DataFrame):
     if len(df) == 0:
         raise pd.errors.EmptyDataError("CSV has columns names, but has no rows") #columns are present, but no rows of data

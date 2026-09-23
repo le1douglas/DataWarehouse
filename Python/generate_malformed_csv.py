@@ -208,7 +208,7 @@ def main():
 
     generate_unquoted_version(
     write_csv("quotes",
-                notes="this text contains \"escaped quotes\"",
+                notes="this text contains \"escaped quotes",
                 add_quotes= True)
     )
 

@@ -18,16 +18,17 @@ MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
 
 #text fields sorrounded by text delimiter "". All of these should be valid
-class TestReadCsvFile_FieldQuoted(unittest.TestCase):
+#text fields not sorrounded by text delimiter. Fails only when texts include field delimiters or new lines
+class TestReadCsvFile_Fields(unittest.TestCase):
 
-    # (file name, expected value of the "notes" column); every file is otherwise identical to df_valid_csv
+    # (file name, expected value of the "notes" column, expected exception when the same value is present without quotes around it); every file is otherwise identical to df_valid_csv
     TEST_CASES = [
-    ("esoteric-unicodes.csv", "this text contains esoteric unicodes: 🚀 Café naïve. مرحبا العالم! 你好世界 — "),
-    ("newline.csv",           "this text contains\n\ra carriage return and newline"),
-    ("punctuation.csv",       "this text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€"),
-    ("quotes.csv",            "this text contains \"escaped quotes\""),
-    ("tab.csv",               "this text contains\ta tab"),
-    ("comma.csv",             "this text contains, a comma")
+    ("esoteric-unicodes.csv", "this text contains esoteric unicodes: 🚀 Café naïve. مرحبا العالم! 你好世界 — ",                      None),
+    ("newline.csv",           "this text contains\n\ra carriage return and newline",                                                  pd.errors.ParserError), #breakes the rows in two, so it fails
+    ("punctuation.csv",       "this text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€",  None),
+    ("quotes.csv",            "this text contains \"escaped quotes",                                                                  None),
+    ("tab.csv",               "this text contains\ta tab",                                                                            None),
+    ("comma.csv",             "this text contains, a comma",                                                                          pd.errors.ParserError) # creates an extra field, so it breakes
     ]
 
 
@@ -58,22 +59,31 @@ class TestReadCsvFile_FieldQuoted(unittest.TestCase):
 
     #loop through every case in TEST_CASES
     def test_notes_special_characters(self):
-        for file_name, expected_notes in self.TEST_CASES:
+        for file_name, expected_notes, expected_exception_when_unquoted in self.TEST_CASES:
+
+            expected_df = self.df_valid_csv.copy()  # don't mutate the shared fixture
+            expected_df["notes"] = expected_notes
+
+            unquoted_file_name = Path(file_name).stem + "-unquoted.csv"
+
             with self.subTest(file=file_name):
                 df = read_csv_file(MALFORMED_CSV_DIR / file_name)
                 self.assertEqual(len(df), 1)  # dataframe has exactly one row
 
-                expected_df = self.df_valid_csv.copy()  # setUp is called once for the whole loop. Don't mutate the shared fixture
-                expected_df["notes"] = expected_notes
+
                 pdt.assert_frame_equal(df, expected_df)
 
-    
+            with self.subTest(file=unquoted_file_name):
+                if expected_exception_when_unquoted is None:
+                    df = read_csv_file(MALFORMED_CSV_DIR / unquoted_file_name)
+                    pdt.assert_frame_equal(df, expected_df)
+                else:
+                    with self.assertRaises(expected_exception_when_unquoted):
+                        read_csv_file(MALFORMED_CSV_DIR / unquoted_file_name)
 
-#text fields not sorrounded by text delimiter. All of of these fail for different reasons.
-#Still useful to put them toghether as the represent real world malformations stemming from forgetting to include " " around fields.
-class TestReadCsvFile_FieldUnquoted(unittest.TestCase):
 
-            #normal, regular, csv file
+#expected is UTF-8
+class TestReadCsvFile_TextEncoding(unittest.TestCase):
     def setUp(self):
         self.df_valid_csv = pd.DataFrame({
                 "date_time": ["2026-01-01T12:00:00.000000"],
@@ -91,68 +101,27 @@ class TestReadCsvFile_FieldUnquoted(unittest.TestCase):
                 "tags":      [pd.NA],
                 }, dtype="str") #type string just like read_csv_file
 
-    def test_valid(self):
+    def test_utf_8(self):
         df = read_csv_file(MALFORMED_CSV_DIR / "valid.csv")
-        self.assertEqual(len(df), 1) #dataframe has exactly one row
+        self.assertEqual(len(df), 1)  # dataframe has exactly one row
         pdt.assert_frame_equal(df, self.df_valid_csv)
 
+    def test_utf_8_bom(self):
+        df = read_csv_file(MALFORMED_CSV_DIR / "UTF-8-bom.csv")
+        self.assertEqual(len(df), 1)  # dataframe has exactly one row
+        pdt.assert_frame_equal(df, self.df_valid_csv)
     
-    #TODO this creates a df with two rows without throwing an exception, find a way to fix.
-    def test_newline_unquoted(self):
-        df = read_csv_file(MALFORMED_CSV_DIR / "newline-unquoted.csv")
-        print(df)
-        #self.df_valid_csv["notes"] = "this text contains\n\ra carriage return and newline"
-        #pdt.assert_frame_equal(df, self.df_valid_csv)
-
-    #TODO should raise test_inconsinstent_column_count
-    def test_comma_unquoted(self):
-        df = read_csv_file(MALFORMED_CSV_DIR / "comma-unquoted.csv")
-        print(df)
-            # self.assertEqual(len(df), 1) #dataframe has exactly one row
-            # self.df_valid_csv["notes"] = "this text contains\ta tab"
-            # pdt.assert_frame_equal(df, self.df_valid_csv)
-
-    def test_esoteric_unicodes_unquoted(self):
-        df = read_csv_file(MALFORMED_CSV_DIR / "esoteric-unicodes-unquoted.csv")
-        self.assertEqual(len(df), 1) #dataframe has exactly one row
-        self.df_valid_csv["notes"] = "this text contains esoteric unicodes: 🚀 Café naïve. مرحبا العالم! 你好世界 — "
-        pdt.assert_frame_equal(df, self.df_valid_csv)
-
-    def test_punctuation_unquoted(self):
-        df = read_csv_file(MALFORMED_CSV_DIR / "punctuation-unquoted.csv")
-        self.assertEqual(len(df), 1) #dataframe has exactly one row
-        self.df_valid_csv["notes"] = "this text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€"
-        pdt.assert_frame_equal(df, self.df_valid_csv)
-
-    def test_quotes_unquoted(self):
-        df = read_csv_file(MALFORMED_CSV_DIR / "quotes-unquoted.csv")
-        self.assertEqual(len(df), 1) #dataframe has exactly one row
-        self.df_valid_csv["notes"] = "this text contains \"escaped quotes\""
-        pdt.assert_frame_equal(df, self.df_valid_csv)
-
-    def test_tab_unquoted(self):
-        df = read_csv_file(MALFORMED_CSV_DIR / "tab-unquoted.csv")
-        self.assertEqual(len(df), 1) #dataframe has exactly one row
-        self.df_valid_csv["notes"] = "this text contains\ta tab"
-        pdt.assert_frame_equal(df, self.df_valid_csv)
-
-    
-
-
-
-
-
-#UTF-8-bom
-#UTF-16
-#valid-ANSI
-
-#expected is UTF-8
-class TestReadCsvFile_TextEncoding(unittest.TestCase):
-
     def test_invalid_utf_8(self):
         with self.assertRaises(UnicodeDecodeError):
             read_csv_file(MALFORMED_CSV_DIR / "invalid-UTF-8.csv")
 
+    def test_utf_16(self):
+        with self.assertRaises(UnicodeDecodeError):
+            read_csv_file(MALFORMED_CSV_DIR / "UTF-16.csv")
+
+    def test_valid_ANSI(self):
+        with self.assertRaises(UnicodeDecodeError):
+            read_csv_file(MALFORMED_CSV_DIR / "valid-ANSI.csv")
 
 #problems stemming from the file itself
 class TestReadCsvFile_FileError(unittest.TestCase):
@@ -216,7 +185,19 @@ class TestReadCsvFile_FileError(unittest.TestCase):
                 read_csv_file(directory_as_csv)
         finally:
             directory_as_csv.rmdir()  
-    
+
+class TestValidateFieldsNumberEqualsColumnNumber(unittest.TestCase):
+
+    def test_extra_value(self):
+        with self.assertRaises(pd.errors.ParserError):
+            read_csv_file(MALFORMED_CSV_DIR / "extra-value.csv")
+
+    #TODO implement
+    def test_missing_value(self):
+        #with self.assertRaises(pd.errors.ParserError):
+            #read_csv_file(MALFORMED_CSV_DIR / "missing-value.csv")
+        pass
+
 class TestValidateCsvEmpty(unittest.TestCase):
     
     def test_no_rows(self):
@@ -248,18 +229,6 @@ class TestValidateCsvSchema (unittest.TestCase):
         ],
     })
 
-    
-    #TODO when provided with CSV with more values than columns, it will truncate the extra values silently. Need to find a way to throw an exception.
-    def test_extra_value(self):
-        #with self.assertRaises(pd.errors.ParserError):
-        #read_csv_file(MALFORMED_CSV_DIR / "extra-value.csv")
-        pass
-
-    #TODO implement when provided with CSV with less values than columns (not empty, straight up missing)
-    def test_missing_value(self):
-        #with self.assertRaises(pd.errors.ParserError):
-        #read_csv_file(MALFORMED_CSV_DIR / "missing-value.csv")
-        pass
 
     
     def test_columns_valid(self):
@@ -290,10 +259,8 @@ class TestValidateCsvSchema (unittest.TestCase):
         csv_df = read_csv_file(MALFORMED_CSV_DIR / "long-string.csv")
                 
         with self.assertRaises(ValueError):
-            validate_csv_schema(csv_df, self.db_table_schema_df)
+            validate_csv_schema(csv_df, self.db_table_schema_df)            
 
-               
-                
 class TestValidateDbTableIsNvarchar(unittest.TestCase):
 
     def setUp(self):
