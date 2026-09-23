@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 JOURNAL_ENTRIES_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "journal-entries.csv"
 JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv"/ "malformed_csv" / "journal-entries-text-without-quotes.csv"
 
-# --- Database connection (fill in as you set this up) ---
+# --- Database connection ---
 DB_SERVER = "localhost"
 DB_NAME = "DataWarehouse"
 DB_SCHEMA_BRONZE = "bronze"

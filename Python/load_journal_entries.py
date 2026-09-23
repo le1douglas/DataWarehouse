@@ -32,7 +32,7 @@ def validate_db_table_is_nvarchar(db_table_schema_df: pd.DataFrame):
     
 
 def read_csv_file(csv_path: Path) -> pd.DataFrame:
-    print(f"Loading CSV file: {csv_path}")
+    #print(f"Loading CSV file: {csv_path}")
 
     #check that the file has a .csv extension, case insensitive
     if csv_path.suffix.lower() != ".csv":
@@ -40,8 +40,14 @@ def read_csv_file(csv_path: Path) -> pd.DataFrame:
 
     try:
         #TODO when provided with CSV with more values than columns, it will truncate the extra values silently. Need to find a way to throw an exception.
-        df = pd.read_csv(csv_path, dtype=str, delimiter=',', on_bad_lines='error', index_col=False)  # no implicit type conversion on bronze layer, all columns as string
-        print(df)
+        df = pd.read_csv(csv_path, 
+                         dtype=str, 
+                         delimiter=',', 
+                         quotechar="\"", #text delimiter
+                         on_bad_lines='error',
+                         keep_default_na=False,#TODO study this #Pandas treats strings like NA, null and N/A as missing by default 
+                         na_values=[""],#TODO study this
+                         index_col=False)  # no implicit type conversion on bronze layer, all columns as string
         print(f"Loaded {len(df)} rows")
         return df
 
@@ -71,6 +77,15 @@ def get_table_schema(engine, schema: str, table: str, include_debug_columns: boo
         with engine.connect() as conn:
             result = conn.execute(query, {"schema": schema, "table": table})
             schema_df = pd.DataFrame(result.fetchall(), columns=result.keys())
+            # Cast explicitly: pandas infers the type of CHARACTER_MAXIMUM_LENGTH from the data, so it
+            # changes depending on which table is queried:
+            #   - only integers (all nvarchar columns)  -> int64
+            #   - integers mixed with NULLs             -> float64 (-1 becomes -1.0)
+            #   - only NULLs (no character columns)     -> object
+            # Downstream code compares this column to numbers, so the type has to be the same every time.
+            # "Int64" (capital I) is pandas' nullable integer type: it keeps the values as real integers
+            # and stores SQL NULL (non-character columns such as datetime2) as pd.NA, which plain int64 can't.
+            schema_df = schema_df.astype({"CHARACTER_MAXIMUM_LENGTH": "Int64"})
 
             if not include_debug_columns:
                 #exclude columns that start with an underscore
@@ -83,7 +98,9 @@ def get_table_schema(engine, schema: str, table: str, include_debug_columns: boo
         raise
 
 
-def validate_csv_schema(df: pd.DataFrame, db_table_schema_df: pd.DataFrame): 
+def validate_csv_schema(df: pd.DataFrame, db_table_schema_df: pd.DataFrame):
+
+    #check the columns
     expected_columns = set( db_table_schema_df["COLUMN_NAME"])
     actual_columns = set(df.columns)
 
@@ -95,27 +112,18 @@ def validate_csv_schema(df: pd.DataFrame, db_table_schema_df: pd.DataFrame):
     if len(extra) > 0:
         raise ValueError(f"CSV has unexpected extra columns: {extra}")
 
-def validate_csv_empty(df: pd.DataFrame):
-    if len(df) == 0:
-        raise pd.errors.EmptyDataError("CSV has columns names, but has no rows") #columns are present, but no rows of data
-
-
-#validate that the string values in the CSV do not exceed the max length defined in the database schema for each column
-#call this after validate_csv_schema() to ensure that the CSV has the correct columns before checking their lengths
-def validate_csv_string_size(df: pd.DataFrame, db_table_schema_df : pd.DataFrame):
-    
+    #check if any of the columns in the CSV contrains a string that exceeds the max length defined in the schema
     max_sizes_df = db_table_schema_df.set_index("COLUMN_NAME")["CHARACTER_MAXIMUM_LENGTH"]
     max_sizes_df = max_sizes_df[max_sizes_df != -1] # nvarchar(MAX) has a max length of -1 in the schema, no need to check length for these columns
 
-    for col in max_sizes_df.index:
-        if col not in df.columns:
-            raise ValueError(f" Column '{col}' is not in target table schema. Call validate_csv_schema() first to check for missing/extra columns.")
-
-    #check if any of the columns in the CSV exceed the max length defined in the schema
     for col_name, max_length in max_sizes_df.items():
         csv_max_length = df[col_name].str.len().max()
         if csv_max_length > max_length: 
-            raise ValueError(f"Column '{col_name}' in CSV has a value that exceeds max length of {max_length} defined in target table schema. Max length in CSV is {csv_max_length}.")
+           raise ValueError(f"Column '{col_name}' in CSV has a value that exceeds max length of {max_length} defined in target table schema. Max length in CSV is {csv_max_length}.")
+   
+def validate_csv_empty(df: pd.DataFrame):
+    if len(df) == 0:
+        raise pd.errors.EmptyDataError("CSV has columns names, but has no rows") #columns are present, but no rows of data
 
 
 #make initial validation checks on the CSV file before loading it into the database
@@ -123,7 +131,6 @@ def validate_csv(csv_df: pd.DataFrame,  db_table_schema_df: pd.DataFrame) -> boo
     try :
         validate_csv_empty(csv_df)
         validate_csv_schema(csv_df, db_table_schema_df)
-        validate_csv_string_size(csv_df,  db_table_schema_df)
         return True
 
     except pd.errors.EmptyDataError as e:

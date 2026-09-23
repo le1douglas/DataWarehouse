@@ -131,8 +131,8 @@ def generate_unquoted_version(path: Path, column_name: str = "notes") -> Path | 
 
 
 def main():
+    # --- NORMAL VALID CSV ---
 
-    # -- STANDARD CSV ---
     write_csv("valid")
     
     
@@ -148,8 +148,10 @@ def main():
               include_row=False)
 
     # row has more values than the header has columns
-    write_csv("inconsinstent-column-count",
+    write_csv("extra-value",
               extra_values=("EXTRA", "EXTRA2", "EXTRA3", "EXTRA4"))
+
+    #TODO write "missing-value"
 
     # 15: not a .csv file, but valid CVS structure
     write_csv("wrong-extension", 
@@ -214,13 +216,13 @@ def main():
     generate_unquoted_version(
     write_csv(
         "tab",
-        notes="This text contains\ta tab",
+        notes="this text contains\ta tab",
         add_quotes=True)
     )
 
     generate_unquoted_version(
     write_csv("punctuation",
-                notes="This text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€",
+                notes="this text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€",
                 add_quotes= True)
     )    
 
