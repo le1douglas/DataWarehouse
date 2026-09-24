@@ -25,7 +25,6 @@ def connect_to_db(engine, db_server: str, db_name: str):
         print(f"Unable to connect to the database, check config.py: {e}")
         raise #failing to connect to the database is a fatal error, so we re-raise the exception to stop execution
 
-#TODO Decide if checking also if CHARACTER_MAXIMUM_LENGTH is a number (or null)
 def validate_db_table_is_nvarchar(db_table_schema_df: pd.DataFrame):
     if not (db_table_schema_df["DATA_TYPE"] == "nvarchar").all():  # all columns must be nvarchar
             raise ValueError(f"All columns in the database table must be of type nvarchar (with the exception of debug columns that start with an underscore)")
@@ -50,7 +49,6 @@ def read_csv_file(csv_path: Path) -> pd.DataFrame:
         raise ValueError(f"Expected a CSV file, got: {csv_path.suffix}")
 
     try:
-        #TODO when provided with CSV with more values than columns, it will truncate the extra values silently. Need to find a way to throw an exception.
         df = pd.read_csv(csv_path, 
                          dtype=str, 
                          delimiter=',', 

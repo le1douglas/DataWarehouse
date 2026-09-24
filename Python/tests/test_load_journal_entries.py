@@ -192,11 +192,9 @@ class TestValidateFieldsNumberEqualsColumnNumber(unittest.TestCase):
         with self.assertRaises(pd.errors.ParserError):
             read_csv_file(MALFORMED_CSV_DIR / "extra-value.csv")
 
-    #TODO implement
     def test_missing_value(self):
-        #with self.assertRaises(pd.errors.ParserError):
-            #read_csv_file(MALFORMED_CSV_DIR / "missing-value.csv")
-        pass
+        with self.assertRaises(pd.errors.ParserError):
+            read_csv_file(MALFORMED_CSV_DIR / "missing-value.csv")
 
 class TestValidateCsvEmpty(unittest.TestCase):
     
