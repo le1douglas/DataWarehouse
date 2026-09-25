@@ -16,6 +16,7 @@ from load_journal_entries import read_csv_file, validate_csv_empty, validate_db_
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
+#TODO check that validate_csv returns false, rather then testing for a specific exception
 
 #text fields sorrounded by text delimiter "". All of these should be valid
 #text fields not sorrounded by text delimiter. Fails only when texts include field delimiters or new lines
@@ -25,7 +26,7 @@ class TestReadCsvFile_Fields(unittest.TestCase):
     TEST_CASES = [
     ("esoteric-unicodes.csv", "this text contains esoteric unicodes: 🚀 Café naïve. مرحبا العالم! 你好世界 — ",                      None),
     ("newline.csv",           "this text contains\n\ra carriage return and newline",                                                  pd.errors.ParserError), #breakes the rows in two, so it fails
-    ("punctuation.csv",       "this text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€",  None),
+    ("punctuation.csv",       "this text contains common punctuation except comma quotes and tab \\;!@#$%^&*()_+-=[]\\{\\}|;'^:./<>?€",  None),
     ("quotes.csv",            "this text contains \"escaped quotes",                                                                  None),
     ("tab.csv",               "this text contains\ta tab",                                                                            None),
     ("comma.csv",             "this text contains, a comma",                                                                          pd.errors.ParserError) # creates an extra field, so it breakes

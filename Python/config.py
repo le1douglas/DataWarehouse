@@ -12,8 +12,3 @@ DB_SERVER = "localhost"
 DB_NAME = "DataWarehouse"
 DB_SCHEMA_BRONZE = "bronze"
 TBL_JOURNAL_ENTRIES = "journal_entries"
-
-ENGINE_STRING =  (f"mssql+pyodbc://{DB_SERVER}/{DB_NAME}"
-"?driver=ODBC+Driver+18+for+SQL+Server"
-"&trusted_connection=yes"
-"&TrustServerCertificate=yes")

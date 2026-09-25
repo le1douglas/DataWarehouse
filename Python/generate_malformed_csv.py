@@ -148,30 +148,30 @@ def main():
     encode_and_save("wrong-extension", valid_header, valid_row, file_extension="txt")
 
 
-    # # --- ENCODING ERRORS ---
+    # --- ENCODING ERRORS ---
     my_dict= generate_dict(notes="\udcff\udcfe bad bytes")
     encode_and_save("invalid-UTF-8", getHeader(my_dict), getRow(my_dict), errors= "surrogateescape" , encoding= "utf-8")
 
-    # # UTF-8 with BOM (Excel "CSV UTF-8"): first column name becomes '\ufeffdate_time'
+    # UTF-8 with BOM (Excel "CSV UTF-8"): first column name becomes '\ufeffdate_time'
     encode_and_save("UTF-8-bom", valid_header, valid_row, encoding= "utf-8-sig")
 
-    # # valid UTF-16: invalid start byte for a UTF-8 reader
+    # valid UTF-16: invalid start byte for a UTF-8 reader
     encode_and_save("UTF-16", valid_header, valid_row, encoding= "utf-16")
 
 
-    # # valid ANSI (cp1252) but invalid UTF-8: the euro sign is the single byte [0x80] in cp1252, but [e2 82 ac] in UTF-8
+    # valid ANSI (cp1252) but invalid UTF-8: the euro sign is the single byte [0x80] in cp1252, but [e2 82 ac] in UTF-8
     my_dict = generate_dict(notes="valid € ansi")
     encode_and_save("valid-ANSI", getHeader(my_dict), getRow(my_dict), encoding="cp1252")
 
 
     # # --- SCHEMA ERRORS ---
 
-    # # missing column (tags) compared to the DB table
+    # missing column (tags) compared to the DB table
     my_dict = generate_dict(date_time=None)
     encode_and_save("missing-column", getHeader(my_dict), getRow(my_dict))
 
     
-    # # extra column compared to the DB table
+    # extra column compared to the DB table
     my_header = valid_header.copy()
     my_header.append("extra_col")
     my_row = valid_row.copy()
@@ -180,16 +180,14 @@ def main():
 
 
 
-    # # extra column compared to the DB table, whose name starts with an underscore (looks like a debug column)
+    # extra column compared to the DB table, whose name starts with an underscore (looks like a debug column)
     my_header = valid_header.copy()
     my_header.append("_extra_col")
     my_row = valid_row.copy()
     my_row.append("extra_col_value")
     encode_and_save("extra-column-underscore", my_header, my_row)
 
-    # # notes one character longer than NVARCHAR(...)
-    # write_csv("long-string",
-    #           notes=LOREM[: NOTES_MAX_LENGTH + 1])
+    # notes one character longer than NVARCHAR(...)
     my_dict = generate_dict(notes=LOREM[: NOTES_MAX_LENGTH + 1])
     encode_and_save("long-string", getHeader(my_dict), getRow(my_dict))
 
@@ -199,7 +197,7 @@ def main():
                     "comma": "this text contains, a comma",
                     "quotes":"this text contains \"escaped quotes",
                     "tab":"this text contains\ta tab",
-                    "punctuation":"this text contains common punctuation except comma quotes and tab \;!@#$%^&*()_+-=[]\{\}|;'^:./<>?€",
+                    "punctuation":"this text contains common punctuation except comma quotes and tab \\;!@#$%^&*()_+-=[]\\{\\}|;'^:./<>?€",
                     "newline":"this text contains\n\ra carriage return and newline",
                     "esoteric-unicodes":"this text contains esoteric unicodes: 🚀 Café naïve. مرحبا العالم! 你好世界 — "
                     }
