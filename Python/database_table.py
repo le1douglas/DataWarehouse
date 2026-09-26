@@ -44,8 +44,5 @@ class DatabaseTable:
      
     
      def _validate_table_is_nvarchar(self):
-          print("_______________")
-          print(self.schema)
-          print("_______________")
           if not (self.schema["DATA_TYPE"] == "nvarchar").all():  # all columns must be nvarchar
                raise ValueError(f"All columns of table \"{self.name}\" in layer \"{self.layer}\" must be of type nvarchar (with the exception of debug columns that start with an underscore)")
