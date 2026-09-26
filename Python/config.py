@@ -10,5 +10,7 @@ JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv"/ "mal
 # --- Database connection ---
 DB_SERVER = "localhost"
 DB_NAME = "DataWarehouse"
-DB_SCHEMA_BRONZE = "bronze"
+DB_SCHEMA_BRONZE = "Bronze"
+DB_SCHEMA_SILVER = "Silver"
+DB_SCHEMA_GOLD = "Gold"
 TBL_JOURNAL_ENTRIES = "journal_entries"

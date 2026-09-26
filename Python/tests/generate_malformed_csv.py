@@ -4,9 +4,7 @@ import csv
 import io
 from pathlib import Path
 
-from config import BASE_DIR
-
-OUTPUT_DIR = BASE_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent.parent / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
 # Column order of Bronze.journal_entries (without the _load_date_time/_source_file debug columns)
 COLUMNS = ["date_time", "subject", "notes", "type", "ec", "ec_pore", "ec_bulk",

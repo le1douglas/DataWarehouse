@@ -9,7 +9,7 @@ class CSVReader:
 
 
     def read(self, csv_path: Path) -> pd.DataFrame:
-        #print(f"Loading CSV file: {csv_path}")
+        print(f"Loading CSV file: {csv_path}")
 
         #check that the file has a .csv extension, case insensitive
         if csv_path.suffix.lower() != ".csv":
@@ -40,12 +40,12 @@ class CSVReader:
             print(f"Error parsing CSV file; check that the file is a valid CSV and is encoded as UTF-8: {e}")
             raise
         except Exception as e:
-            print(f"An unexpected error occurred while reading the CSV file: {e}")
+            print(f"An unexpected error occurred while reading the CSV file:\n\r {e}")
             raise
 
 
     # check if the number of fields in every row matches the column counts
-    # only validation made at this level, because it's necessary for creating a valid dataframe
+    # only validation made at this level, because it's necessary for creating a valid dataframe. Is considered a parsing error
     # TODO find a way to do it in panda
     def _validate_fields_number_equals_columns_number(self, csv_path: Path):
             with csv_path.open(newline="", encoding="utf-8") as f:
