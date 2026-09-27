@@ -15,13 +15,13 @@ sys.path.insert(0, str(ROOT_DIR / "Python"))
 
 
 from config import DB_SCHEMA_BRONZE
-from database_table import DatabaseTable
 from Python.reader_csv import CSVReader
 from bronze_record_set import BronzeRecordSet
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
 #TODO check that validate_csv returns false, rather then testing for a specific exception
+#TODO move to pytest
 
 #text fields sorrounded by text delimiter "": All should be valid
 #text fields not sorrounded by text delimiter: Fails only when texts include field delimiters or new lines

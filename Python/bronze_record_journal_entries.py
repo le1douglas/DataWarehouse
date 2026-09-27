@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from bronze_record import BronzeRecord
 
@@ -40,15 +40,6 @@ class BronzeRecordJournalEntries(BronzeRecord):
     media:     Optional[str] = Field(max_length=50)
     tags:      Optional[str] = Field(max_length=50)
 
-    meta_extract_date_time: datetime                     # required, non-null
-    meta_source:            str = Field(max_length=400)  # required, non-null
 
 
-    #Transorm empty strings to None across every field, before field-level
-    #validation runs. Anything else (including "N/A") passes through untouched
-    @model_validator(mode="before")
-    @classmethod
-    def _empty_string_to_null(cls, data: dict) -> dict:
-        if isinstance(data, dict):
-            return {k: (None if v == "" else v) for k, v in data.items()}
-        return data
+  
