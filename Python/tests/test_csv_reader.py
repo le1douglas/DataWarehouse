@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT_DIR / "Python"))
 
 from config import DB_SCHEMA_BRONZE
 from database_table import DatabaseTable
-from csv_reader import CSVReader
+from Python.reader_csv import CSVReader
 from bronze_record_set import BronzeRecordSet
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
@@ -25,7 +25,7 @@ MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
 #text fields sorrounded by text delimiter "": All should be valid
 #text fields not sorrounded by text delimiter: Fails only when texts include field delimiters or new lines
-class TestReadCsvFile_Fields(unittest.TestCase):
+class TestCSVReader_Read_Fields(unittest.TestCase):
 
     # (file name, expected value of the "notes" column, expected exception when the same value is present without quotes around it); every file is otherwise identical to df_valid_csv
     TEST_CASES = [
@@ -89,7 +89,7 @@ class TestReadCsvFile_Fields(unittest.TestCase):
 
 
 #expected is UTF-8
-class TestReadCsvFile_TextEncoding(unittest.TestCase):
+class TestCSVReader_Read_TextEncoding(unittest.TestCase):
     def setUp(self):
         self.df_valid_csv = pd.DataFrame({
                 "date_time": ["2026-01-01T12:00:00.000000"],
@@ -130,13 +130,12 @@ class TestReadCsvFile_TextEncoding(unittest.TestCase):
             CSVReader().read(MALFORMED_CSV_DIR / "valid-ANSI.csv")
 
 #problems stemming from the file itself
-class TestReadCsvFile_FileError(unittest.TestCase):
-
+class TestCSVReader_Read_FileError(unittest.TestCase):
+    
         
     def test_wrong_extension(self):
             with self.assertRaises(ValueError):
                 CSVReader().read(MALFORMED_CSV_DIR / "wrong-extension.txt")
-        
 
 
     def test_file_not_found(self):
@@ -192,7 +191,7 @@ class TestReadCsvFile_FileError(unittest.TestCase):
         finally:
             directory_as_csv.rmdir()  
 
-class TestValidateFieldsNumberEqualsColumnNumber(unittest.TestCase):
+class TestCSVReader_ValidateFieldsNumberEqualsColumnNumber(unittest.TestCase):
 
     def test_extra_value(self):
         with self.assertRaises(pd.errors.ParserError):
@@ -202,83 +201,7 @@ class TestValidateFieldsNumberEqualsColumnNumber(unittest.TestCase):
         with self.assertRaises(pd.errors.ParserError):
             CSVReader().read(MALFORMED_CSV_DIR / "missing-value.csv")
 
-class TestValidateBronzeRecordSet(unittest.TestCase):
-    def setUp(self):
-        self.db_table = DatabaseTable(
-            DB_SCHEMA_BRONZE, 
-            "db_table_name",
-            pd.DataFrame({
-                "COLUMN_NAME": [
-                        "date_time", "subject", "notes", "type", "ec",
-                        "ec_pore", "ec_bulk", "ph", "mc", "temp",
-                        "device", "media", "tags", "_extract_date_time", "_source"
-                    ],
-                "DATA_TYPE": [
-                        "nvarchar", "nvarchar", "nvarchar", "nvarchar", "nvarchar",
-                        "nvarchar", "nvarchar", "nvarchar", "nvarchar", "nvarchar",
-                        "nvarchar", "nvarchar", "nvarchar", "datetime2", "nvarchar"
-                    ],
-                "CHARACTER_MAXIMUM_LENGTH": [
-                        50, 50, 400, 50, 50, 50, 50,
-                            50, 50, 50, 50, 50, 50, pd.NA, 400 #TODO Check if datetime2 returns null
-                    ],
-                })
-        )
 
-    #helper to create a recordset from path
-    def createRecordSet(self, path: Path) -> BronzeRecordSet:
-            df = CSVReader().read(path)
-            return BronzeRecordSet(df, str(path))
-    
-
-
-    # ----- _validate_columns_names_and_number ----
-    def test_columns_valid(self):
-        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "valid.csv")
-        record_set._validate_columns_names_and_number(self.db_table) #should not fail
-    
-    def test_column_missing(self):
-        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "missing-column.csv")
-        with self.assertRaises(ValueError):
-            record_set._validate_columns_names_and_number(self.db_table)
-
-    def test_column_extra(self):
-        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "extra-column.csv")
-        with self.assertRaises(ValueError):
-            record_set._validate_columns_names_and_number(self.db_table)
-
-    #debug columns start with underscore. Adding this test just in case we decide to handle them differently in the future
-    def test_column_extra_with_underscore(self):
-        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "extra-column-underscore.csv")
-        with self.assertRaises(ValueError):
-            record_set._validate_columns_names_and_number(self.db_table)
-
-    # -------  _validate_is_not_empty ------ 
-    def test_one_row(self):
-        record_set = self.createRecordSet( MALFORMED_CSV_DIR / "valid.csv")
-        record_set._validate_is_not_empty() #should not raise
-
-
-    def test_no_rows(self):
-        record_set = self.createRecordSet( MALFORMED_CSV_DIR / "empty-no-rows.csv")
-        with self.assertRaises(pd.errors.EmptyDataError):
-            record_set._validate_is_not_empty()
-    
-    # -------  __validate_max_string_lenght ------ 
-    def test_one_row(self):
-        record_set = self.createRecordSet( MALFORMED_CSV_DIR / "valid.csv")
-        record_set._validate_max_string_lenght(self.db_table) #should not raise
-
-
-
-    def test_string_too_long(self):
-        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "long-string.csv")
-        with self.assertRaises(ValueError):
-            record_set._validate_max_string_lenght(self.db_table)
-   
-
-
-class TestValidateDbTableIsNvarchar(unittest.TestCase):
 
     def setUp(self):
          self.db_table = DatabaseTable(

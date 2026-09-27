@@ -8,24 +8,27 @@ class CSVReader:
         pass
 
 
-    def read(self, csv_path: Path) -> pd.DataFrame:
-        print(f"Loading CSV file: {csv_path}")
+    def read(self, source: Path) -> pd.DataFrame:
+        print(f"Loading CSV file: {source}")
 
         #check that the file has a .csv extension, case insensitive
-        if csv_path.suffix.lower() != ".csv":
-            raise ValueError(f"Expected a CSV file, got: {csv_path.suffix}")
+        if source.suffix.lower() != ".csv":
+            raise ValueError(f"Expected a CSV file, got: {source.suffix}")
 
         try:
-            df = pd.read_csv(csv_path, 
-                            dtype=str, 
-                            delimiter=',', 
-                            quotechar="\"", #text delimiter
-                            on_bad_lines='error',
-                            keep_default_na=False,#TODO study this #Pandas treats strings like NA, null and N/A as missing by default 
-                            na_values=[""],#TODO study this
-                            index_col=False)  # no implicit type conversion on bronze layer, all columns as string
+            df = pd.read_csv(source, 
+                dtype=object,   # every cell is a plain Python object, no assuptions about the type.
+                delimiter=',', 
+                quotechar="\"",
+                on_bad_lines='error', #as soon as you encounter a problem, throw an exception
+                keep_default_na=False, #dont assume "N/A", "n/a", "null" etc are null values. 
+                na_values=[""], # instead only assume "" is null
+                index_col=False) #no extra colmns with panda's index
+
+            #change pd.notna into None
+            df = df.where(pd.notna(df), None)
             
-            self._validate_fields_number_equals_columns_number(csv_path)
+            self._validate_fields_number_equals_columns_number(source)
             
             print(f"Loaded {len(df)} rows")
             return df

@@ -5,8 +5,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- File paths ---
 JOURNAL_ENTRIES_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "journal-entries.csv"
-JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv"/ "malformed_csv" / "journal-entries-text-without-quotes.csv"
+JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv"/ "malformed_csv" / "valid.csv"
 
+#TODO change to more defined key: value definitions
 # --- Database connection ---
 DB_SERVER = "localhost"
 DB_NAME = "DataWarehouse"

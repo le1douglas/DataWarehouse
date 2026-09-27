@@ -1,0 +1,146 @@
+
+import unittest
+import sys
+
+from pathlib import Path
+
+import pandas as pd
+import pandas.testing as pdt
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Make Python/ importable without turning this into a package.
+sys.path.insert(0, str(ROOT_DIR / "Python"))
+
+
+from config import DB_SCHEMA_BRONZE
+from database_table import DatabaseTable
+from csv_reader import CSVReader
+from bronze_record_set import BronzeRecordSet
+
+MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
+
+#TODO check that validate_csv returns false, rather then testing for a specific exception
+
+class TestBronzeRecordSet_Validate(unittest.TestCase):
+    def setUp(self):
+        self.db_table = DatabaseTable(
+            DB_SCHEMA_BRONZE, 
+            "db_table_name",
+            pd.DataFrame({
+                "COLUMN_NAME": [
+                        "date_time", "subject", "notes", "type", "ec",
+                        "ec_pore", "ec_bulk", "ph", "mc", "temp",
+                        "device", "media", "tags", "_extract_date_time", "_source"
+                    ],
+                "DATA_TYPE": [
+                        "nvarchar", "nvarchar", "nvarchar", "nvarchar", "nvarchar",
+                        "nvarchar", "nvarchar", "nvarchar", "nvarchar", "nvarchar",
+                        "nvarchar", "nvarchar", "nvarchar", "datetime2", "nvarchar"
+                    ],
+                "CHARACTER_MAXIMUM_LENGTH": [
+                        50, 50, 400, 50, 50, 50, 50,
+                            50, 50, 50, 50, 50, 50, pd.NA, 400 #TODO Check if datetime2, CHARACTER_MAXIMUM_LENGTH  is actually null
+                    ],
+                })
+        )
+
+    #helper to create a recordset from path
+    def createRecordSet(self, path: Path) -> BronzeRecordSet:
+            df = CSVReader().read(path)
+            return BronzeRecordSet(df, str(path))
+    
+
+
+    # ----- _validate_columns_names_and_number ----
+    def test_columns_valid(self):
+        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "valid.csv")
+        record_set._validate_columns_names_and_number(self.db_table) #should not fail
+    
+    def test_column_missing(self):
+        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "missing-column.csv")
+        with self.assertRaises(ValueError):
+            record_set._validate_columns_names_and_number(self.db_table)
+
+    def test_column_extra(self):
+        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "extra-column.csv")
+        with self.assertRaises(ValueError):
+            record_set._validate_columns_names_and_number(self.db_table)
+
+    #debug columns start with underscore. Adding this test just in case we decide to handle them differently in the future
+    def test_column_extra_with_underscore(self):
+        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "extra-column-underscore.csv")
+        with self.assertRaises(ValueError):
+            record_set._validate_columns_names_and_number(self.db_table)
+
+    # -------  _validate_is_not_empty ------ 
+    def test_one_row(self):
+        record_set = self.createRecordSet( MALFORMED_CSV_DIR / "valid.csv")
+        record_set._validate_is_not_empty() #should not raise
+
+
+    def test_no_rows(self):
+        record_set = self.createRecordSet( MALFORMED_CSV_DIR / "empty-no-rows.csv")
+        with self.assertRaises(pd.errors.EmptyDataError):
+            record_set._validate_is_not_empty()
+    
+    # -------  __validate_max_string_lenght ------ 
+    def test_one_row(self):
+        record_set = self.createRecordSet( MALFORMED_CSV_DIR / "valid.csv")
+        record_set._validate_max_string_lenght(self.db_table) #should not raise
+
+
+
+    def test_string_too_long(self):
+        record_set = self.createRecordSet(MALFORMED_CSV_DIR / "long-string.csv")
+        with self.assertRaises(ValueError):
+            record_set._validate_max_string_lenght(self.db_table)
+   
+class TestValidateDbTableIsNvarchar(unittest.TestCase):
+
+    def setUp(self):
+         self.db_table = DatabaseTable(
+                    DB_SCHEMA_BRONZE, 
+                    "db_table_name",
+                    pd.DataFrame({
+                        "COLUMN_NAME": [
+                                "date_time", "subject", "notes", "type", "ec",
+                                "ec_pore", "ec_bulk", "ph", "mc", "temp",
+                                "device", "media", "tags"
+                            ],
+                        "DATA_TYPE": [
+                                "nvarchar", "nvarchar", "nvarchar", "nvarchar", "nvarchar",
+                                "nvarchar", "nvarchar", "nvarchar", "nvarchar", "nvarchar",
+                                "nvarchar", "nvarchar", "nvarchar"
+                            ],
+                        "CHARACTER_MAXIMUM_LENGTH": [
+                                100, 100, 100, 100, 100, 100, 100,
+                                    100, 100, 100, 100, 100, 100
+                            ],
+                        })
+                )
+    
+    def test_table_is_nvarchar_all(self):
+        self.db_table._validate_table_is_nvarchar() #should not raise
+    
+    def test_table_is_nvarchar_partial(self):
+        #change the 2nd and 3rd row to datetime
+
+        self.db_table.schema_with_debug_columns.loc[1:2, "DATA_TYPE"] = "datetime2"
+        self.db_table.schema_with_debug_columns.loc[1:2, "CHARACTER_MAXIMUM_LENGTH"] = pd.NA
+        
+        with self.assertRaises(ValueError):
+            self.db_table._validate_table_is_nvarchar()
+
+    def test_table_is_nvarchar_none(self):
+        #change the 1st, 2nd and 3rd row to datetime
+        self.db_table.schema_with_debug_columns.loc[0:2, "DATA_TYPE"] = "datetime2"
+        self.db_table.schema_with_debug_columns.loc[0:2, "CHARACTER_MAXIMUM_LENGTH"] = pd.NA
+                
+        with self.assertRaises(ValueError):
+           self.db_table._validate_table_is_nvarchar()
+
+
+if __name__ == "__main__":
+    unittest.main()

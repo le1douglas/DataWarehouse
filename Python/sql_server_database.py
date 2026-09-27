@@ -6,8 +6,9 @@ from pathlib import Path
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError, ProgrammingError, DataError, IntegrityError
 
-from Python.bronze_record_set import BronzeRecordSet
-from database_table import DatabaseTable
+from bronze_record_set import BronzeRecordSet
+
+from config import DB_SCHEMA_BRONZE
 
 
 class SQLServerDatabase:
@@ -22,8 +23,6 @@ class SQLServerDatabase:
                                 "&TrustServerCertificate=yes")
         self.engine: Engine = create_engine(connection_string)
 
-        self.tablesList = self._getTablesList()
-
     # Adds a database connection to the pool.
     def connect(self):
         print(f"Connecting to database \"{self.name}\" on server \"{self.server}\"...")
@@ -37,63 +36,42 @@ class SQLServerDatabase:
             print(f"Uknown exception occured while connecting to \"{self.server}\":\n\r {e}")
             raise
 
-
-    def _getTablesList(self) -> list[DatabaseTable]:
+    def table_exists(self, layer: str, table_name: str) -> bool:
         query = text("""
-                    SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
-                    FROM INFORMATION_SCHEMA.COLUMNS
-                """)
+            SELECT 1
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = :layer AND TABLE_NAME = :table_name
+        """)
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query)
-                combined_schema_df = pd.DataFrame(result.fetchall(), columns=result.keys())
-                # Cast explicitly: pandas infers the type of CHARACTER_MAXIMUM_LENGTH from the data, so it
-                # changes depending on which table is queried:
-                #   - only integers (all nvarchar columns)  -> int64
-                #   - integers mixed with NULLs             -> float64 (-1 becomes -1.0)
-                #   - only NULLs (no character columns)     -> object
-                # Downstream code compares this column to numbers, so the type has to be the same every time.
-                # "Int64" (capital I) is pandas' nullable integer type: it keeps the values as real integers
-                # and stores SQL NULL (non-character columns such as datetime2) as pd.NA, which plain int64 can't.
-                combined_schema_df = combined_schema_df.astype({"CHARACTER_MAXIMUM_LENGTH": "Int64"})
-
-
-                grouped = combined_schema_df.groupby(["TABLE_SCHEMA", "TABLE_NAME"])
-
-                tables = []
-                for (layer_val, name_val), group in grouped:
-
-                    schema = group[["COLUMN_NAME", "DATA_TYPE", "CHARACTER_MAXIMUM_LENGTH"]]
-                    schema = schema.reset_index(drop=True)
-
-                    table = DatabaseTable(layer=layer_val, name=name_val, schema=schema)
-                    tables.append(table)
-
-
-
-                return tables
+                result = conn.execute(query, {"layer": layer, "table_name": table_name})
+                return result.first() is not None
         except Exception as e:
-            print(f"An error occurred while retrieving the table schema:\n\r {e}")
+            print(f"An error occurred while checking if table \"{layer}.{table_name}\" exists:\n\r {e}")
             raise
-    
 
-    def load_to_bronze(self, table: DatabaseTable, record_set: BronzeRecordSet):
+    def load_to_bronze(self, table_name: str, record_set: BronzeRecordSet):
 
-        if not table.isBronze():
-            raise ValueError(f"Table \"{table.name}\" must be bronze layer")
+        layer = DB_SCHEMA_BRONZE
+
+        #todo add check if table exists in database at layer bronze
+        if not self.table_exists(layer, table_name):
+            raise ValueError(f"Table \"{table_name}\" does not exists in layer \"{layer}\"")
+
+        # BronzeRecordSet holds validated JournalEntryRow  we want dataframe instead
+        df = pd.DataFrame([row.model_dump() for row in record_set.rows])
 
         try:
-            with self.engine.begin() as conn:  # starts a transaction; commits on success, rolls back on any exception
-                print()
-                record_set.data.to_sql(name=table.name, schema = table.layer, con=conn, if_exists="append", index=False)
+            with self.engine.begin() as conn:
+                df.to_sql(name=table_name, schema=layer, con=conn, if_exists="append", index=False)
 
-            print(f"Loaded {len(record_set.data)} rows into {table.layer}.{table.name}")
+            print(f"Loaded {len(df)} rows into {layer}.{table_name}")
 
         except ProgrammingError as e:
-            print(f"Table or schema not found — check that {table.layer}.{table.name} exists and is deployed, or change the schema/table name in config.py:\n\r {e}")
+            print(f"Table or schema not found, check that {layer}.{table_name} exists and is deployed, or change the schema/table name in config.py:\n\r {e}")
             raise
         except DataError as e:
-            print(f"Data truncation or type error during insert (value too long/wrong type) make sure to call validate_csv before loading:\n\r {e}")
+            print(f"Data truncation or type error during insert (value too long/wrong type):\n\r {e}")
             raise
         except OperationalError as e:
             print(f"Connection lost during insert:\n\r {e}")
@@ -104,9 +82,3 @@ class SQLServerDatabase:
         except Exception as e:
             print(f"Unexpected database error during insert:\n\r {e}")
             raise
-
-    def getTable(self, layer: str, table_name: str)-> DatabaseTable:
-        for t in self.tablesList:  
-            if t.layer.lower() == layer.lower() and t.name.lower() == table_name.lower():
-             return t
-        raise KeyError(f"No table found for layer={layer}, name={table_name}")
