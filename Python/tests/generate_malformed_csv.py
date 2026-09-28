@@ -6,10 +6,6 @@ from pathlib import Path
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent.parent / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
-# Column order of Bronze.journal_entries (without the _load_date_time/_source_file debug columns)
-COLUMNS = ["date_time", "subject", "notes", "type", "ec", "ec_pore", "ec_bulk",
-           "ph", "mc", "temp", "device", "media", "tags"]
-
 # Max length of Bronze.journal_entries.notes (NVARCHAR(400))
 NOTES_MAX_LENGTH = 400
 
@@ -121,7 +117,7 @@ def main():
     # --- CSV STRUCTURE ERRORS ---
 
     # completely empty file (0 bytes)
-    encode_and_save("empty-no-columns", [], [])
+    encode_and_save("empty-no-header", [], [])
 
 
     # header but no data rows

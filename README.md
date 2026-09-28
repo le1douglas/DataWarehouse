@@ -30,4 +30,10 @@ timezones are to be interptreted as UTC amsterdam even when not specified.
 ## GOLD TO USER
 - power bi
 - tableau
+- grafana
 
+TODO for deployment
+pytest --cov=. --cov-report=html
+start htmlcov/index.html
+
+pip freeze > requirements.txt

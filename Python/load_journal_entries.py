@@ -16,7 +16,9 @@ def main():
     db.connect()
     
     
-    filepath = JOURNAL_ENTRIES_MALFORMED_CSV
+    filepath = JOURNAL_ENTRIES_CSV
+
+
 
     record_set = BronzeLoader.load(filepath, CSVReader, BronzeRecordJournalEntries)
     db.load_to_bronze(TBL_JOURNAL_ENTRIES, record_set)

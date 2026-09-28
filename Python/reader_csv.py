@@ -11,9 +11,7 @@ class CSVReader:
     def read(self, source: Path) -> pd.DataFrame:
         print(f"Loading CSV file: {source}")
 
-        #check that the file has a .csv extension, case insensitive
-        if source.suffix.lower() != ".csv":
-            raise ValueError(f"Expected a CSV file, got: {source.suffix}")
+        self._validate_is_csv_file(source)
 
         try:
             df = pd.read_csv(source, 
@@ -57,3 +55,9 @@ class CSVReader:
                 for row in reader:
                     if row and len(row) != len(header): # 'row' is [] for a blank line, pandas skips those too
                         raise pd.errors.ParserError("CSV has a row whose number of fields differs from the header")
+
+
+    def _validate_is_csv_file(self, source: Path):
+        #check that the file has a .csv extension, case insensitive
+            if source.suffix.lower() != ".csv":
+                raise ValueError(f"Wrong file extension. Expected a CSV file, got: {source.suffix}")

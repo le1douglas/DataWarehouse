@@ -28,16 +28,14 @@ class BronzeRecord(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _empty_string_to_null(cls, data: dict) -> dict:
-        if isinstance(data, dict):
-            for k, v in data.items():
-                if isinstance(v, float) and math.isnan(v):
-                    raise ValueError(
-                        f'Field "{k}" received a pandas NaN value directly - '
-                        f"this indicates an ExternalReader did not convert "
-                        f"missing values to None before this model saw them."
-                    )
-            return {k: (None if v == "" else v) for k, v in data.items()}
-        return data
+        for k, v in data.items():
+            if isinstance(v, float) and math.isnan(v):
+                raise ValueError(
+                    f'Field "{k}" received a pandas NaN value directly - '
+                    f"this indicates an ExternalReader did not convert "
+                    f"missing values to None before this model saw them."
+                )
+        return {k: (None if v == "" else v) for k, v in data.items()}
 
 
 BronzeRecordT = TypeVar("BronzeRecordT", bound=BronzeRecord)
