@@ -4,9 +4,9 @@ from pathlib import Path
 
 from pydantic import BaseModel, TypeAdapter
 
-from bronze_record import BronzeRecordT
-from bronze_record_set import BronzeRecordSet
-from reader_external import ExternalReader
+from datawarehouse.bronze_record import BronzeRecordT
+from datawarehouse.bronze_record_set import BronzeRecordSet
+from datawarehouse.reader_external import ExternalReader
 
 
 class BronzeLoader:

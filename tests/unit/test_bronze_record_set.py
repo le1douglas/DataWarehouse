@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from bronze_record_set import BronzeRecordSet
+from datawarehouse.bronze_record_set import BronzeRecordSet
 
 def test_not_empty_no_row(record_one_field):
     with pytest.raises(ValidationError, match="must contain at least one row"):

@@ -3,8 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 #TODO make a package one day
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR / "Python"))
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 import pandas as pd
@@ -13,8 +12,8 @@ from pydantic import Field
 FIELD_MAX_LENGHT = 50
 value_long =f"this value is longer than {FIELD_MAX_LENGHT}" + ("-" * (FIELD_MAX_LENGHT + 1))
 
-from reader_csv import CSVReader
-from bronze_record import BronzeRecord
+from datawarehouse.reader_csv import CSVReader
+from datawarehouse.bronze_record import BronzeRecord
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 

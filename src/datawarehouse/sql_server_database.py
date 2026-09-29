@@ -6,9 +6,9 @@ from pathlib import Path
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError, ProgrammingError, DataError, IntegrityError
 
-from bronze_record_set import BronzeRecordSet
+from datawarehouse.bronze_record_set import BronzeRecordSet
 
-from config import DB_SCHEMA_BRONZE
+from datawarehouse.config import DB_SCHEMA_BRONZE
 
 
 class SQLServerDatabase:

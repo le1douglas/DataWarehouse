@@ -32,8 +32,9 @@ timezones are to be interptreted as UTC amsterdam even when not specified.
 - tableau
 - grafana
 
-TODO for deployment
+TODO for deployment  check
 pytest --cov=. --cov-report=html
 start htmlcov/index.html
 
+pip install -e ".[dev]"
 pip freeze > requirements.txt

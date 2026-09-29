@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # --- Root of the repo = the parent folder of the folder this file lives in ---
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # --- File paths ---
 JOURNAL_ENTRIES_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "journal-entries.csv"

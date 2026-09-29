@@ -4,7 +4,7 @@ import csv
 import io
 from pathlib import Path
 
-OUTPUT_DIR = Path(__file__).resolve().parent.parent.parent / "SampleData" / "drip_drain_csv" / "malformed_csv"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
 # Max length of Bronze.journal_entries.notes (NVARCHAR(400))
 NOTES_MAX_LENGTH = 400

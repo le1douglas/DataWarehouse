@@ -2,7 +2,7 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel, model_validator
 
-from bronze_record import BronzeRecordT
+from datawarehouse.bronze_record import BronzeRecordT
 
 
 class BronzeRecordSet(BaseModel, Generic[BronzeRecordT]):

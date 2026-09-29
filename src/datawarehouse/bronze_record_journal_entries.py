@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 
-from bronze_record import BronzeRecord
+from datawarehouse.bronze_record import BronzeRecord
 
 
 

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from bronze_record import BronzeRecord
+from datawarehouse.bronze_record import BronzeRecord
 
 
 @pytest.mark.parametrize(
