@@ -36,5 +36,8 @@ TODO for deployment  check
 pytest --cov=. --cov-report=html
 start htmlcov/index.html
 
+
+
+sync or think amout .toml instead of requirements.txt
 pip install -e ".[dev]"
-pip freeze > requirements.txt
+pip freeze --exclude-editable > requirements.txt

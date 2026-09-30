@@ -1,4 +1,29 @@
 from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+MICROSOFT_SQL_CONFIG = {
+    "db_server":   os.getenv("MICROSOFT_SQL_SERVER", "localhost"),
+    "db_name":     os.getenv("MICROSOFT_SQL_DB", "DataWarehouse")
+}
+
+
+POSTGRES_CONFIG = {
+    "db_server":   os.getenv("POSTGRESQL_SERVER", "localhost"),
+    "db_name":     os.getenv("POSTGRESQL_DB", "DataWarehouse"),
+    "db_user":     os.getenv("POSTGRESQL_USER", "postgres"),
+    "db_password": os.getenv("POSTGRESQL_PASSWORD"),
+    "db_port":     int(os.getenv("POSTGRESQL_PORT", "5432"))
+}
+
+
+DB_SCHEMA_BRONZE = "bronze"
+DB_SCHEMA_SILVER = "silver"
+DB_SCHEMA_GOLD = "gold"
+
+TBL_JOURNAL_ENTRIES = "journal_entries"
 
 # --- Root of the repo = the parent folder of the folder this file lives in ---
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -6,12 +31,3 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # --- File paths ---
 JOURNAL_ENTRIES_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "journal-entries.csv"
 JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv"/ "malformed_csv" / "valid.csv"
-
-#TODO change to more defined key: value definitions
-# --- Database connection ---
-DB_SERVER = "localhost"
-DB_NAME = "DataWarehouse"
-DB_SCHEMA_BRONZE = "Bronze"
-DB_SCHEMA_SILVER = "Silver"
-DB_SCHEMA_GOLD = "Gold"
-TBL_JOURNAL_ENTRIES = "journal_entries"

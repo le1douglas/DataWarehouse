@@ -1,8 +1,0 @@
-pandas
-pydantic
-SQLAlchemy
-pyodbc
-
-[dev]
-pytest
-pytest-cov
