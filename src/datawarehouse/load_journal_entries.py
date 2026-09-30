@@ -17,9 +17,9 @@ def main():
     record_set = BronzeLoader.load(filepath, CSVReader, BronzeRecordJournalEntries)
 
 
-    db = SQLServerDatabase(**MICROSOFT_SQL_CONFIG)
-    db.connect()
-    db.load_to_bronze(TBL_JOURNAL_ENTRIES, record_set)
+    #db = SQLServerDatabase(**MICROSOFT_SQL_CONFIG)
+    #db.connect()
+    #db.load_to_bronze(TBL_JOURNAL_ENTRIES, record_set)
 
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
