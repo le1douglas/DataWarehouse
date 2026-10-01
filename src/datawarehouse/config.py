@@ -4,11 +4,6 @@ import os
 
 load_dotenv()
 
-MICROSOFT_SQL_CONFIG = {
-    "db_server":   os.getenv("MICROSOFT_SQL_SERVER", "localhost"),
-    "db_name":     os.getenv("MICROSOFT_SQL_DB", "DataWarehouse")
-}
-
 
 POSTGRES_CONFIG = {
     "db_server":   os.getenv("POSTGRESQL_SERVER", "localhost"),

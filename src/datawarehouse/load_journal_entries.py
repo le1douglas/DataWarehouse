@@ -1,9 +1,8 @@
 
 
-from datawarehouse.config import  DB_SCHEMA_BRONZE, JOURNAL_ENTRIES_CSV, JOURNAL_ENTRIES_MALFORMED_CSV, POSTGRES_CONFIG, MICROSOFT_SQL_CONFIG, TBL_JOURNAL_ENTRIES
+from datawarehouse.config import  JOURNAL_ENTRIES_CSV, JOURNAL_ENTRIES_MALFORMED_CSV, POSTGRES_CONFIG, TBL_JOURNAL_ENTRIES
 
 from datawarehouse.sql_postgres_database import PostgreSQLDatabase
-from datawarehouse.sql_server_database import SQLServerDatabase
 from datawarehouse.bronze_record_set import BronzeRecordSet
 from datawarehouse.bronze_record_journal_entries import BronzeRecordJournalEntries
 from datawarehouse.bronze_loader import BronzeLoader
@@ -14,11 +13,6 @@ def main():
    
     filepath = JOURNAL_ENTRIES_CSV
     record_set = BronzeLoader.load(filepath, CSVReader, BronzeRecordJournalEntries)
-
-
-    #db = SQLServerDatabase(**MICROSOFT_SQL_CONFIG)
-    #db.connect()
-    #db.load_to_bronze(TBL_JOURNAL_ENTRIES, record_set)
 
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)

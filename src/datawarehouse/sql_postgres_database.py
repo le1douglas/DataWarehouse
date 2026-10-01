@@ -76,6 +76,7 @@ class PostgreSQLDatabase:
 
         try:
             with self.engine.begin() as conn:
+                #TODO copy to dev_bronze as well
                 df.to_sql(
                     name=table_name,
                     schema=layer,
