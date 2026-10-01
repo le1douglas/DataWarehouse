@@ -19,9 +19,9 @@ POSTGRES_CONFIG = {
 }
 
 
-DB_SCHEMA_BRONZE = "bronze"
-DB_SCHEMA_SILVER = "silver"
-DB_SCHEMA_GOLD = "gold"
+DB_SCHEMA_BRONZE = "prod_bronze"
+DB_SCHEMA_SILVER = "prod_silver"
+DB_SCHEMA_GOLD = "prod_gold"
 
 TBL_JOURNAL_ENTRIES = "journal_entries"
 

@@ -9,7 +9,6 @@ from datawarehouse.bronze_record_journal_entries import BronzeRecordJournalEntri
 from datawarehouse.bronze_loader import BronzeLoader
 from datawarehouse.reader_csv import CSVReader
 
-#TODO see if .egg-info can be put in .gitignore 
 
 def main():
    

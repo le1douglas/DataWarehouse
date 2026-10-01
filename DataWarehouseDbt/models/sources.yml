@@ -1,0 +1,15 @@
+
+sources:
+  - name: bronze
+    schema: "{{ {'dev': 'dev_bronze', 'prod': 'prod_bronze'}[target.name] }}" #use dev_bronze or prod_bronze depending ont the profile used
+    description: The layer that It stores raw, uncleaned data, as provided by the external source. one table per source. 
+                almost no assertion is based about this layer, as it is very permissive in the data it accepts.
+                the only exception is for columns starting with "meta_" that must not be null.
+                meta_ columns store metadata created at ingestion.
+    tables:
+      - name: journal_entries
+        description: csv data coming from the app "edenic" developed by bluelab.
+        columns:
+            - name: date_time
+              data_tests:
+               - not_null
