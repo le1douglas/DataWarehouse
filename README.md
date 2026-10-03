@@ -74,3 +74,17 @@ is still your responsability to:
 |experiments|dev_bronze, dev_silver, dev_gold|dev_experiments|cannot build|cannot build|
 |bronze_to_silver|dev_bronze|dev_silver|prod_bronze|prod_silver|
 |silver_to_gold|dev_silver|dev_gold|prod_silver|prod_gold|
+
+
+## Regual DB maintenance
+
+**index management**
+monitor index usage //this resets after every bootwhen running locally?
+monitor potential index to add //this resets after every bootwhen running locally?
+montor duplicate indexes
+update statistics 
+monitor fragmentation
+- lesstha 10% no action
+- 10-30% reorganize
+- more than 30 rebuild
+

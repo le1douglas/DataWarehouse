@@ -2,12 +2,12 @@
 -- Creates only what dbt does not: the bronze schemas and tables.
 -- dbt creates dev_silver, dev_gold, dev_experiments, prod_silver and prod_gold.
  
-CREATE SCHEMA dev_bronze;
-CREATE SCHEMA prod_bronze;
+CREATE SCHEMA IF NOT EXISTS dev_bronze;
+CREATE SCHEMA IF NOT EXISTS prod_bronze;
  
-CREATE TABLE dev_bronze.journal_entries (
-    date_time              VARCHAR(50),
-    subject                VARCHAR(50),
+CREATE TABLE IF NOT EXISTS dev_bronze.journal_entries (
+    date_time              VARCHAR(50), -- TODO primary key, but not unique, can have multiple entries for the same date_time
+    subject                VARCHAR(50), -- TODO primary key, but not unique, subject is commonly shared.
     notes                  VARCHAR(400),   -- free text, can get long
     type                   VARCHAR(50),
     ec                     VARCHAR(50),
@@ -24,5 +24,22 @@ CREATE TABLE dev_bronze.journal_entries (
 );
 
 -- create the same table in prod_bronze 
-CREATE TABLE prod_bronze.journal_entries (LIKE dev_bronze.journal_entries INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS prod_bronze.journal_entries (LIKE dev_bronze.journal_entries INCLUDING ALL);
+
+-- create btree index on prod_bronze date_time column
+CREATE INDEX IF NOT EXISTS idx_journal_entries_date_time ON prod_bronze.journal_entries (date_time);
+--drop index prod_bronze.idx_journal_entries_date_time;
+
+--force execution with index scan, show the query plan
+SET enable_seqscan = off;
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT ph FROM prod_bronze.journal_entries WHERE date_time >= '2026-09-17T15:09:00' AND date_time < '2026-09-17T15:13:00';
+RESET enable_seqscan;
+
+
+-- see indexes on the table
+SELECT  *
+FROM pg_indexes
+WHERE schemaname = 'prod_bronze' AND tablename = 'journal_entries';
+
  
