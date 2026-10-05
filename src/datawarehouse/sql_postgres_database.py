@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError, ProgrammingError, DataError, IntegrityError
 
 from datawarehouse.bronze_record_set import BronzeRecordSet
-from datawarehouse.config import DB_SCHEMA_BRONZE
+from datawarehouse.config import DB_DEV_SCHEMA_BRONZE, DB_PROD_SCHEMA_BRONZE
 
 
 class PostgreSQLDatabase:
@@ -64,19 +64,25 @@ class PostgreSQLDatabase:
             print(f"An error occurred while checking if table \"{layer}.{table_name}\" exists:\n\r{e}")
             raise
 
-    def load_to_bronze(self, table_name: str, record_set: BronzeRecordSet):
-        layer = DB_SCHEMA_BRONZE
+
+    def load_to_dev_bronze(self, table_name: str, record_set: BronzeRecordSet):
+        self._load_to_bronze(DB_DEV_SCHEMA_BRONZE, table_name, record_set)
+
+    def load_to_prod_bronze(self, table_name: str, record_set: BronzeRecordSet):
+        self._load_to_bronze(DB_PROD_SCHEMA_BRONZE, table_name, record_set)
+      
+    
+    def _load_to_bronze(self, layer: str, table_name: str, record_set: BronzeRecordSet):
 
         if not self.table_exists(layer, table_name):
             raise ValueError(f"Table \"{table_name}\" does not exist in layer \"{layer}\"")
 
-        # BronzeRecordSet holds validated JournalEntryRow objects
+        # BronzeRecordSet holds validated objects
         # Convert them to a DataFrame
         df = pd.DataFrame([row.model_dump() for row in record_set.rows])
 
         try:
             with self.engine.begin() as conn:
-                #TODO copy to dev_bronze as well
                 df.to_sql(
                     name=table_name,
                     schema=layer,

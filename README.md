@@ -15,6 +15,7 @@ Python
 
 empty strings "" are to be trated as null
 timezones are to be interptreted as UTC amsterdam even when not specified.
+demical separator is --> . (23.5 is 23 and a half)
 
 ## BRONZE TO SILVER
 - SQL stored procedures

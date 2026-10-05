@@ -17,7 +17,7 @@ def main():
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
     postgres.connect()
-    postgres.load_to_bronze(TBL_JOURNAL_ENTRIES, record_set)
+    postgres.load_to_dev_bronze(TBL_JOURNAL_ENTRIES, record_set)
 
 
 

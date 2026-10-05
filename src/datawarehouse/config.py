@@ -13,10 +13,14 @@ POSTGRES_CONFIG = {
     "db_port":     int(os.getenv("POSTGRESQL_PORT", "5432"))
 }
 
+DB_DEV_SCHEMA_BRONZE = "dev_bronze"
+DB_DEV_SCHEMA_SILVER = "prod_silver"
+DB_DEV_SCHEMA_GOLD = "prod_gold"
 
-DB_SCHEMA_BRONZE = "prod_bronze"
-DB_SCHEMA_SILVER = "prod_silver"
-DB_SCHEMA_GOLD = "prod_gold"
+
+DB_PROD_SCHEMA_BRONZE = "prod_bronze"
+DB_PROD_SCHEMA_SILVER = "prod_silver"
+DB_PROD_SCHEMA_GOLD = "prod_gold"
 
 TBL_JOURNAL_ENTRIES = "journal_entries"
 
