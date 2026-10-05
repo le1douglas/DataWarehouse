@@ -1,4 +1,18 @@
 
+-- DO NOT RUN THIS DIRECTLY, instread from terminal run
+-- psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\03_create_schemas_and_tables.sql
+-- if you run from here you must also
+-- ROLLBACK
+-- after
+
+BEGIN;
+
+DO $$
+BEGIN
+    IF current_database() <> 'DataWarehouse' THEN
+        RAISE EXCEPTION 'Wrong database: connected to %, expected DataWarehouse', current_database();
+    END IF;
+END $$;
 -- Creates only what dbt does not: the bronze schemas and tables.
 -- dbt creates dev_silver, dev_gold, dev_experiments, prod_silver and prod_gold.
  
@@ -42,4 +56,5 @@ SELECT  *
 FROM pg_indexes
 WHERE schemaname = 'prod_bronze' AND tablename = 'journal_entries';
 
- 
+
+COMMIT;
