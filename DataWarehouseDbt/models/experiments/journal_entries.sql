@@ -3,70 +3,64 @@
 --the positions that are recorded, in the order they recorded in
 {% set positions = ['drip_left', 'drip_right', 'drain_left', 'drain_right'] %}
 
-with source as (
-
-    select
-        date_time::timestamp at time zone 'Europe/Amsterdam' as date_time,
-        subject::text,
-        notes::text, --as of now it contains both ml and actual notes, numbers will be separated after and cast to the correct type
-        type::text,
-        ec::numeric,
-        ph::numeric,
-        temp::numeric,
-        tags::text,
-        meta_extract_date_time::timestamp at time zone 'Europe/Amsterdam' as meta_extract_date_time,
-        meta_source::text
-    from {{ source('bronze', 'journal_entries') }}
-
+with staged as (
+    select   *
+         from {{ ref('stg_journal_entries') }}
 ),
 
-subject_cleaned as (
-
-    select
-        date_time,
-        -- strip " - measurement" from the end, case-insensitive
-        regexp_replace(subject, '\s*-\s*' || type || '\s*$', '', 'i') as subject,
-        notes,
-        type,
-        ec,
-        ph,
-        temp,
-        tags,
-        meta_extract_date_time,
-        meta_source
-    from source
-
+corrections as (
+    select 
+        *
+    from {{ source('corrections', 'journal_entries') }}
 ),
 
-notes_split as (
-
-    select
+combined as (
+    select entry_id,
         date_time,
         subject,
-        -- leading number only; NULL when notes doesn't start with one
-        substring(notes from '^\s*(\d+(?:\.\d+)?)')::numeric as ml,
-        -- text left over after the number; empty becomes NULL
-        nullif(trim(regexp_replace(notes, '^\s*\d+(?:\.\d+)?\s*', '')), '') as notes,
         type,
-        ec,
-        ph,
+        ml,
+        ec, 
+        ph,  
         temp,
-        tags,
+        notes,
+        room,   
         meta_extract_date_time,
-        meta_source
-    from subject_cleaned
-
+        meta_source,
+        meta_silver_date_time, 
+        false as meta_is_corrected
+    from staged s
+    where not exists (select 1 from corrections c where c.entry_id = s.entry_id)
+    union all
+    select  entry_id,
+        date_time,
+        subject,
+        type,
+        ml,
+        ec, 
+        ph,  
+        temp,
+        notes,
+        room,   
+        meta_extract_date_time,
+        meta_source,
+        meta_silver_date_time ,
+        true as meta_is_corrected
+    from corrections c
 ),
+
+
 
 identify_room_index as (
     select
         *,
         -- goes down the list in date_time order and increments every time it hits a new tag that is not null
-        count(tags) over (order by date_time) as room_index 
-    from notes_split
+        count(room) over (order by date_time) as room_index 
+    from combined
 ),
 
 
+--TODO DEAL WITH ROOM WITH LESS THAN 3 positions
 identify_position_index as (
 
     select
@@ -76,6 +70,8 @@ identify_position_index as (
     from identify_room_index
 
 ),
+
+
 assign_position as (
     select
         *,
@@ -91,15 +87,14 @@ assign_position as (
 ),
 
 assign_room as (
-
     select
         *,
-        -- the tag sits on the first row of its group and is guaranteed non-null,
+        -- the room sits on the first row of its group and is guaranteed non-null,
         -- so copy it down, but only for the first positions.size rows; everything after stays null
         case
             when position_index <= {{ positions | length }}
-            then first_value(tags) over (partition by room_index order by date_time)
-        end as room
+            then  first_value(room) over (partition by room_index order by date_time) 
+        end as room_filled
     from assign_position
 
 ),
@@ -107,22 +102,25 @@ assign_room as (
 
 final_table as (
     select
-        date_time,
-        subject,
-        ml,
-        notes,
-        type,
-        ec,
-        ph,
-        temp,
-        room_index,
-        room,
-        position_index,
-        position,
-        meta_extract_date_time,
-        meta_source
-    from assign_room
+        a.date_time,
+        a.subject,
+        a.type,
+        a.ml,
+        a.ec, 
+        a.ph,  
+        a.temp,
+        a.notes,
+        a.room_filled as room,
+        a.meta_extract_date_time,
+        a.meta_source,
+        a.meta_silver_date_time, 
+        a.meta_is_corrected,
+        c.meta_reviewed_by as meta_reviewed_by,
+        c.meta_reviewed_date_time as meta_reviewed_date_time
+    from assign_room a
+    left join corrections c
+        on c.entry_id = a.entry_id
 
-) 
+)
 
-select * from final_table
+select * from assign_room

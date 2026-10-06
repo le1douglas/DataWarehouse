@@ -13,3 +13,8 @@ sources:
             - name: date_time
               data_tests:
                - not_null
+  - name: corrections
+    schema: corrections
+    description: It stores corrections made with external tools (for example excel) 
+    tables:
+      - name: journal_entries
