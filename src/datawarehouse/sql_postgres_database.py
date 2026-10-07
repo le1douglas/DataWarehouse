@@ -1,12 +1,13 @@
 
 import pandas as pd
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import MetaData, Table, create_engine, text
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError, ProgrammingError, DataError, IntegrityError
 
-from datawarehouse.bronze_record_set import BronzeRecordSet
-from datawarehouse.config import DB_DEV_SCHEMA_BRONZE, DB_PROD_SCHEMA_BRONZE
+from datawarehouse.record_set import RecordSet
+from datawarehouse.config import DB_DEV_SCHEMA_BRONZE, DB_DEV_SCHEMA_CORRECTIONS
 
 
 class PostgreSQLDatabase:
@@ -65,19 +66,68 @@ class PostgreSQLDatabase:
             raise
 
 
-    def load_to_dev_bronze(self, table_name: str, record_set: BronzeRecordSet):
+    def load_to_dev_bronze(self, table_name: str, record_set: RecordSet):
         self._load_to_bronze(DB_DEV_SCHEMA_BRONZE, table_name, record_set)
 
-    def load_to_prod_bronze(self, table_name: str, record_set: BronzeRecordSet):
-        self._load_to_bronze(DB_PROD_SCHEMA_BRONZE, table_name, record_set)
-      
-    
-    def _load_to_bronze(self, layer: str, table_name: str, record_set: BronzeRecordSet):
+    #key_columns are the columns that identify a row, i.e. ["date_time", "subject"]
+    def load_to_dev_corrections(self, table_name: str, record_set: RecordSet, key_columns: list[str]):
+        self._upsert(DB_DEV_SCHEMA_CORRECTIONS, table_name, record_set, key_columns)
+
+
+    def _upsert(self, layer: str, table_name: str, record_set: RecordSet, key_columns: list[str]):
 
         if not self.table_exists(layer, table_name):
             raise ValueError(f"Table \"{table_name}\" does not exist in layer \"{layer}\"")
 
-        # BronzeRecordSet holds validated objects
+        # RecordSet holds validated objects
+        # Convert them to a list of dictionaries
+        rows = [row.model_dump() for row in record_set.rows]
+
+        try:
+            # reads the columns of the table from the database
+            table = Table(table_name, MetaData(), schema=layer, autoload_with=self.engine)
+
+            # a row whose key is already in the table replaces the existing row,
+            # the others are inserted
+            statement = insert(table).values(rows)
+            statement = statement.on_conflict_do_update(
+                index_elements=key_columns,
+                set_={
+                    column.name: statement.excluded[column.name]
+                    for column in table.columns
+                    if column.name not in key_columns
+                },
+            )
+
+            # one transaction: either every row is loaded or none is
+            with self.engine.begin() as conn:
+                conn.execute(statement)
+
+            print(f"Upserted {len(rows)} rows into {layer}.{table_name}")
+
+        except ProgrammingError as e:
+            print(f"Table or schema not found. Check that {layer}.{table_name} exists:\n\r{e}")
+            raise
+        except DataError as e:
+            print(f"Data type or data value error during upsert:\n\r{e}")
+            raise
+        except OperationalError as e:
+            print(f"Connection lost during upsert:\n\r{e}")
+            raise
+        except IntegrityError as e:
+            print(f"Constraint violation during upsert:\n\r{e}")
+            raise
+        except Exception as e:
+            print(f"Unexpected database error during upsert:\n\r{e}")
+            raise
+
+
+    def _load_to_bronze(self, layer: str, table_name: str, record_set: RecordSet):
+
+        if not self.table_exists(layer, table_name):
+            raise ValueError(f"Table \"{table_name}\" does not exist in layer \"{layer}\"")
+
+        # RecordSet holds validated objects
         # Convert them to a DataFrame
         df = pd.DataFrame([row.model_dump() for row in record_set.rows])
 

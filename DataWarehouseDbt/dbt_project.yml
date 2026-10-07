@@ -34,13 +34,18 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   DataWarehouseDbt:
-    bronze_to_silver:
+    staging:             # text except the key: mechanical changes plus auto-fix rules
+      +materialized: view
+      +schema: staging
+    candidate:           # corrections override staging, then guarded casts and derived columns
+      +materialized: view
+      +schema: candidate
+    silver:              # typed and derived columns, rebuilt only when all candidate tests pass
       +materialized: table
       +schema: silver
-    silver_to_gold:
-      +materialized: view
-      +schema: gold
-    experiments:
-      +materialized: view
-      +schema: experiments
-      +enabled: "{{ target.name == 'dev' }}" #only builds in dev
+
+# failing rows are stored in one table per test, the audit view is a union of those tables
+data_tests:
+  DataWarehouseDbt:
+    +store_failures: true
+    +schema: audit

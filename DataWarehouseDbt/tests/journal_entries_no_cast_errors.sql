@@ -2,4 +2,4 @@
 
 select *
 from {{ ref('cand_journal_entries') }}
-where position_index > 4
+where meta_cast_errors is not null

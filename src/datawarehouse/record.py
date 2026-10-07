@@ -1,24 +1,20 @@
 import math
-from datetime import datetime
 from typing import TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 
-class BronzeRecord(BaseModel):
+class Record(BaseModel):
     """
-    Shared base class for every row model that belongs in a BronzeRecordSet
+    Shared base class for every row model that belongs in a RecordSet
     Not meant to be instantiated directly.
-    
+    It has no fields: every subclass declares its own, including the meta_ ones.
+
     """
     model_config = ConfigDict(extra="forbid")
 
-    
-    meta_extract_date_time: datetime                     # required for every record in the bronze layer, non-null
-    meta_source:            str = Field(max_length=400)  # required for every record in the bronze layer, non-null
 
-    
     #Transorm empty strings to None across every field, before field-level
     #validation runs. Anything else (including "N/A") passes through untouched.
     #A pandas NaN (float(nan)) reaching here means an ExternalReader failed
@@ -38,4 +34,4 @@ class BronzeRecord(BaseModel):
         return {k: (None if v == "" else v) for k, v in data.items()}
 
 
-BronzeRecordT = TypeVar("BronzeRecordT", bound=BronzeRecord)
+RecordT = TypeVar("RecordT", bound=Record)

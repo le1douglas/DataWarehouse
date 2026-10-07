@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -13,7 +14,7 @@ FIELD_MAX_LENGHT = 50
 value_long =f"this value is longer than {FIELD_MAX_LENGHT}" + ("-" * (FIELD_MAX_LENGHT + 1))
 
 from datawarehouse.reader_csv import CSVReader
-from datawarehouse.bronze_record import BronzeRecord
+from datawarehouse.record import Record
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
@@ -55,8 +56,11 @@ def expected_valid_dataframe():
 
 
 
-class FakeRecord_One_Field(BronzeRecord):
+class FakeRecord_One_Field(Record):
     value: Optional[str] = Field(max_length=FIELD_MAX_LENGHT)
+
+    meta_extract_date_time: datetime
+    meta_source:            str = Field(max_length=400)
 
 
 

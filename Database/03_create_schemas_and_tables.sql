@@ -13,21 +13,22 @@ BEGIN
         RAISE EXCEPTION 'Wrong database: connected to %, expected DataWarehouse', current_database();
     END IF;
 END $$;
--- Creates only what dbt does not: the bronze schemas and tables.
--- dbt creates dev_silver, dev_gold, dev_experiments, prod_silver and prod_gold.
- 
+-- Creates only what dbt does not: the schemas and tables that python loads into.
+-- dbt creates dev_staging, dev_candidate, dev_audit and dev_silver, and everything inside them.
+
 CREATE SCHEMA IF NOT EXISTS dev_bronze;
-CREATE SCHEMA IF NOT EXISTS prod_bronze;
- 
+CREATE SCHEMA IF NOT EXISTS dev_corrections;
+
+-- raw data as provided by the source, all text. written by the python bronze loader.
 CREATE TABLE IF NOT EXISTS dev_bronze.journal_entries (
-    date_time              VARCHAR(50), -- TODO primary key, but not unique, can have multiple entries for the same date_time
-    subject                VARCHAR(50), -- TODO primary key, but not unique, subject is commonly shared.
+    date_time              VARCHAR(50)  NOT NULL, -- key, together with subject
+    subject                VARCHAR(50)  NOT NULL, -- key, together with date_time
     notes                  VARCHAR(400),   -- free text, can get long
     type                   VARCHAR(50),
-    ec                     VARCHAR(50),
+    ec                     VARCHAR(50)  NOT NULL,
     ec_pore                VARCHAR(50),
     ec_bulk                VARCHAR(50),
-    ph                     VARCHAR(50),
+    ph                     VARCHAR(50)  NOT NULL,
     mc                     VARCHAR(50),
     temp                   VARCHAR(50),
     device                 VARCHAR(50),
@@ -37,24 +38,30 @@ CREATE TABLE IF NOT EXISTS dev_bronze.journal_entries (
     meta_source            VARCHAR(400) NOT NULL -- path, can get long
 );
 
--- create the same table in prod_bronze 
-CREATE TABLE IF NOT EXISTS prod_bronze.journal_entries (LIKE dev_bronze.journal_entries INCLUDING ALL);
+-- the key: date_time cut to the second (first 19 characters of 2026-09-17T15:13:08.363212) plus subject
+CREATE UNIQUE INDEX IF NOT EXISTS uq_journal_entries_key
+    ON dev_bronze.journal_entries (left(date_time, 19), subject);
 
--- create btree index on prod_bronze date_time column
-CREATE INDEX IF NOT EXISTS idx_journal_entries_date_time ON prod_bronze.journal_entries (date_time);
---drop index prod_bronze.idx_journal_entries_date_time;
+-- manual corrections made in excel, typed like staging. written by the python corrections loader.
+-- one row per key, the non-key columns override the staging values in the candidate view.
+-- date_time is the bronze date_time as a timestamp cut to the second, without time zone, like in staging and candidate.
+-- subject is the raw bronze value, the other columns have the same names as staging and silver.
+CREATE TABLE IF NOT EXISTS dev_corrections.journal_entries (
+    date_time               TIMESTAMP(0) NOT NULL, -- key, together with subject
+    subject                 VARCHAR(50)  NOT NULL, -- key, together with date_time
+    type                    VARCHAR(50),
+    ml                      NUMERIC,
+    ec                      NUMERIC,
+    ph                      NUMERIC,
+    temp                    NUMERIC,
+    notes                   VARCHAR(400),
+    room                    VARCHAR(50),
+    meta_reviewed_by        VARCHAR(50)  NOT NULL,
+    meta_reviewed_date_time TIMESTAMP    NOT NULL
+);
 
---force execution with index scan, show the query plan
-SET enable_seqscan = off;
-EXPLAIN (ANALYZE, BUFFERS)
-SELECT ph FROM prod_bronze.journal_entries WHERE date_time >= '2026-09-17T15:09:00' AND date_time < '2026-09-17T15:13:00';
-RESET enable_seqscan;
-
-
--- see indexes on the table
-SELECT  *
-FROM pg_indexes
-WHERE schemaname = 'prod_bronze' AND tablename = 'journal_entries';
-
+-- same key as bronze, here date_time is already cut to the second
+CREATE UNIQUE INDEX IF NOT EXISTS uq_journal_entries_key
+    ON dev_corrections.journal_entries (date_time, subject);
 
 COMMIT;

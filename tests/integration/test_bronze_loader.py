@@ -5,7 +5,6 @@ import pytest
 from pydantic import ValidationError
 
 from datawarehouse.bronze_loader import BronzeLoader
-from datawarehouse.bronze_record_set import BronzeRecordSet
 
 
 from datetime import datetime

@@ -13,16 +13,14 @@ POSTGRES_CONFIG = {
     "db_port":     int(os.getenv("POSTGRESQL_PORT", "5432"))
 }
 
+# the schemas that python loads into, everything else is created by dbt
 DB_DEV_SCHEMA_BRONZE = "dev_bronze"
-DB_DEV_SCHEMA_SILVER = "prod_silver"
-DB_DEV_SCHEMA_GOLD = "prod_gold"
-
-
-DB_PROD_SCHEMA_BRONZE = "prod_bronze"
-DB_PROD_SCHEMA_SILVER = "prod_silver"
-DB_PROD_SCHEMA_GOLD = "prod_gold"
+DB_DEV_SCHEMA_CORRECTIONS = "dev_corrections"
 
 TBL_JOURNAL_ENTRIES = "journal_entries"
+
+# date_time and subject together identify a journal entry
+KEY_JOURNAL_ENTRIES = ["date_time", "subject"]
 
 # --- Root of the repo = the parent folder of the folder this file lives in ---
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
