@@ -7,9 +7,9 @@ from pydantic import Field
 from datawarehouse.record import Record
 
 
-class CorrectionsRecordJournalEntries(Record):
+class CorrRecordJournalEntries(Record):
     """
-    One row of dev_corrections.journal_entries.
+    One row of dev_corrections.corr_journal_entries.
 
     date_time and subject together are the key, unique in the table.
     date_time is a plain datetime cut to the second, matching PostgreSQL's

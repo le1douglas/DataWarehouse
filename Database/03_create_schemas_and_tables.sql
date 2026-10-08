@@ -19,7 +19,7 @@ CREATE SCHEMA IF NOT EXISTS dev_bronze;
 CREATE SCHEMA IF NOT EXISTS dev_corrections;
 
 -- raw data as provided by the source, all text. written by the python bronze loader.
-CREATE TABLE IF NOT EXISTS dev_bronze.journal_entries (
+CREATE TABLE IF NOT EXISTS dev_bronze.brnz_journal_entries (
     date_time VARCHAR(50) NOT NULL, -- key, together with subject
     subject VARCHAR(50) NOT NULL, -- key, together with date_time
     notes VARCHAR(400),   -- free text, can get long
@@ -38,14 +38,14 @@ CREATE TABLE IF NOT EXISTS dev_bronze.journal_entries (
 );
 
 -- the key: date_time cut to the second (first 19 characters of 2026-09-17T15:13:08.363212) plus subject
-CREATE UNIQUE INDEX IF NOT EXISTS uq_journal_entries_key
-ON dev_bronze.journal_entries (LEFT(date_time, 19), subject);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_brnz_journal_entries_key
+ON dev_bronze.brnz_journal_entries (LEFT(date_time, 19), subject);
 
 -- manual corrections made in excel, typed like staging. written by the python corrections loader.
 -- one row per key, the non-key columns override the staging values in the candidate view.
 -- date_time is the bronze date_time as a timestamp cut to the second, without time zone, like in staging and candidate.
 -- subject is the raw bronze value, the other columns have the same names as staging and silver.
-CREATE TABLE IF NOT EXISTS dev_corrections.journal_entries (
+CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
     date_time TIMESTAMP(0) NOT NULL, -- key, together with subject
     subject VARCHAR(50) NOT NULL, -- key, together with date_time
     type VARCHAR(50),
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS dev_corrections.journal_entries (
 );
 
 -- same key as bronze, here date_time is already cut to the second
-CREATE UNIQUE INDEX IF NOT EXISTS uq_journal_entries_key
-ON dev_corrections.journal_entries (date_time, subject);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_corr_journal_entries_key
+ON dev_corrections.corr_journal_entries (date_time, subject);
 
 COMMIT;

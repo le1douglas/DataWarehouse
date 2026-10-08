@@ -10,7 +10,7 @@
 with
     staged as (select * from {{ ref("stg_journal_entries") }}),
 
-    corrections as (select * from {{ source("corrections", "journal_entries") }}),
+    corrections as (select * from {{ source("dev_corrections", "corr_journal_entries") }}),
 
     -- a correction replaces all the correctable columns of the row with the same key
     combined as (

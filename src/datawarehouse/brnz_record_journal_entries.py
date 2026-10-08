@@ -6,9 +6,9 @@ from pydantic import Field
 from datawarehouse.record import Record
 
 
-class BronzeRecordJournalEntries(Record):
+class BrnzRecordJournalEntries(Record):
     """
-    One row of dev_bronze.journal_entries.
+    One row of dev_bronze.brnz_journal_entries.
 
     Bronze does no type conversion on source data — every source field
     stays a string, matching VARCHAR in PostgreSQL, even where the

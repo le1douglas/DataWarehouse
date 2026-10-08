@@ -1,4 +1,4 @@
-# corrections_loader.py
+# corr_loader.py
 from pathlib import Path
 
 from pydantic import TypeAdapter
@@ -8,14 +8,14 @@ from datawarehouse.record import RecordT
 from datawarehouse.record_set import RecordSet
 
 
-class CorrectionsLoader:
+class CorrLoader:
     """
     Produces a fully validated RecordSet from an ExternalReader, for a given row
     model.
     Takes a reader capable of returnig a dataframe,
     and validates it row wise (against the privided RecordT) and between rows.
 
-    Unlike BronzeLoader it adds no metadata columns:
+    Unlike BrnzLoader it adds no metadata columns:
     meta_reviewed_by and meta_reviewed_date_time are filled in by the reviewer, in the source.
     """
 

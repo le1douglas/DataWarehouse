@@ -18,7 +18,8 @@ POSTGRES_CONFIG = {
 DB_DEV_SCHEMA_BRONZE = "dev_bronze"
 DB_DEV_SCHEMA_CORRECTIONS = "dev_corrections"
 
-TBL_JOURNAL_ENTRIES = "journal_entries"
+TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
+TBL_CORR_JOURNAL_ENTRIES = "corr_journal_entries"
 
 # date_time and subject together identify a journal entry
 KEY_JOURNAL_ENTRIES = ["date_time", "subject"]

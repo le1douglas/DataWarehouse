@@ -19,7 +19,7 @@ with
             tags as room,
             meta_extract_date_time,
             meta_source
-        from {{ source("bronze", "journal_entries") }}
+        from {{ source("dev_bronze", "brnz_journal_entries") }}
 
     ),
 

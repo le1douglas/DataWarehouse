@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The manual corrections loop for `journal_entries`: a reviewer fixes flagged rows in Excel, Python uploads them to `dev_corrections`, dbt applies them and rebuilds silver.
 
-- The loop has run end to end twice, the second time on 2026-10-08 from an empty database (drop database, DDL, CSV to bronze, `dbt build`, review in Excel, upload corrections, `dbt build`). The first build failed `journal_entries_position_index_max_4` on 8 rows and skipped silver; after the 8 corrections the second build passed and silver was built with 104 rows, 26 room groups of 4.
-- Last change: the position logic in `DataWarehouseDbt/models/candidate/cand_journal_entries.sql`. A new room group now starts only when the room value differs from the room of the row before it, not on every row that has a room. It is built and in the database. The run confirmed that a reviewer can fill the room on all four rows of a group or only on the first one, the result is the same.
+- The loop has run end to end three times, the last two on 2026-10-08 from an empty database (drop database, DDL, CSV to bronze, `dbt build`, review in Excel, upload corrections, `dbt build`). The first build fails `aud_journal_entries__position_index_max_4` on 8 rows and skips silver; after the 8 corrections the second build passes and silver is built with 104 rows.
+- Last change: the naming convention (see Naming). Every table, model, test, Python module and class got a layer prefix (`brnz_`, `corr_`, `stg_`, `cand_`, `aud_`, `slvr_`), and the third run was done on the new names. The workbook's Power Query reads `dev_audit.aud_journal_entries__position_index_max_4`.
+- Before that: the position logic in `DataWarehouseDbt/models/candidate/cand_journal_entries.sql`. A new room group starts only when the room value differs from the room of the row before it, not on every row that has a room. A reviewer can fill the room on all four rows of a group or only on the first one, the result is the same (26 room groups of 4).
 
 Update this section when the focus changes.
 
@@ -15,8 +16,8 @@ Update this section when the focus changes.
 
 Unfinished business. The user parks these deliberately: mention the relevant one when work gets near it, do not start it unprompted.
 
-- **dbt test naming.** Discuss what rules the test file names follow (`journal_entries_position_index_max_4.sql`, `journal_entries_no_cast_errors.sql`) and design a system that scales to several tests for several tables.
-- **Combined audit view.** One view that unions the per-test failure tables in `dev_audit`, so Excel and the corrections loader read a single object. To be done in dbt, not hand-written DDL. An `on-run-end` hook was suggested, on the unverified assumption that dbt-postgres drops failure tables with `cascade`.
+- **Combined audit view.** One view that unions the per-test failure tables in `dev_audit`, so Excel and the corrections loader read a single object. To be done in dbt, not hand-written DDL. dbt-postgres 1.11.0 drops failure tables with `cascade` (checked in its drop macros), so a view on top of them disappears on every build and has to be recreated; an `on-run-end` hook was suggested. The `__` in the test names separates the table from the rule.
+- **Source names contain `dev_`.** `source("dev_bronze", ...)` writes the environment in every call. Accepted until the prod target comes back, then to be revisited.
 - **Corrections loader rules that depend on that view:** reject keys that are not in audit, reject an upload based on an audit older than the last corrections load.
 - **Duplicate keys inside one file** are not checked in `RecordSet`; the database index rejects them. The user accepted failing in SQL for now.
 - **Bronze re-load:** loading the same CSV twice fails on the unique index. "Skip identical rows, abort on same key with different values" is not implemented.
@@ -24,9 +25,10 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Same room twice in a row:** with the new position logic two consecutive rounds in the same room merge into one group of 8, and a correction cannot split them.
 - **Corrections behaviour to revisit:** every flagged row is uploaded and marked `meta_is_corrected` even if untouched; an empty cell overwrites with null; there is no way to withdraw a correction except SQL.
 - **Subject cleaning** (stripping ` - Measurement`) was removed because `subject` is part of the key. The user will decide on a strategy later.
-- **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there are no tests for `ExcelReader`, `CorrectionsLoader`, `CorrectionsRecordJournalEntries` or the upsert. Test files are still named `test_bronze_record*.py` although they test `Record` and `RecordSet`.
+- **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there are no tests for `ExcelReader`, `CorrLoader`, `CorrRecordJournalEntries` or the upsert.
 - **Hardcoded values:** the workbook path in `load_journal_entries.py`, the sheet name `corrected` in `ExcelReader`, the reviewer name in the workbook's Power Query.
-- **Outdated files:** `README.md` still describes the prod target, the `experiments` workflow and the old `bronze_to_silver` / `silver_to_gold` folders. `Database/04_select_example.sql`, `Database/05_see_test_results.sql` and `Database/corrections.sql` reference schemas and shapes that no longer exist.- **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.
+- **Outdated files:** `README.md` still describes the prod target, the `experiments` workflow and the old `bronze_to_silver` / `silver_to_gold` folders. `Database/04_select_example.sql`, `Database/05_see_test_results.sql` and `Database/corrections.sql` reference schemas and shapes that no longer exist.
+- **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.
 
 ## Conventions
 
@@ -39,13 +41,26 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 
 ### Naming
 
-- Schemas: `dev_<layer>` (`dev_bronze`, `dev_corrections`, `dev_staging`, `dev_candidate`, `dev_audit`, `dev_silver`).
-- dbt models: `stg_<table>` in `models/staging`, `cand_<table>` in `models/candidate`, plain `<table>` in `models/silver`. The folder decides materialisation and schema in `dbt_project.yml`.
-- dbt singular tests: `<table>_<rule>.sql`, each with `{{ config(severity='error', store_failures=true) }}`, pointing at the candidate model.
+- One token per business concept (`journal_entries`, `JournalEntries` in class names), spelled the same everywhere. The shape is `<layer prefix>_<token>__<detail>`: the step goes before the token, a detail of the concept (a test rule) after it.
+- Schemas keep the full layer word, `dev_<layer>`. Everything inside a schema, and everything that refers to it, uses the layer's prefix:
+
+  | Schema | Prefix |
+  |---|---|
+  | `dev_bronze` | `brnz_` |
+  | `dev_corrections` | `corr_` |
+  | `dev_staging` | `stg_` |
+  | `dev_candidate` | `cand_` |
+  | `dev_audit` | `aud_` |
+  | `dev_silver` | `slvr_` |
+
+- A prefix never contains an underscore: the prefix ends at the first `_`, the detail starts at `__`. Prefixes do not need the same length.
+- Tables and dbt models: `<prefix>_<token>` (`dev_bronze.brnz_journal_entries`, `slvr_journal_entries`). The dbt file name is the relation name; no `alias` and no `generate_alias_name` or `generate_schema_name` override. The folder decides materialisation and schema in `dbt_project.yml`.
+- dbt sources are named after the schema and the table: `source("dev_bronze", "brnz_journal_entries")`.
+- dbt singular tests: `aud_<token>__<rule>.sql`, each with `{{ config(severity='error', store_failures=true) }}`, pointing at the candidate model. The file name is the name of the failure table in `dev_audit`, and relation names are limited to 63 characters.
 - Metadata columns start with `meta_` (`meta_extract_date_time`, `meta_source`, `meta_cast_errors`, `meta_is_corrected`, `meta_reviewed_by`, `meta_reviewed_date_time`, `meta_silver_date_time`). The Excel side filters on this prefix, so a non-`meta_` column in staging is treated as correctable.
 - From staging onwards the bronze column `tags` is called `room`. Use "room", "room group" and `room_index` in names and comments, never "tag".
-- Python: one class per file, file in snake case (`bronze_record_journal_entries.py`, `reader_csv.py`), classes `<Layer>Record<Table>`, `<Layer>Loader`, `<Format>Reader`.
-- Unique key index: `uq_<table>_key`.
+- Python: one class per file, file in snake case (`brnz_record_journal_entries.py`, `reader_csv.py`), classes `<Prefix>Record<Token>` (`BrnzRecordJournalEntries`), `<Prefix>Loader` (`CorrLoader`), `<Format>Reader`. Test files are `test_<module>.py`, with a name that is unique across `tests/unit` and `tests/integration`.
+- Unique key index: `uq_<table>_key` (`uq_brnz_journal_entries_key`).
 
 ### SQL style
 
@@ -84,16 +99,16 @@ A small bronze/silver data warehouse on local PostgreSQL 18 for sensor measureme
 ### Pipeline
 
 ```
-CSV ──python──> dev_bronze.journal_entries           (text, as received)
+CSV ──python──> dev_bronze.brnz_journal_entries      (text, as received)
                       │ dbt
                       ▼
                 dev_staging.stg_journal_entries       (view: auto-fix, guarded casts)
-                      │ dbt        dev_corrections.journal_entries <──python── Excel
+                      │ dbt        dev_corrections.corr_journal_entries <──python── Excel
                       ▼                │
                 dev_candidate.cand_journal_entries    (view: corrections override, room groups, positions)
                       │ dbt tests ──> dev_audit.<test>  (failing rows, one table per test)
                       ▼ only if all tests pass
-                dev_silver.journal_entries            (table: published, time zone assigned)
+                dev_silver.slvr_journal_entries       (table: published, time zone assigned)
 ```
 
 - **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver is close to a plain select.
@@ -114,7 +129,7 @@ Only a `dev` target exists in `%USERPROFILE%\.dbt\profiles.yml`. Database creden
 
 ### Python flow
 
-`<Format>Reader.read()` returns a dataframe, a `<Layer>Loader` validates each row into a `Record` subclass and wraps them in a `RecordSet`, and `PostgreSQLDatabase` writes it. `BronzeLoader` stamps `meta_extract_date_time` and `meta_source` and the load appends; `CorrectionsLoader` adds nothing and the load upserts on the key.
+`<Format>Reader.read()` returns a dataframe, a `<Layer>Loader` validates each row into a `Record` subclass and wraps them in a `RecordSet`, and `PostgreSQLDatabase` writes it. `BrnzLoader` stamps `meta_extract_date_time` and `meta_source` and the load appends; `CorrLoader` adds nothing and the load upserts on the key.
 
 ### Commands
 
@@ -122,7 +137,7 @@ Run from the repo root with the virtual environment active (`.venv\Scripts\Activ
 
 ```powershell
 # a single python test
-python -m pytest tests/unit/test_bronze_record.py::test_empty_string_to_null_nan
+python -m pytest tests/unit/test_record.py::test_empty_string_to_null_nan
 
 # dbt (or cd into DataWarehouseDbt and drop --project-dir)
 dbt build --project-dir DataWarehouseDbt

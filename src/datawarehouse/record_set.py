@@ -9,7 +9,7 @@ class RecordSet(BaseModel, Generic[RecordT]):
     """
     A whole batch of row wise validated rows, treated as one unit.
     Responsable for check across rows for example, checking the whole sei is above a certain size
-    Generic over any Record subtype (e.g. BronzeRecordJournalEntries)
+    Generic over any Record subtype (e.g. BrnzRecordJournalEntries)
     """
 
     rows: list[RecordT]

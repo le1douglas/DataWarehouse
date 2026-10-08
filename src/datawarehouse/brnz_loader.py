@@ -1,4 +1,4 @@
-# bronze_loader.py
+# brnz_loader.py
 from datetime import datetime
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from datawarehouse.record import RecordT
 from datawarehouse.record_set import RecordSet
 
 
-class BronzeLoader:
+class BrnzLoader:
     """
     Produces a fully validated RecordSet from an ExternalReader, for a given row
     model.
