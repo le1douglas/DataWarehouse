@@ -1,16 +1,17 @@
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
 
 POSTGRES_CONFIG = {
-    "db_server":   os.getenv("POSTGRESQL_SERVER", "localhost"),
-    "db_name":     os.getenv("POSTGRESQL_DB", "DataWarehouse"),
-    "db_user":     os.getenv("POSTGRESQL_USER", "postgres"),
+    "db_server": os.getenv("POSTGRESQL_SERVER", "localhost"),
+    "db_name": os.getenv("POSTGRESQL_DB", "DataWarehouse"),
+    "db_user": os.getenv("POSTGRESQL_USER", "postgres"),
     "db_password": os.getenv("POSTGRESQL_PASSWORD"),
-    "db_port":     int(os.getenv("POSTGRESQL_PORT", "5432"))
+    "db_port": int(os.getenv("POSTGRESQL_PORT", "5432")),
 }
 
 # the schemas that python loads into, everything else is created by dbt
@@ -27,4 +28,4 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # --- File paths ---
 JOURNAL_ENTRIES_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "journal-entries.csv"
-JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv"/ "malformed_csv" / "valid.csv"
+JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv" / "valid.csv"

@@ -6,7 +6,6 @@ from pydantic import Field
 from datawarehouse.record import Record
 
 
-
 class BronzeRecordJournalEntries(Record):
     """
     One row of dev_bronze.journal_entries.
@@ -29,23 +28,19 @@ class BronzeRecordJournalEntries(Record):
     this model does not verify tzinfo one way or the other.
     """
 
-    date_time: str = Field(max_length=50)              # required key, non-null
-    subject:   str = Field(max_length=50)              # required key, non-null
-    notes:     Optional[str] = Field(max_length=400)
-    type:      Optional[str] = Field(max_length=50)
-    ec:        str = Field(max_length=50)               # required, non-null
-    ec_pore:   Optional[str] = Field(max_length=50)
-    ec_bulk:   Optional[str] = Field(max_length=50)
-    ph:        str = Field(max_length=50)               # required, non-null
-    mc:        Optional[str] = Field(max_length=50)
-    temp:      Optional[str] = Field(max_length=50)
-    device:    Optional[str] = Field(max_length=50)
-    media:     Optional[str] = Field(max_length=50)
-    tags:      Optional[str] = Field(max_length=50)
+    date_time: str = Field(max_length=50)  # required key, non-null
+    subject: str = Field(max_length=50)  # required key, non-null
+    notes: Optional[str] = Field(max_length=400)
+    type: Optional[str] = Field(max_length=50)
+    ec: str = Field(max_length=50)  # required, non-null
+    ec_pore: Optional[str] = Field(max_length=50)
+    ec_bulk: Optional[str] = Field(max_length=50)
+    ph: str = Field(max_length=50)  # required, non-null
+    mc: Optional[str] = Field(max_length=50)
+    temp: Optional[str] = Field(max_length=50)
+    device: Optional[str] = Field(max_length=50)
+    media: Optional[str] = Field(max_length=50)
+    tags: Optional[str] = Field(max_length=50)
 
-    meta_extract_date_time: datetime                     # required, non-null
-    meta_source:            str = Field(max_length=400)  # required, non-null
-
-
-
-  
+    meta_extract_date_time: datetime  # required, non-null
+    meta_source: str = Field(max_length=400)  # required, non-null

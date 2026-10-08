@@ -11,9 +11,10 @@ class RecordSet(BaseModel, Generic[RecordT]):
     Responsable for check across rows for example, checking the whole sei is above a certain size
     Generic over any Record subtype (e.g. BronzeRecordJournalEntries)
     """
+
     rows: list[RecordT]
 
-    #check that the set is not empty
+    # check that the set is not empty
     @model_validator(mode="after")
     def _not_empty(self) -> "RecordSet[RecordT]":
         if len(self.rows) == 0:

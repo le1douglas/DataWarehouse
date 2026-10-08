@@ -1,4 +1,5 @@
 # tests/test_bronze_loader.py
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -6,8 +7,6 @@ from pydantic import ValidationError
 
 from datawarehouse.bronze_loader import BronzeLoader
 
-
-from datetime import datetime
 
 def test_load_valid(reader_valid_one_row, record_one_field):
     source = Path("some/path/to/file.csv")
@@ -17,10 +16,12 @@ def test_load_valid(reader_valid_one_row, record_one_field):
 
     after = datetime.now()
 
-    assert all(isinstance(r, record_one_field) for r in result.rows)  # every row is an instance of the expected record model
+    assert all(
+        isinstance(r, record_one_field) for r in result.rows
+    )  # every row is an instance of the expected record model
 
-    assert len(result.rows) == 1  #this reader returns exactly one row
-    row = result.rows[0] #so we can safely select only the first one
+    assert len(result.rows) == 1  # this reader returns exactly one row
+    row = result.rows[0]  # so we can safely select only the first one
 
     assert row.value == "ok"  # row's value matches the source data
     assert row.meta_source == str(source)  # meta_source matches the path passed in

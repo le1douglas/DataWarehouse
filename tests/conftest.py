@@ -1,17 +1,17 @@
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-#TODO make a package one day
+# TODO make a package one day
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 import pandas as pd
 import pytest
 from pydantic import Field
+
 FIELD_MAX_LENGHT = 50
-value_long =f"this value is longer than {FIELD_MAX_LENGHT}" + ("-" * (FIELD_MAX_LENGHT + 1))
+value_long = f"this value is longer than {FIELD_MAX_LENGHT}" + ("-" * (FIELD_MAX_LENGHT + 1))
 
 from datawarehouse.reader_csv import CSVReader
 from datawarehouse.record import Record
@@ -36,32 +36,31 @@ def expected_valid_dataframe():
     plain object (dtype=object), missing cells as Python None.
 
     """
-    return pd.DataFrame({
-        "date_time": ["2026-01-01T12:00:00.000000"],
-        "subject":   ["default_subject"],
-        "notes":     ["default_notes"],
-        "type":      ["measurement"],
-        "ec":        ["1.00"],
-        "ec_pore":   [None],
-        "ec_bulk":   [None],
-        "ph":        ["7.00"],
-        "mc":        [None],
-        "temp":      ["25.0"],
-        "device":    [None],
-        "media":     [None],
-        "tags":      [None],
-    }, dtype=object)
-
-
-
+    return pd.DataFrame(
+        {
+            "date_time": ["2026-01-01T12:00:00.000000"],
+            "subject": ["default_subject"],
+            "notes": ["default_notes"],
+            "type": ["measurement"],
+            "ec": ["1.00"],
+            "ec_pore": [None],
+            "ec_bulk": [None],
+            "ph": ["7.00"],
+            "mc": [None],
+            "temp": ["25.0"],
+            "device": [None],
+            "media": [None],
+            "tags": [None],
+        },
+        dtype=object,
+    )
 
 
 class FakeRecord_One_Field(Record):
     value: Optional[str] = Field(max_length=FIELD_MAX_LENGHT)
 
     meta_extract_date_time: datetime
-    meta_source:            str = Field(max_length=400)
-
+    meta_source: str = Field(max_length=400)
 
 
 class FakeReader_Valid_OneRow:
@@ -71,16 +70,18 @@ class FakeReader_Valid_OneRow:
 
 class FakeReader_InvalidTooLong_OneRow:
     def read(self, source: Path) -> pd.DataFrame:
-        #TODO
+        # TODO
         return pd.DataFrame([{"value": value_long}])
 
 
 class FakeReader_InvalidTooLong_TwoRows:
     def read(self, source: Path) -> pd.DataFrame:
-        return pd.DataFrame([
-            {"value": value_long},
-            {"value": value_long},
-        ])
+        return pd.DataFrame(
+            [
+                {"value": value_long},
+                {"value": value_long},
+            ]
+        )
 
 
 @pytest.fixture
@@ -91,6 +92,7 @@ def record_one_field():
 @pytest.fixture
 def reader_valid_one_row():
     return FakeReader_Valid_OneRow
+
 
 @pytest.fixture
 def reader_invalid_too_long_one_row():

@@ -2,11 +2,11 @@
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 
+from datawarehouse.reader_external import ExternalReader
 from datawarehouse.record import RecordT
 from datawarehouse.record_set import RecordSet
-from datawarehouse.reader_external import ExternalReader
 
 
 class BronzeLoader:
@@ -22,20 +22,18 @@ class BronzeLoader:
     reader instance, aggregated errors across files, etc.) across calls.
     """
 
-    #pass the class type, not a class instance i.e CSVReader not CSVReader()
+    # pass the class type, not a class instance i.e CSVReader not CSVReader()
     @staticmethod
     def load(source: Path, reader: type[ExternalReader], record_model: type[RecordT]) -> RecordSet[RecordT]:
-        #creates an instance of the reader here
+        # creates an instance of the reader here
         df = reader().read(source)
         print(df)
-        
+
         df["meta_extract_date_time"] = datetime.now()
         df["meta_source"] = str(source)
 
-        #validates each row by making them a RecordT
-        rows = TypeAdapter(list[record_model]).validate_python(
-            df.to_dict(orient="records")
-        )
+        # validates each row by making them a RecordT
+        rows = TypeAdapter(list[record_model]).validate_python(df.to_dict(orient="records"))
 
-        #validates between rows when creating the RecordSet object
+        # validates between rows when creating the RecordSet object
         return RecordSet(rows=rows)

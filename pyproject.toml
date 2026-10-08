@@ -9,15 +9,21 @@ description = "Bronze/Silver/Gold data warehouse pipeline"
 requires-python = ">=3.11"
 dependencies = [
     "pandas",
+    "openpyxl",        # pandas needs it to read .xlsx
     "pydantic",
     "SQLAlchemy",
-    "pyodbc",
+    "psycopg[binary]", # the postgres driver used by SQLAlchemy
+    "python-dotenv",
+    "dbt-core",
+    "dbt-postgres",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-cov",
+    "ruff",
+    "shandy-sqlfmt[jinjafmt]",
 ]
 
 [tool.setuptools.packages.find]
@@ -25,3 +31,19 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# sql (dbt models and tests) is formatted by sqlfmt, the formatter used by the dbt Power User extension:
+#   sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests      (add --diff to only see what would change)
+[tool.sqlfmt]
+line_length = 120
+
+# python is linted and formatted by ruff
+# lint:   ruff check        (add --fix to apply the safe fixes)
+# format: ruff format       (add --diff to only see what would change)
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 120
+
+[tool.ruff.lint]
+# E, W: style errors and warnings. F: unused imports and variables, undefined names. I: import order
+select = ["E", "W", "F", "I"]
