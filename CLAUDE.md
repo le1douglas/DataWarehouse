@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The manual corrections loop for `journal_entries`: a reviewer fixes flagged rows in Excel, Python uploads them to `dev_corrections`, dbt applies them and rebuilds silver.
 
 - The loop has run end to end three times, the last two on 2026-10-08 from an empty database (drop database, DDL, CSV to bronze, `dbt build`, review in Excel, upload corrections, `dbt build`). The first build fails `aud_journal_entries__position_index_max_4` on 8 rows and skips silver; after the 8 corrections the second build passes and silver is built with 104 rows.
-- Last change: the naming convention (see `CODING_STANDARDS.md`). Every table, model, test, Python module and class got a layer prefix (`brnz_`, `corr_`, `stg_`, `cand_`, `aud_`, `slvr_`), and the third run was done on the new names. The workbook's Power Query reads `dev_audit.aud_journal_entries__position_index_max_4`.
+- Last change (2026-10-09): the audit view. The `on-run-end` macro `DataWarehouseDbt/macros/create_audit_views.sql` creates `dev_audit.aud_journal_entries` after every run: the flagged rows once, with the data tests each row failed in `meta_failed_tests` (spec in `.scratch/audit-view/`, reasoning in `docs/adr/0001`). The generated SQL was checked in a rolled-back transaction; the loop has not been run with the view yet, and the workbook's Power Query still reads `dev_audit.aud_journal_entries__position_index_max_4` until the user points it at the view.
+- Before that: the naming convention (see `CODING_STANDARDS.md`). Every table, model, test, Python module and class got a layer prefix (`brnz_`, `corr_`, `stg_`, `cand_`, `aud_`, `slvr_`), and the third run was done on the new names.
 - Before that: the position logic in `DataWarehouseDbt/models/candidate/cand_journal_entries.sql`. A new room group starts only when the room value differs from the room of the row before it, not on every row that has a room. A reviewer can fill the room on all four rows of a group or only on the first one, the result is the same (26 room groups of 4).
 
 Update this section when the focus changes.
@@ -16,9 +17,9 @@ Update this section when the focus changes.
 
 Unfinished business. The user parks these deliberately: mention the relevant one when work gets near it, do not start it unprompted.
 
-- **Combined audit view.** One view that unions the per-test failure tables in `dev_audit`, so Excel and the corrections loader read a single object. To be done in dbt, not hand-written DDL. dbt-postgres 1.11.0 drops failure tables with `cascade` (checked in its drop macros), so a view on top of them disappears on every build and has to be recreated; an `on-run-end` hook was suggested. The `__` in the test names separates the table from the rule.
 - **Source names contain `dev_`.** `source("dev_bronze", ...)` writes the environment in every call. Accepted until the prod target comes back, then to be revisited.
-- **Corrections loader rules that depend on that view:** reject keys that are not in audit, reject an upload based on an audit older than the last corrections load.
+- **Corrections loader rules, possible now that the audit view exists:** reject keys that are not in `dev_audit.aud_journal_entries`, reject an upload based on an audit older than the last corrections load. The view does not say when the audit was taken, and after a partial run it mixes fresh results with older ones.
+- **Audit view leftovers:** a view or failure table stays behind in `dev_audit` after its model or data test is renamed or deleted. The bronze `not_null` data test on `date_time` is left out of the view and gives a warning on every run, because it is on a source and not on a candidate model.
 - **Duplicate keys inside one file** are not checked in `RecordSet`; the database index rejects them. The user accepted failing in SQL for now.
 - **Bronze re-load:** loading the same CSV twice fails on the unique index. "Skip identical rows, abort on same key with different values" is not implemented.
 - **Position test is weak:** it only checks `position_index > 4`. A check that every room group has each position exactly once was suggested, not agreed.
@@ -72,14 +73,18 @@ CSV ──python──> dev_bronze.brnz_journal_entries      (text, as received)
                       │ dbt        dev_corrections.corr_journal_entries <──python── Excel
                       ▼                │
                 dev_candidate.cand_journal_entries    (view: corrections override, room groups, positions)
-                      │ dbt tests ──> dev_audit.<test>  (failing rows, one table per test)
+                      │ dbt data tests ──> dev_audit.aud_journal_entries__<rule>  (failing rows, one table per data test)
+                      │                    │ dbt on-run-end
+                      │                    ▼
+                      │              dev_audit.aud_journal_entries  (view: flagged rows once, read by Excel)
                       ▼ only if all tests pass
                 dev_silver.slvr_journal_entries       (table: published, time zone assigned)
 ```
 
 - **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver is close to a plain select.
 - **A correction replaces the whole row.** When a key exists in corrections, every correctable column comes from the correction. Corrections stay in their table and are re-applied on every build; bronze is never modified.
-- **Review in Excel** reads candidate for context and an audit table for the flagged keys (via the ODBC DSN `PostgreSQL_DataWarehouse`), marks rows `needs_review`, and produces the `corrected` sheet with staging's non-`meta_` columns plus `meta_reviewed_by` and `meta_reviewed_date_time`.
+- **The audit view** `dev_audit.aud_journal_entries` lists every flagged row once, with the candidate's columns and `meta_failed_tests` (the rules it failed, alphabetical, separated by `, `). The `create_audit_views` macro recreates it after every dbt run, because dbt drops the failure tables with `cascade`; it exists with zero rows when nothing failed. The failure tables stay the source of truth.
+- **Review in Excel** reads candidate for context and the audit view for the flagged keys (via the ODBC DSN `PostgreSQL_DataWarehouse`), marks rows `needs_review`, and produces the `corrected` sheet with staging's non-`meta_` columns plus `meta_reviewed_by` and `meta_reviewed_date_time`.
 - **Room and position** are derived in candidate: rows are ordered by `date_time`, a room group starts when the room changes, and the rows of a group get the positions `drip_left`, `drip_right`, `drain_left`, `drain_right`.
 
 ### Who owns what

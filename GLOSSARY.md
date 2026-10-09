@@ -34,18 +34,22 @@ The data exactly as it was received.
 Bronze with automatic fixes applied and values converted to their types.
 
 **Candidate**:
-The proposal for silver: staging with corrections applied and room groups and positions derived. It is what the tests judge.
+The proposal for silver: staging with corrections applied and room groups and positions derived. It is what the data tests judge.
 
 **Audit**:
-The journal entries that failed a test, kept per test.
+The record of which journal entries failed which data tests.
 
 **Silver**:
-The published result. It changes only when the candidate passes every test.
+The published result. It changes only when the candidate passes every data test.
 
 ### Review
 
+**Data test**:
+A check on the content of the data that every row of the candidate must pass before silver is published.
+_Avoid_: Test on its own, which can also mean a unit or integration test of the code
+
 **Flagged row**:
-A journal entry that failed a test and waits for review.
+A journal entry that failed a data test and waits for review.
 
 **Review**:
 A person inspecting the flagged rows and deciding what their values should be.
