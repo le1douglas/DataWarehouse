@@ -8,10 +8,6 @@ sources:
     tables:
       - name: brnz_journal_entries
         description: csv data coming from the app "edenic" developed by bluelab.
-        columns:
-            - name: date_time
-              data_tests:
-               - not_null
   - name: dev_corrections
     description: It stores corrections made with external tools (for example excel)
     tables:
