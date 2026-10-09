@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The manual corrections loop for `journal_entries`: a reviewer fixes flagged rows in Excel, Python uploads them to `dev_corrections`, dbt applies them and rebuilds silver.
 
 - The loop has run end to end three times, the last two on 2026-10-08 from an empty database (drop database, DDL, CSV to bronze, `dbt build`, review in Excel, upload corrections, `dbt build`). The first build fails `aud_journal_entries__position_index_max_4` on 8 rows and skips silver; after the 8 corrections the second build passes and silver is built with 104 rows.
-- Last change: the naming convention (see Naming). Every table, model, test, Python module and class got a layer prefix (`brnz_`, `corr_`, `stg_`, `cand_`, `aud_`, `slvr_`), and the third run was done on the new names. The workbook's Power Query reads `dev_audit.aud_journal_entries__position_index_max_4`.
+- Last change: the naming convention (see `CODING_STANDARDS.md`). Every table, model, test, Python module and class got a layer prefix (`brnz_`, `corr_`, `stg_`, `cand_`, `aud_`, `slvr_`), and the third run was done on the new names. The workbook's Power Query reads `dev_audit.aud_journal_entries__position_index_max_4`.
 - Before that: the position logic in `DataWarehouseDbt/models/candidate/cand_journal_entries.sql`. A new room group starts only when the room value differs from the room of the row before it, not on every row that has a room. A reviewer can fill the room on all four rows of a group or only on the first one, the result is the same (26 room groups of 4).
 
 Update this section when the focus changes.
@@ -39,47 +39,13 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - The corrections workbook (`journal_entries_corrections.xlsx`, on the Desktop, outside the repo) is the user's. Read it with pandas only, never write to it, and it cannot be opened while Excel has it open.
 - Keep the split of responsibilities visible in every change: what Python owns, what the hand-written DDL owns, what dbt owns (see Overview).
 
-### Naming
+### Standards and vocabulary
 
-- One token per business concept (`journal_entries`, `JournalEntries` in class names), spelled the same everywhere. The shape is `<layer prefix>_<token>__<detail>`: the step goes before the token, a detail of the concept (a test rule) after it.
-- Schemas keep the full layer word, `dev_<layer>`. Everything inside a schema, and everything that refers to it, uses the layer's prefix:
-
-  | Schema | Prefix |
-  |---|---|
-  | `dev_bronze` | `brnz_` |
-  | `dev_corrections` | `corr_` |
-  | `dev_staging` | `stg_` |
-  | `dev_candidate` | `cand_` |
-  | `dev_audit` | `aud_` |
-  | `dev_silver` | `slvr_` |
-
-- A prefix never contains an underscore: the prefix ends at the first `_`, the detail starts at `__`. Prefixes do not need the same length.
-- Tables and dbt models: `<prefix>_<token>` (`dev_bronze.brnz_journal_entries`, `slvr_journal_entries`). The dbt file name is the relation name; no `alias` and no `generate_alias_name` or `generate_schema_name` override. The folder decides materialisation and schema in `dbt_project.yml`.
-- dbt sources are named after the schema and the table: `source("dev_bronze", "brnz_journal_entries")`.
-- dbt singular tests: `aud_<token>__<rule>.sql`, each with `{{ config(severity='error', store_failures=true) }}`, pointing at the candidate model. The file name is the name of the failure table in `dev_audit`, and relation names are limited to 63 characters.
-- Metadata columns start with `meta_` (`meta_extract_date_time`, `meta_source`, `meta_cast_errors`, `meta_is_corrected`, `meta_reviewed_by`, `meta_reviewed_date_time`, `meta_silver_date_time`). The Excel side filters on this prefix, so a non-`meta_` column in staging is treated as correctable.
-- From staging onwards the bronze column `tags` is called `room`. Use "room", "room group" and `room_index` in names and comments, never "tag".
-- Python: one class per file, file in snake case (`brnz_record_journal_entries.py`, `reader_csv.py`), classes `<Prefix>Record<Token>` (`BrnzRecordJournalEntries`), `<Prefix>Loader` (`CorrLoader`), `<Format>Reader`. Test files are `test_<module>.py`, with a name that is unique across `tests/unit` and `tests/integration`.
-- Unique key index: `uq_<table>_key` (`uq_brnz_journal_entries_key`).
-
-### SQL style
-
-- dbt models and tests are formatted by `sqlfmt` (config in `pyproject.toml`, line length 120), the formatter the dbt Power User extension uses. After editing them run `sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests` from the repo root. Do not hand-align SQL, the formatter removes it.
+- Read `CODING_STANDARDS.md` before naming or renaming a table, dbt model, test, column, Python module or class, and before writing SQL or Python. It holds the naming shape, the layer prefixes, and the SQL and Python style.
+- Name domain concepts with the terms defined in `GLOSSARY.md`.
+- After editing dbt models or tests run `sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests` from the repo root (config in `pyproject.toml`, line length 120; it is the formatter the dbt Power User extension uses). Do not hand-align SQL, the formatter removes it.
 - There is no SQL linter, and `sqlfmt` is the only SQL tool: do not add `sqlfluff` or another formatter next to it. The scripts in `Database` are not formatted by any tool.
-- The column order of a select is deliberate (it matches the corrections table and the Excel upload) and must not be rearranged.
-- dbt models: lowercase keywords, a chain of CTEs named with a verb (`identify_room_index`, `assign_position`), each doing one thing, with a lowercase `--` comment saying why. The final select lists columns explicitly so helper columns are not exposed.
-- Do not repeat logic across CTEs: compute a value once and reuse it.
-- Repeated column lists go in a Jinja `{% set %}` list and a loop.
-- `Database/*.sql` (hand-written DDL): uppercase keywords, `CREATE ... IF NOT EXISTS`.
-
-### Python style
-
-- Formatting and linting are done by `ruff` (config in `pyproject.toml`): run `ruff check --fix` and `ruff format` after editing Python. Do not hand-align code, the formatter removes it.
-- Comments are lowercase `# ` lines above the code they explain.
-- Every row model inherits `Record` (`extra="forbid"`, empty string becomes `None`, a pandas NaN is refused). `Record` has no fields; each model declares its own, including the `meta_` ones.
-- Turning missing values into `None` is the reader's job, not the model's. A dataframe from CSV and one from Excel must look the same where cells are empty.
-- A row model mirrors its SQL table as closely as possible: same column names, order, lengths and nullability.
-- Database errors are caught per exception type, printed with context, and re-raised. Loads run in one transaction.
+- After editing Python run `ruff check --fix` and `ruff format` (config in `pyproject.toml`). Do not hand-align code, the formatter removes it.
 
 ### Types and data rules
 
@@ -158,3 +124,13 @@ In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` or `"position
 Editing a table definition in the `03_` script does not change an existing table. To apply it: check the table is empty, `DROP TABLE ... CASCADE` (this also drops the dbt views on top of it), re-run the `03_` script, then `dbt build` to recreate the views.
 
 A full loop is: DDL, `load_bronze()`, `dbt build` (tests fail, silver skipped), review in Excel, `load_corrections()`, `dbt build` (silver built). Machine setup (Python, PostgreSQL, ODBC, VS Code, dbt, git) is documented step by step in `README.md`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this repo. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
