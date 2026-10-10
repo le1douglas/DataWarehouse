@@ -54,7 +54,7 @@ A small bronze/silver data warehouse on local PostgreSQL 18 for sensor measureme
 
 ### Pipeline
 
-The diagram of the pipeline is in `docs/data-flow.md`. Update it when an object or a dependency between objects changes.
+The diagram of the pipeline is in `docs/DATA-FLOW.md`. Update it when an object or a dependency between objects changes.
 
 - **Bronze and corrections are the two inputs.** Both are filled by Python from outside the warehouse, and dbt reads them without ever changing them. Bronze has meaning on its own: it is the store of all raw data, exactly as received. Corrections has meaning only for journal entries already in the warehouse.
 - **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver is close to a plain select.
