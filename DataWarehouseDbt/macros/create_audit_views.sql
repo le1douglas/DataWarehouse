@@ -1,5 +1,5 @@
 {#
-    creates the audit view of every candidate model: aud_<token>, its flagged rows once, with the data tests each row
+    creates the audit view of every candidate model: aud_<dataset>, its flagged rows once, with the data tests each row
     failed in meta_failed_tests. it runs as an on-run-end hook (see dbt_project.yml).
 
     the view is not a dbt model, for two reasons (docs/adr/0001):

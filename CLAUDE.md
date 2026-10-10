@@ -2,17 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current feature
-
-The manual corrections loop for `journal_entries`: a reviewer fixes flagged rows in Excel, Python uploads them to `dev_corrections`, dbt applies them and rebuilds silver.
-
-- The loop has run end to end three times, the last two on 2026-10-08 from an empty database (drop database, DDL, CSV to bronze, `dbt build`, review in Excel, upload corrections, `dbt build`). The first build fails `aud_journal_entries__position_index_max_4` on 8 rows and skips silver; after the 8 corrections the second build passes and silver is built with 104 rows.
-- Last change (2026-10-09): the audit view. The `on-run-end` macro `DataWarehouseDbt/macros/create_audit_views.sql` creates `dev_audit.aud_journal_entries` after every run: the flagged rows once, with the data tests each row failed in `meta_failed_tests` (spec in `.scratch/audit-view/`, reasoning in `docs/adr/0001`). The loop was run with it on 2026-10-09 from an empty database: after the first build the view held the 8 flagged rows, after the corrections and the second build it was empty and silver had 104 rows. A second loop on a CSV copy with one bad `ec` value (`SampleData/drip_drain_csv/journal-entries-two-errors.csv`) showed a row that failed both data tests once, with both rules. Further loops with throwaway generic tests showed a data test left out of the view with a warning (a `unique` on the candidate, a `not_null` on a bronze source) while it still failed the build and skipped silver. The throwaway tests and the bronze `not_null` on `date_time` are removed; the project has the two singular data tests only, and the database was left after a clean loop (silver 104 rows, 8 corrected, audit view empty).
-- Before that: the naming convention (see `CODING_STANDARDS.md`). Every table, model, test, Python module and class got a layer prefix (`brnz_`, `corr_`, `stg_`, `cand_`, `aud_`, `slvr_`), and the third run was done on the new names.
-- Before that: the position logic in `DataWarehouseDbt/models/candidate/cand_journal_entries.sql`. A new room group starts only when the room value differs from the room of the row before it, not on every row that has a room. A reviewer can fill the room on all four rows of a group or only on the first one, the result is the same (26 room groups of 4).
-
-Update this section when the focus changes.
-
 ## Reminders
 
 Unfinished business. The user parks these deliberately: mention the relevant one when work gets near it, do not start it unprompted.
@@ -42,8 +31,8 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 
 ### Standards and vocabulary
 
-- Read `CODING_STANDARDS.md` before naming or renaming a table, dbt model, test, column, Python module or class, and before writing SQL or Python. It holds the naming shape, the layer prefixes, and the SQL and Python style.
-- Name domain concepts with the terms defined in `GLOSSARY.md`.
+- Read `docs/CODING_STANDARDS.md` before naming or renaming a table, dbt model, test, column, Python module or class, and before writing SQL or Python. It holds the naming shape, the layer prefixes, and the SQL and Python style.
+- Name domain concepts with the terms defined in `docs/GLOSSARY.md`.
 - After editing dbt models or tests run `sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests` from the repo root (config in `pyproject.toml`, line length 120; it is the formatter the dbt Power User extension uses). Do not hand-align SQL, the formatter removes it.
 - There is no SQL linter, and `sqlfmt` is the only SQL tool: do not add `sqlfluff` or another formatter next to it. The scripts in `Database` are not formatted by any tool.
 - After editing Python run `ruff check --fix` and `ruff format` (config in `pyproject.toml`). Do not hand-align code, the formatter removes it.
@@ -65,22 +54,9 @@ A small bronze/silver data warehouse on local PostgreSQL 18 for sensor measureme
 
 ### Pipeline
 
-```
-CSV ──python──> dev_bronze.brnz_journal_entries      (text, as received)
-                      │ dbt
-                      ▼
-                dev_staging.stg_journal_entries       (view: auto-fix, guarded casts)
-                      │ dbt        dev_corrections.corr_journal_entries <──python── Excel
-                      ▼                │
-                dev_candidate.cand_journal_entries    (view: corrections override, room groups, positions)
-                      │ dbt data tests ──> dev_audit.aud_journal_entries__<rule>  (failing rows, one table per data test)
-                      │                    │ dbt on-run-end
-                      │                    ▼
-                      │              dev_audit.aud_journal_entries  (view: flagged rows once, read by Excel)
-                      ▼ only if all tests pass
-                dev_silver.slvr_journal_entries       (table: published, time zone assigned)
-```
+The diagram of the pipeline is in `docs/data-flow.md`. Update it when an object or a dependency between objects changes.
 
+- **Bronze and corrections are the two inputs.** Both are filled by Python from outside the warehouse, and dbt reads them without ever changing them. Bronze has meaning on its own: it is the store of all raw data, exactly as received. Corrections has meaning only for journal entries already in the warehouse.
 - **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver is close to a plain select.
 - **A correction replaces the whole row.** When a key exists in corrections, every correctable column comes from the correction. Corrections stay in their table and are re-applied on every build; bronze is never modified.
 - **The audit view** `dev_audit.aud_journal_entries` lists every flagged row once, with the candidate's columns and `meta_failed_tests` (the rules it failed, alphabetical, separated by `, `). The `create_audit_views` macro recreates it after every dbt run, because dbt drops the failure tables with `cascade`; it exists with zero rows when nothing failed. The failure tables stay the source of truth.
@@ -138,4 +114,5 @@ Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+One context: `GLOSSARY-MAP.md` at the repo root points to `docs/GLOSSARY.md`, and ADRs are in `docs/adr/`. See `docs/agents/domain.md`.
+Do not create a `GLOSSARY.md` in the repo root, instead follow the instructions in `GLOSSARY-MAP.md`.

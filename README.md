@@ -440,3 +440,9 @@ monitor fragmentation
 - 10-30% reorganize
 - more than 30 rebuild
 
+
+#Role	Permissions
+postgres ---> superuser responsable for permissions and owns bronze layer
+extract_load_user	----> the Python load script	INSERT on dev_bronze and prod_bronze tables
+transform_user	---> what dbt connects as	owns the dev_* and prod_* silver/gold schemas, with CREATE on the database, only select needed in bronze
+read_only_user	-----> Power BI, Tableau, Grafana	USAGE on prod_gold, SELECT on gold, nothing on bronze or silver

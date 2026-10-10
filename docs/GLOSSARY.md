@@ -27,8 +27,18 @@ The place in a room where a journal entry was measured: drip left, drip right, d
 
 ### Layers
 
+**Dataset**:
+One kind of data received from a source, such as the journal entries from the edenic app. It is the same dataset in every layer, even though its structure changes from one layer to the next.
+_Avoid_: Token
+
+**Input**:
+A layer filled from outside the warehouse, which the warehouse reads and never changes. Bronze and corrections are the inputs.
+
 **Bronze**:
-The data exactly as it was received.
+The store of all raw data, exactly as received from the sources. An input that has meaning on its own.
+
+**Corrections**:
+The store of all corrections, as uploaded by reviewers. An input that has meaning only for journal entries already in the warehouse.
 
 **Staging**:
 Bronze with automatic fixes applied and values converted to their types.

@@ -45,7 +45,7 @@ models:
       +schema: silver
 
 # failing rows are stored in one table per data test. after every run, create_audit_views puts the failure tables
-# of each candidate model in one view, aud_<token>, with one row per flagged row and the failed data tests in
+# of each candidate model in one view, aud_<dataset>, with one row per flagged row and the failed data tests in
 # meta_failed_tests. a data test that does not return whole candidate rows is left out of the view, with a warning
 data_tests:
   DataWarehouseDbt:
