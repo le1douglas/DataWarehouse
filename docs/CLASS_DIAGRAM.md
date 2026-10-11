@@ -1,6 +1,6 @@
 # Class diagram
 
-The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader` base class with its two loaders, the readers and the database are below it, and the records that describe one row are at the bottom. `config.py` and every type that comes from a library or from Python itself are left out.
+The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader`, the readers and the database are below it, and the records that describe one row are at the bottom, with one base class per layer. `config.py` and every type that comes from a library or from Python itself are left out.
 
 ```mermaid
 ---
@@ -18,14 +18,7 @@ classDiagram
 
     class Loader {
         + load(source: Path, reader: type[ExternalReader], record_model: type[RecordT]) RecordSet[RecordT]$
-        - \_add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
     }
-
-    class BrnzLoader {
-        - \_add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
-    }
-
-    class CorrLoader
 
     class PostgreSQLDatabase {
         + str server
@@ -74,6 +67,17 @@ classDiagram
         <<pydantic model>>
         + ConfigDict model_config
         - \_empty_string_to_null(data: dict) dict$
+        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
+    }
+
+    class BrnzRecord {
+        <<pydantic model>>
+        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
+    }
+
+    class CorrRecord {
+        <<pydantic model>>
+        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
     }
 
     class BrnzRecordJournalEntries {
@@ -110,12 +114,8 @@ classDiagram
         + datetime meta_reviewed_date_time
     }
 
-    load_journal_entries ..> BrnzLoader : calls
-    load_journal_entries ..> CorrLoader : calls
+    load_journal_entries ..> Loader : calls
     load_journal_entries ..> PostgreSQLDatabase : creates
-
-    Loader <|-- BrnzLoader
-    Loader <|-- CorrLoader
 
     Loader ..> ExternalReader : reads with
     Loader ..> RecordSet : creates
@@ -128,8 +128,10 @@ classDiagram
     RecordSet "1" *-- "1..*" RecordT : rows
     RecordT ..> Record : bound to
 
-    Record <|-- BrnzRecordJournalEntries
-    Record <|-- CorrRecordJournalEntries
+    Record <|-- BrnzRecord
+    Record <|-- CorrRecord
+    BrnzRecord <|-- BrnzRecordJournalEntries
+    CorrRecord <|-- CorrRecordJournalEntries
 ```
 
 ## Legend

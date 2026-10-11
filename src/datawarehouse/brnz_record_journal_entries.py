@@ -3,10 +3,10 @@ from typing import Optional
 
 from pydantic import Field
 
-from datawarehouse.record import Record
+from datawarehouse.brnz_record import BrnzRecord
 
 
-class BrnzRecordJournalEntries(Record):
+class BrnzRecordJournalEntries(BrnzRecord):
     """
     One row of dev_bronze.brnz_journal_entries.
 

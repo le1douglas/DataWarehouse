@@ -4,10 +4,10 @@ from typing import Optional
 
 from pydantic import Field
 
-from datawarehouse.record import Record
+from datawarehouse.corr_record import CorrRecord
 
 
-class CorrRecordJournalEntries(Record):
+class CorrRecordJournalEntries(CorrRecord):
     """
     One row of dev_corrections.corr_journal_entries.
 

@@ -1,6 +1,8 @@
 import math
+from pathlib import Path
 from typing import TypeVar
 
+import pandas as pd
 from pydantic import BaseModel, ConfigDict, model_validator
 
 
@@ -31,6 +33,13 @@ class Record(BaseModel):
                     f"missing values to None before this model saw them."
                 )
         return {k: (None if v == "" else v) for k, v in data.items()}
+
+    # adds the meta_ columns that are filled at load time, before the rows are validated.
+    # every layer decides this for itself in its own base class (BrnzRecord, CorrRecord),
+    # there is no default on purpose
+    @classmethod
+    def add_metadata(cls, df: pd.DataFrame, source: Path) -> pd.DataFrame:
+        raise NotImplementedError(f"{cls.__name__} does not say which meta_ columns are filled at load time")
 
 
 RecordT = TypeVar("RecordT", bound=Record)
