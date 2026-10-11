@@ -1,0 +1,147 @@
+# Class diagram
+
+The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader` base class with its two loaders, the readers and the database are below it, and the records that describe one row are at the bottom. `config.py` and every type that comes from a library or from Python itself are left out.
+
+```mermaid
+---
+title: datawarehouse
+---
+classDiagram
+    direction TB
+
+    class load_journal_entries {
+        <<module>>
+        + load_bronze()
+        + load_corrections()
+        + main()
+    }
+
+    class Loader {
+        + load(source: Path, reader: type[ExternalReader], record_model: type[RecordT]) RecordSet[RecordT]$
+        - \_add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
+    }
+
+    class BrnzLoader {
+        - \_add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
+    }
+
+    class CorrLoader
+
+    class PostgreSQLDatabase {
+        + str server
+        + str name
+        + str user
+        + int port
+        + Engine engine
+        - \_\_init__(db_server: str, db_name: str, db_user: str, db_password: str, db_port: int)
+        + connect()
+        + table_exists(layer: str, table_name: str) bool
+        + load_to_dev_bronze(table_name: str, record_set: RecordSet)
+        + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str])
+        - \_upsert(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str])
+        - \_load_to_bronze(layer: str, table_name: str, record_set: RecordSet)
+    }
+
+    class ExternalReader {
+        <<protocol>>
+        + read(source: Path) pd.DataFrame
+    }
+
+    class CSVReader {
+        - \_\_init__()
+        + read(source: Path) pd.DataFrame
+        - \_validate_fields_number_equals_columns_number(csv_path: Path)
+        - \_validate_is_csv_file(source: Path)
+    }
+
+    class ExcelReader {
+        - \_\_init__()
+        + read(source: Path) pd.DataFrame
+        - \_validate_is_excel_file(source: Path)
+    }
+
+    class RecordSet~RecordT~ {
+        <<pydantic model>>
+        + list[RecordT] rows
+        - \_not_empty() RecordSet[RecordT]
+    }
+
+    class RecordT {
+        <<TypeVar>>
+    }
+
+    class Record {
+        <<pydantic model>>
+        + ConfigDict model_config
+        - \_empty_string_to_null(data: dict) dict$
+    }
+
+    class BrnzRecordJournalEntries {
+        <<pydantic model>>
+        + str date_time
+        + str subject
+        + Optional[str] notes
+        + Optional[str] type
+        + str ec
+        + Optional[str] ec_pore
+        + Optional[str] ec_bulk
+        + str ph
+        + Optional[str] mc
+        + Optional[str] temp
+        + Optional[str] device
+        + Optional[str] media
+        + Optional[str] tags
+        + datetime meta_extract_date_time
+        + str meta_source
+    }
+
+    class CorrRecordJournalEntries {
+        <<pydantic model>>
+        + datetime date_time
+        + str subject
+        + Optional[str] type
+        + Optional[Decimal] ml
+        + Optional[Decimal] ec
+        + Optional[Decimal] ph
+        + Optional[Decimal] temp
+        + Optional[str] notes
+        + Optional[str] room
+        + str meta_reviewed_by
+        + datetime meta_reviewed_date_time
+    }
+
+    load_journal_entries ..> BrnzLoader : calls
+    load_journal_entries ..> CorrLoader : calls
+    load_journal_entries ..> PostgreSQLDatabase : creates
+
+    Loader <|-- BrnzLoader
+    Loader <|-- CorrLoader
+
+    Loader ..> ExternalReader : reads with
+    Loader ..> RecordSet : creates
+    Loader ..> RecordT : validates into
+    PostgreSQLDatabase ..> RecordSet : writes
+
+    ExternalReader <|.. CSVReader
+    ExternalReader <|.. ExcelReader
+
+    RecordSet "1" *-- "1..*" RecordT : rows
+    RecordT ..> Record : bound to
+
+    Record <|-- BrnzRecordJournalEntries
+    Record <|-- CorrRecordJournalEntries
+```
+
+## Legend
+
+- **`<<module>>`:** a module that has functions of its own, drawn as a box with those functions. A module that only holds a class is not drawn.
+- **`<<pydantic model>>`:** a class that inherits from pydantic's `BaseModel`, directly or through `Record`. Pydantic validates every object of the class when it is created.
+- **`<<protocol>>`:** a `Protocol`. It describes the methods a class must have, and no class needs to inherit from it.
+- **`<<TypeVar>>`:** a generic type, a placeholder for one specific class.
+- **`+` and `-`:** a public member, and a member whose name starts with an underscore.
+- **Underlined method:** a `@staticmethod` or a `@classmethod`.
+- **Solid line with a hollow arrowhead:** the lower class inherits from the upper one.
+- **Dashed line with a hollow arrowhead:** the lower class has the methods the protocol above it asks for.
+- **Line with a filled diamond:** the class at the diamond holds objects of the other type. The numbers say how many: one `RecordSet` holds one or more rows.
+- **Dashed line with an open arrowhead and a label:** the upper box uses the lower one in the way the label says.
+- **Not drawn:** `config.py`, and the types from the standard library and from installed libraries. Their names appear only as the type of an attribute, a parameter or a return value.
