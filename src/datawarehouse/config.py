@@ -21,8 +21,14 @@ DB_DEV_SCHEMA_CORRECTIONS = "dev_corrections"
 TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
 TBL_CORR_JOURNAL_ENTRIES = "corr_journal_entries"
 
-# date_time and subject together identify a journal entry
-KEY_JOURNAL_ENTRIES = ["date_time", "subject"]
+# the meta table of a layer holds the metadata of every dataset of that layer
+TBL_META_BRONZE = "meta_bronze"
+
+# the name of a dataset, as written in the dataset column of the meta tables
+DATASET_JOURNAL_ENTRIES = "journal_entries"
+
+# row_id identifies a journal entry, it is assigned by the database when the row enters bronze
+KEY_JOURNAL_ENTRIES = ["row_id"]
 
 # --- Root of the repo = the parent folder of the folder this file lives in ---
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

@@ -1,4 +1,3 @@
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -13,8 +12,8 @@ from pydantic import Field
 FIELD_MAX_LENGHT = 50
 value_long = f"this value is longer than {FIELD_MAX_LENGHT}" + ("-" * (FIELD_MAX_LENGHT + 1))
 
+from datawarehouse.brnz_record import BrnzRecord
 from datawarehouse.reader_csv import CSVReader
-from datawarehouse.record import Record
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
@@ -56,11 +55,8 @@ def expected_valid_dataframe():
     )
 
 
-class FakeRecord_One_Field(Record):
+class FakeRecord_One_Field(BrnzRecord):
     value: Optional[str] = Field(max_length=FIELD_MAX_LENGHT)
-
-    meta_extract_date_time: datetime
-    meta_source: str = Field(max_length=400)
 
 
 class FakeReader_Valid_OneRow:

@@ -15,8 +15,9 @@ class Loader:
     Takes a reader capable of returnig a dataframe,
     and validates it row wise (against the privided RecordT) and between rows.
 
-    The same for every layer. What differs per layer is which meta_ columns are added at load
+    The same for every layer. What differs per layer is what is added to the rows at load
     time, and that is decided by the row model's layer (BrnzRecord.add_metadata, CorrRecord.add_metadata).
+    Bronze adds nothing: its metadata goes to the meta table, not to the rows.
 
     Static for now, revisit if a looping use case (many files) needs to share state (a reused
     reader instance, aggregated errors across files, etc.) across calls.
@@ -28,7 +29,7 @@ class Loader:
         # creates an instance of the reader here
         df = reader().read(source)
 
-        # the layer of the row model decides which meta_ columns are added
+        # the layer of the row model decides what is added to the rows
         df = record_model.add_metadata(df, source)
 
         # validates each row by making them a RecordT

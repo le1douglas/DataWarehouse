@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 
 from pydantic import Field
@@ -14,22 +13,20 @@ class BrnzRecordJournalEntries(BrnzRecord):
     stays a string, matching VARCHAR in PostgreSQL, even where the
     content is numeric.
 
-    date_time (cut to the second) and subject together are the key,
-    unique in the table.
+    The key of the table is row_id, which is not a field here: the
+    database assigns it when the row is inserted.
 
     Empty string ("") means "nothing recorded" and is normalized to
     None. A literal "N/A" (or similar) is NOT normalized. It's the
     data collector explicitly marking the field as not applicable, and
     that intent is preserved as-is, not conflated with a missing value.
 
-    meta_extract_date_time is a plain datetime, matching PostgreSQL's
-    TIMESTAMP (no timezone concept). By convention this value represents
-    Amsterdam local time. That's the caller's responsibility entirely;
-    this model does not verify tzinfo one way or the other.
+    The row has no metadata: when and from where it was loaded is written
+    to dev_bronze.meta_bronze, see BrnzRecord.load_metadata.
     """
 
-    date_time: str = Field(max_length=50)  # required key, non-null
-    subject: str = Field(max_length=50)  # required key, non-null
+    date_time: str = Field(max_length=50)  # required, non-null
+    subject: str = Field(max_length=50)  # required, non-null
     notes: Optional[str] = Field(max_length=400)
     type: Optional[str] = Field(max_length=50)
     ec: str = Field(max_length=50)  # required, non-null
@@ -41,6 +38,3 @@ class BrnzRecordJournalEntries(BrnzRecord):
     device: Optional[str] = Field(max_length=50)
     media: Optional[str] = Field(max_length=50)
     tags: Optional[str] = Field(max_length=50)
-
-    meta_extract_date_time: datetime  # required, non-null
-    meta_source: str = Field(max_length=400)  # required, non-null

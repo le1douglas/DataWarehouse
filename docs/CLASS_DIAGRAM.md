@@ -1,6 +1,6 @@
 # Class diagram
 
-The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader`, the readers and the database are below it, and the records that describe one row are at the bottom, with one base class per layer. `config.py` and every type that comes from a library or from Python itself are left out.
+The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader`, the readers and the database are below it, and the records that describe one row are at the bottom, with one base class per layer and one record for a row of a meta table. `config.py` and every type that comes from a library or from Python itself are left out.
 
 ```mermaid
 ---
@@ -29,10 +29,11 @@ classDiagram
         - \_\_init__(db_server: str, db_name: str, db_user: str, db_password: str, db_port: int)
         + connect()
         + table_exists(layer: str, table_name: str) bool
-        + load_to_dev_bronze(table_name: str, record_set: RecordSet)
+        + load_to_dev_bronze(table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str])
         + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str])
         - \_upsert(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str])
-        - \_load_to_bronze(layer: str, table_name: str, record_set: RecordSet)
+        - \_load_to_bronze(layer: str, table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str])
+        - \_insert_with_metadata(conn: Connection, layer: str, table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str]) tuple[int, int]
     }
 
     class ExternalReader {
@@ -73,6 +74,7 @@ classDiagram
     class BrnzRecord {
         <<pydantic model>>
         + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
+        + load_metadata(source: Path) dict[str, str]$
     }
 
     class CorrRecord {
@@ -95,12 +97,19 @@ classDiagram
         + Optional[str] device
         + Optional[str] media
         + Optional[str] tags
-        + datetime meta_extract_date_time
-        + str meta_source
+    }
+
+    class MetaRecord {
+        <<pydantic model>>
+        + UUID row_id
+        + str dataset
+        + str kind
+        + str description
     }
 
     class CorrRecordJournalEntries {
         <<pydantic model>>
+        + UUID row_id
         + datetime date_time
         + str subject
         + Optional[str] type
@@ -116,11 +125,13 @@ classDiagram
 
     load_journal_entries ..> Loader : calls
     load_journal_entries ..> PostgreSQLDatabase : creates
+    load_journal_entries ..> BrnzRecord : asks the metadata of the load
 
     Loader ..> ExternalReader : reads with
     Loader ..> RecordSet : creates
     Loader ..> RecordT : validates into
     PostgreSQLDatabase ..> RecordSet : writes
+    PostgreSQLDatabase ..> MetaRecord : creates and writes
 
     ExternalReader <|.. CSVReader
     ExternalReader <|.. ExcelReader
@@ -130,6 +141,7 @@ classDiagram
 
     Record <|-- BrnzRecord
     Record <|-- CorrRecord
+    Record <|-- MetaRecord
     BrnzRecord <|-- BrnzRecordJournalEntries
     CorrRecord <|-- CorrRecordJournalEntries
 ```

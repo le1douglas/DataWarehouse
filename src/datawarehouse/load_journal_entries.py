@@ -2,11 +2,13 @@ from pathlib import Path
 
 from datawarehouse.brnz_record_journal_entries import BrnzRecordJournalEntries
 from datawarehouse.config import (
+    DATASET_JOURNAL_ENTRIES,
     JOURNAL_ENTRIES_CSV,
     KEY_JOURNAL_ENTRIES,
     POSTGRES_CONFIG,
     TBL_BRNZ_JOURNAL_ENTRIES,
     TBL_CORR_JOURNAL_ENTRIES,
+    TBL_META_BRONZE,
 )
 from datawarehouse.corr_record_journal_entries import CorrRecordJournalEntries
 from datawarehouse.loader import Loader
@@ -19,10 +21,13 @@ from datawarehouse.sql_postgres_database import PostgreSQLDatabase
 def load_bronze():
     filepath = JOURNAL_ENTRIES_CSV
     record_set = Loader.load(filepath, CSVReader, BrnzRecordJournalEntries)
+    metadata = BrnzRecordJournalEntries.load_metadata(filepath)
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
     postgres.connect()
-    postgres.load_to_dev_bronze(TBL_BRNZ_JOURNAL_ENTRIES, record_set)
+    postgres.load_to_dev_bronze(
+        TBL_BRNZ_JOURNAL_ENTRIES, record_set, TBL_META_BRONZE, DATASET_JOURNAL_ENTRIES, metadata
+    )
 
 
 # excel -> dev_corrections

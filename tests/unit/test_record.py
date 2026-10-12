@@ -17,8 +17,6 @@ from pydantic import ValidationError
 def test_empty_string_to_null_parametrized(record_one_field, raw_value, expected):
     record = record_one_field(
         value=raw_value,
-        meta_extract_date_time="2026-01-01T00:00:00",  # unused
-        meta_source="test",  # unused
     )
     assert record.value == expected
 
@@ -28,6 +26,4 @@ def test_empty_string_to_null_nan(record_one_field):
     with pytest.raises(ValidationError, match="received a pandas NaN value directly"):
         record_one_field(
             value=float("nan"),
-            meta_extract_date_time="2026-01-01T00:00:00",  # unused
-            meta_source="test",  # unused
         )
