@@ -3,7 +3,9 @@ from pathlib import Path
 from typing import TypeVar
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator, Field
+
+from datawarehouse.meta_record import MetaRecord
 
 
 class Record(BaseModel):
@@ -34,12 +36,10 @@ class Record(BaseModel):
                 )
         return {k: (None if v == "" else v) for k, v in data.items()}
 
-    # adds the columns that are filled at load time, before the rows are validated.
-    # every layer decides this for itself in its own base class (BrnzRecord, CorrRecord),
-    # there is no default on purpose
-    @classmethod
-    def add_metadata(cls, df: pd.DataFrame, source: Path) -> pd.DataFrame:
-        raise NotImplementedError(f"{cls.__name__} does not say which columns are filled at load time")
+    
+    # metadata that is recorded about this row. Not a column of the table: is stored in a seperte table.
+    # it is left out of model_dump, so a dumped row is still exactly the columns of the source
+    meta_records: list[MetaRecord] = Field(default_factory=list, exclude=True)
 
 
 RecordT = TypeVar("RecordT", bound=Record)

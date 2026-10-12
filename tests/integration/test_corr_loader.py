@@ -73,7 +73,7 @@ def workbook(tmp_path):
 
 
 def test_load_corrections(workbook):
-    result = Loader.load(workbook, partial(ExcelReader, "corrected"), CorrRecordJournalEntries)
+    result, _ = Loader.load(workbook, partial(ExcelReader, "corrected"), CorrRecordJournalEntries)
 
     assert all(isinstance(r, CorrRecordJournalEntries) for r in result.rows)
     assert [r.row_id for r in result.rows] == [UUID(ROW_ID_1), UUID(ROW_ID_2)]
@@ -83,7 +83,7 @@ def test_load_corrections(workbook):
 
 # the metadata arrives as rows of its own, python does not split a correction into them
 def test_load_metadata(workbook):
-    result = Loader.load(workbook, partial(ExcelReader, "meta_corrections"), MetaRecord)
+    result, _ = Loader.load(workbook, partial(ExcelReader, "meta_corrections"), MetaRecord)
 
     assert all(isinstance(r, MetaRecord) for r in result.rows)
     assert [r.model_dump() for r in result.rows] == [{**row, "row_id": UUID(row["row_id"])} for row in METADATA]

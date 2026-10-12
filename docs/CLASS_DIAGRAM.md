@@ -1,6 +1,6 @@
 # Class diagram
 
-The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader`, the readers and the database are below it, and the records that describe one row are at the bottom, with one base class per layer and one record for a row of a meta table. `config.py` and every type that comes from a library or from Python itself are left out.
+The classes and generic types of `src/datawarehouse`, each class with all its attributes and methods, plus the one module that has functions of its own. Read it from top to bottom: the script that starts a load is at the top, the `Loader`, the readers and the database are below it, and the records are at the bottom, with one base class per layer, one record per dataset of a layer, and one record for a piece of metadata. `config.py` and every type that comes from a library or from Python itself are left out.
 
 ```mermaid
 ---
@@ -17,7 +17,7 @@ classDiagram
     }
 
     class Loader {
-        + load(source: Path, reader: Callable[[], ExternalReader], record_model: type[RecordT]) RecordSet[RecordT]$
+        + load(source: Path, reader: type[ExternalReader], record_model: type[RecordT]) RecordSet[RecordT]$
     }
 
     class PostgreSQLDatabase {
@@ -29,13 +29,10 @@ classDiagram
         - \_\_init__(db_server: str, db_name: str, db_user: str, db_password: str, db_port: int)
         + connect()
         + table_exists(layer: str, table_name: str) bool
-        + load_to_dev_bronze(table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str])
-        + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str], meta_table_name: str, meta_record_set: RecordSet[MetaRecord])
-        - \_load_to_corrections(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str], meta_table_name: str, meta_record_set: RecordSet[MetaRecord])
-        - \_validate_same_row_ids(record_set: RecordSet, meta_record_set: RecordSet[MetaRecord])
-        - \_upsert_with_metadata(conn: Connection, layer: str, table_name: str, record_set: RecordSet, key_columns: list[str], meta_table_name: str, meta_record_set: RecordSet[MetaRecord]) tuple[int, int]
-        - \_load_to_bronze(layer: str, table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str])
-        - \_insert_with_metadata(conn: Connection, layer: str, table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str]) tuple[int, int]
+        + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str])
+        - \_upsert(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str])
+        + load_to_dev_bronze(table_name: str, record_set: RecordSet)
+        - \_load_to_bronze(layer: str, table_name: str, meta_table_name: str, record_set: RecordSet)
     }
 
     class ExternalReader {
@@ -51,8 +48,7 @@ classDiagram
     }
 
     class ExcelReader {
-        + str sheet_name
-        - \_\_init__(sheet_name: str)
+        - \_\_init__()
         + read(source: Path) pd.DataFrame
         - \_validate_is_excel_file(source: Path)
     }
@@ -70,19 +66,23 @@ classDiagram
     class Record {
         <<pydantic model>>
         + ConfigDict model_config
+        + list[MetaRecord] meta_records
         - \_empty_string_to_null(data: dict) dict$
-        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
     }
 
     class BrnzRecord {
         <<pydantic model>>
-        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
-        + load_metadata(source: Path) dict[str, str]$
     }
 
     class CorrRecord {
         <<pydantic model>>
         + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
+    }
+
+    class MetaRecord {
+        <<pydantic model>>
+        + str kind
+        + str description
     }
 
     class BrnzRecordJournalEntries {
@@ -102,18 +102,8 @@ classDiagram
         + Optional[str] tags
     }
 
-    class MetaRecord {
-        <<pydantic model>>
-        + UUID row_id
-        + str dataset
-        + str kind
-        + str description
-        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
-    }
-
     class CorrRecordJournalEntries {
         <<pydantic model>>
-        + UUID row_id
         + datetime date_time
         + str subject
         + Optional[str] type
@@ -123,18 +113,22 @@ classDiagram
         + Optional[Decimal] temp
         + Optional[str] notes
         + Optional[str] room
+        + str meta_reviewed_by
+        + datetime meta_reviewed_date_time
     }
 
     load_journal_entries ..> Loader : calls
     load_journal_entries ..> PostgreSQLDatabase : creates
-    load_journal_entries ..> BrnzRecord : asks the metadata of the load
+    load_journal_entries ..> RecordSet : reads rows
 
     Loader ..> ExternalReader : reads with
     Loader ..> RecordSet : creates
     Loader ..> RecordT : validates into
+    Loader ..> BrnzRecord : checks layer
+    Loader ..> MetaRecord : creates
     PostgreSQLDatabase ..> RecordSet : writes
-    PostgreSQLDatabase ..> MetaRecord : creates for bronze, writes
-    Loader ..> MetaRecord : validates the corrections metadata into
+    PostgreSQLDatabase ..> Record : reads metadata
+    PostgreSQLDatabase ..> MetaRecord : writes
 
     ExternalReader <|.. CSVReader
     ExternalReader <|.. ExcelReader
@@ -145,6 +139,7 @@ classDiagram
     Record <|-- BrnzRecord
     Record <|-- CorrRecord
     Record <|-- MetaRecord
+    Record "1" *-- "0..*" MetaRecord : meta_records
     BrnzRecord <|-- BrnzRecordJournalEntries
     CorrRecord <|-- CorrRecordJournalEntries
 ```
@@ -159,6 +154,6 @@ classDiagram
 - **Underlined method:** a `@staticmethod` or a `@classmethod`.
 - **Solid line with a hollow arrowhead:** the lower class inherits from the upper one.
 - **Dashed line with a hollow arrowhead:** the lower class has the methods the protocol above it asks for.
-- **Line with a filled diamond:** the class at the diamond holds objects of the other type. The numbers say how many: one `RecordSet` holds one or more rows.
+- **Line with a filled diamond:** the class at the diamond holds objects of the other type. The numbers say how many: one `RecordSet` holds one or more rows, and one `Record` holds zero or more `MetaRecord`.
 - **Dashed line with an open arrowhead and a label:** the upper box uses the lower one in the way the label says.
 - **Not drawn:** `config.py`, and the types from the standard library and from installed libraries. Their names appear only as the type of an attribute, a parameter or a return value.

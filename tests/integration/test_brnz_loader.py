@@ -14,7 +14,7 @@ from datawarehouse.reader_csv import CSVReader
 def test_load_valid(reader_valid_one_row, record_one_field):
     source = Path("some/path/to/file.csv")
 
-    result = Loader.load(source, reader_valid_one_row, record_one_field)
+    result, _ = Loader.load(source, reader_valid_one_row, record_one_field)
 
     assert all(
         isinstance(r, record_one_field) for r in result.rows
@@ -32,10 +32,22 @@ def test_load_journal_entries_sample_csv():
     with JOURNAL_ENTRIES_CSV.open(newline="", encoding="utf-8") as f:
         header = next(csv.reader(f))
 
-    result = Loader.load(JOURNAL_ENTRIES_CSV, CSVReader, BrnzRecordJournalEntries)
+    result, _ = Loader.load(JOURNAL_ENTRIES_CSV, CSVReader, BrnzRecordJournalEntries)
 
     assert len(result.rows) == 104
     assert list(result.rows[0].model_dump().keys()) == header
+
+
+# a bronze load has two metadata rows for every row loaded: from where and when
+def test_load_journal_entries_metadata():
+    _, meta_result = Loader.load(JOURNAL_ENTRIES_CSV, CSVReader, BrnzRecordJournalEntries)
+
+    assert len(meta_result.rows) == 208
+    assert [(r.dataset, r.kind) for r in meta_result.rows[:2]] == [
+        ("journal_entries", "source_metadata"),
+        ("journal_entries", "extract_date_time"),
+    ]
+    assert meta_result.rows[0].description == str(JOURNAL_ENTRIES_CSV)
 
 
 # invalid rows are handled by pydantic. Just making sure the exception surfaces

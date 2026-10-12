@@ -2,18 +2,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
-
 from datawarehouse.brnz_record import BrnzRecord
-
-
-# bronze metadata is not a column of the row
-def test_add_metadata_adds_no_columns():
-    df = pd.DataFrame([{"value": "ok"}])
-
-    result = BrnzRecord.add_metadata(df, Path("some/path/to/file.csv"))
-
-    assert list(result.columns) == ["value"]
 
 
 def test_load_metadata_kinds():

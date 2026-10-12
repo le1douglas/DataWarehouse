@@ -69,7 +69,6 @@ CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
 -- only the meta tables that python fills are created here. dbt creates meta_staging, meta_candidate and meta_silver.
 CREATE TABLE IF NOT EXISTS dev_bronze.meta_bronze (
     row_id UUID NOT NULL,
-    dataset VARCHAR(50) NOT NULL,
     kind VARCHAR(50) NOT NULL,
     description VARCHAR(400) NOT NULL,
     CONSTRAINT pk_meta_bronze PRIMARY KEY (row_id, kind),
@@ -79,7 +78,6 @@ CREATE TABLE IF NOT EXISTS dev_bronze.meta_bronze (
 
 CREATE TABLE IF NOT EXISTS dev_corrections.meta_corrections (
     row_id UUID NOT NULL,
-    dataset VARCHAR(50) NOT NULL,
     kind VARCHAR(50) NOT NULL,
     description VARCHAR(400) NOT NULL,
     CONSTRAINT pk_meta_corrections PRIMARY KEY (row_id, kind),
