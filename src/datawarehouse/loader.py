@@ -1,4 +1,5 @@
 # loader.py
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import TypeAdapter
@@ -17,15 +18,16 @@ class Loader:
 
     The same for every layer. What differs per layer is what is added to the rows at load
     time, and that is decided by the row model's layer (BrnzRecord.add_metadata, CorrRecord.add_metadata).
-    Bronze adds nothing: its metadata goes to the meta table, not to the rows.
+    Bronze and corrections add nothing: their metadata goes to the meta table, not to the rows.
 
     Static for now, revisit if a looping use case (many files) needs to share state (a reused
     reader instance, aggregated errors across files, etc.) across calls.
     """
 
-    # pass the class type, not a class instance i.e CSVReader not CSVReader()
+    # pass something that creates a reader, not a reader instance i.e CSVReader not CSVReader().
+    # a reader that needs arguments is passed with them filled in: partial(ExcelReader, "corrected")
     @staticmethod
-    def load(source: Path, reader: type[ExternalReader], record_model: type[RecordT]) -> RecordSet[RecordT]:
+    def load(source: Path, reader: Callable[[], ExternalReader], record_model: type[RecordT]) -> RecordSet[RecordT]:
         # creates an instance of the reader here
         df = reader().read(source)
 

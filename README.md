@@ -102,8 +102,7 @@ pip freeze --exclude-editable > requirements.txt
 
 
 ## Regual DB maintenance
-
-**index maintance**
+# Index maintenance
 todo find out how index maintance works in posgresql
 https://wiki.postgresql.org/wiki/Index_Maintenance
 
@@ -113,6 +112,17 @@ monitor fragmentation
 - lesstha 10% no action
 - 10-30% reorganize
 - more than 30 rebuild
+
+# Storage use
+monitor over all db size
+monitor table size
+change vacuum defaults?
+
+
+## Backup and restore strategy
+find uptime requirements
+find data loss tolerance
+
 
 
 ## Role	Permissions

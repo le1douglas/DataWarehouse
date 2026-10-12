@@ -5,37 +5,37 @@
 {% set positions = ["drip_left", "drip_right", "drain_left", "drain_right"] %}
 
 -- the columns that a correction replaces, they have the same name and type in staging and corrections
-{% set correctable_columns = ["type", "ml", "ec", "ph", "temp", "notes", "room"] %}
+{% set correctable_columns = ["date_time", "subject", "type", "ml", "ec", "ph", "temp", "notes", "room"] %}
 
 with
     staged as (select * from {{ ref("stg_journal_entries") }}),
 
     corrections as (select * from {{ source("dev_corrections", "corr_journal_entries") }}),
 
-    -- a correction replaces all the correctable columns of the row with the same key
+    -- a correction replaces all the correctable columns of the row with the same row_id
     combined as (
         select
-            s.date_time,
-            s.subject,
+            s.row_id,
             {%- for col in correctable_columns %}
-                case when c.subject is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
+                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
             {%- endfor %}
             s.meta_extract_date_time,
             s.meta_source,
             -- a corrected row has no cast errors: its values come from corrections, that is already typed
-            case when c.subject is null then s.meta_cast_errors end as meta_cast_errors,
-            c.subject is not null as meta_is_corrected,
+            case when c.row_id is null then s.meta_cast_errors end as meta_cast_errors,
+            c.row_id is not null as meta_is_corrected,
             c.meta_reviewed_by,
             c.meta_reviewed_date_time
         from staged as s
-        left join corrections as c on s.date_time = c.date_time and s.subject = c.subject
+        left join corrections as c on s.row_id = c.row_id
     ),
 
+    -- date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
     identify_room_entry_index as (
         select
             *,
             -- goes down the list in date_time order and increments every time it hits a room that is not null
-            count(room) over (order by date_time, subject) as room_entry_index
+            count(room) over (order by date_time, subject, row_id) as room_entry_index
         from combined
     ),
 
@@ -45,7 +45,7 @@ with
             -- the room sits on the first row of its room_entry_index, copy it down so every row knows the room it is
             -- in.
             -- this is the only place where the room is copied down
-            first_value(room) over (partition by room_entry_index order by date_time, subject) as room_carried
+            first_value(room) over (partition by room_entry_index order by date_time, subject, row_id) as room_carried
         from identify_room_entry_index
     ),
 
@@ -55,7 +55,7 @@ with
             -- a room group starts on a row whose room is not null and is different from the room of the row before it.
             -- a row that repeats the room it is already in stays in the same room group
             (
-                room is not null and room is distinct from lag(room_carried) over (order by date_time, subject)
+                room is not null and room is distinct from lag(room_carried) over (order by date_time, subject, row_id)
             ) as is_new_room_group
         from carry_room
     ),
@@ -64,7 +64,7 @@ with
         select
             *,
             -- goes down the list in date_time order and increments every time a new room group starts
-            count(*) filter (where is_new_room_group) over (order by date_time, subject) as room_index
+            count(*) filter (where is_new_room_group) over (order by date_time, subject, row_id) as room_index
         from flag_new_room_group
     ),
 
@@ -74,7 +74,7 @@ with
         select
             *,
             -- counts the rows inside each room_index
-            row_number() over (partition by room_index order by date_time, subject) as position_index
+            row_number() over (partition by room_index order by date_time, subject, row_id) as position_index
         from identify_room_index
 
     ),
@@ -104,8 +104,7 @@ with
     )
 
 select
-    date_time,
-    subject,
+    row_id,
     {%- for col in correctable_columns %} {{ col }}, {%- endfor %}
     room_filled,
     room_index,

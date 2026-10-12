@@ -17,7 +17,7 @@ classDiagram
     }
 
     class Loader {
-        + load(source: Path, reader: type[ExternalReader], record_model: type[RecordT]) RecordSet[RecordT]$
+        + load(source: Path, reader: Callable[[], ExternalReader], record_model: type[RecordT]) RecordSet[RecordT]$
     }
 
     class PostgreSQLDatabase {
@@ -30,8 +30,10 @@ classDiagram
         + connect()
         + table_exists(layer: str, table_name: str) bool
         + load_to_dev_bronze(table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str])
-        + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str])
-        - \_upsert(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str])
+        + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str], meta_table_name: str, meta_record_set: RecordSet[MetaRecord])
+        - \_load_to_corrections(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str], meta_table_name: str, meta_record_set: RecordSet[MetaRecord])
+        - \_validate_same_row_ids(record_set: RecordSet, meta_record_set: RecordSet[MetaRecord])
+        - \_upsert_with_metadata(conn: Connection, layer: str, table_name: str, record_set: RecordSet, key_columns: list[str], meta_table_name: str, meta_record_set: RecordSet[MetaRecord]) tuple[int, int]
         - \_load_to_bronze(layer: str, table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str])
         - \_insert_with_metadata(conn: Connection, layer: str, table_name: str, record_set: RecordSet, meta_table_name: str, dataset: str, metadata: dict[str, str]) tuple[int, int]
     }
@@ -49,7 +51,8 @@ classDiagram
     }
 
     class ExcelReader {
-        - \_\_init__()
+        + str sheet_name
+        - \_\_init__(sheet_name: str)
         + read(source: Path) pd.DataFrame
         - \_validate_is_excel_file(source: Path)
     }
@@ -105,6 +108,7 @@ classDiagram
         + str dataset
         + str kind
         + str description
+        + add_metadata(df: pd.DataFrame, source: Path) pd.DataFrame$
     }
 
     class CorrRecordJournalEntries {
@@ -119,8 +123,6 @@ classDiagram
         + Optional[Decimal] temp
         + Optional[str] notes
         + Optional[str] room
-        + str meta_reviewed_by
-        + datetime meta_reviewed_date_time
     }
 
     load_journal_entries ..> Loader : calls
@@ -131,7 +133,8 @@ classDiagram
     Loader ..> RecordSet : creates
     Loader ..> RecordT : validates into
     PostgreSQLDatabase ..> RecordSet : writes
-    PostgreSQLDatabase ..> MetaRecord : creates and writes
+    PostgreSQLDatabase ..> MetaRecord : creates for bronze, writes
+    Loader ..> MetaRecord : validates the corrections metadata into
 
     ExternalReader <|.. CSVReader
     ExternalReader <|.. ExcelReader

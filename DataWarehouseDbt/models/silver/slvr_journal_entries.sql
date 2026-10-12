@@ -2,6 +2,7 @@
 -- everything that can go wrong happens in cand_journal_entries, this is rebuilt only when its tests pass
 -- up to candidate the datetimes have no time zone, here they are all assigned to {{ var("timezone") }}
 select
+    row_id,
     (date_time at time zone '{{ var("timezone") }}')::timestamptz(0) as date_time,
     subject,
     type,

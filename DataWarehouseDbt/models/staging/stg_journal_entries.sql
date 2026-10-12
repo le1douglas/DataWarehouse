@@ -6,7 +6,9 @@
 with
     source as (
         select
-            -- the key: date_time cut to the second plus subject.
+            -- the key, assigned by bronze. it is carried through every step unchanged
+            row_id,
+            -- date_time is cut to the second.
             -- the cast is not guarded: a date_time that is not a timestamp fails the whole build
             -- no time zone here: it is only assigned in silver
             date_trunc('second', date_time::timestamp)::timestamp(0) as date_time,
@@ -26,6 +28,7 @@ with
     -- auto-fix rules: trim, empty becomes NULL, decimal comma becomes dot
     auto_fixed as (
         select
+            row_id,
             date_time,
             subject,
             nullif(trim(notes), '') as notes,
@@ -43,6 +46,7 @@ with
     -- split numbers and text in notes
     notes_split as (
         select
+            row_id,
             date_time,
             subject,
             type,
@@ -63,6 +67,7 @@ with
     -- guarded casts: a value that cannot be cast becomes NULL and is reported in meta_cast_errors
     casted as (
         select
+            row_id,
             date_time,
             subject,
             type,

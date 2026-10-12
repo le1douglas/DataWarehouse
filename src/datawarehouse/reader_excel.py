@@ -4,16 +4,17 @@ import pandas as pd
 
 
 class ExcelReader:
-    def __init__(self):
-        pass
+    # one reader reads one sheet: a workbook with several tables needs one reader per sheet
+    def __init__(self, sheet_name: str):
+        self.sheet_name = sheet_name
 
     def read(self, source: Path) -> pd.DataFrame:
-        print(f"Loading Excel file: {source}")
+        print(f'Loading Excel file: {source}, sheet "{self.sheet_name}"')
 
         self._validate_is_excel_file(source)
         df = pd.read_excel(
             source,
-            sheet_name="corrected",
+            sheet_name=self.sheet_name,
             dtype=object,  # every cell is a plain Python object, no assuptions about the type.
             keep_default_na=False,  # dont assume "N/A", "n/a", "null" etc are null values.
             na_values=[""],  # instead only assume an empty cell is null

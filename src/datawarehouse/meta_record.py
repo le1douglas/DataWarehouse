@@ -1,5 +1,7 @@
+from pathlib import Path
 from uuid import UUID
 
+import pandas as pd
 from pydantic import Field
 
 from datawarehouse.record import Record
@@ -17,6 +19,9 @@ class MetaRecord(Record):
     the row_id of the bronze row the fact is about: it is never generated
     here. A row_id that is not in bronze is refused by the database.
 
+    Bronze creates its rows in python, from the metadata of the load.
+    Corrections reads them from the upload, already one row per fact.
+
     A fact is recorded only when there is something to say, so description
     is required. Empty string is normalized to None and then refused.
     """
@@ -25,3 +30,8 @@ class MetaRecord(Record):
     dataset: str = Field(max_length=50)  # required, non-null
     kind: str = Field(max_length=50)  # required key, non-null
     description: str = Field(max_length=400)  # required, non-null
+
+    # a metadata row that comes from a source is complete: nothing is added to it at load time
+    @classmethod
+    def add_metadata(cls, df: pd.DataFrame, source: Path) -> pd.DataFrame:
+        return df

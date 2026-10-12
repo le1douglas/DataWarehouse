@@ -13,7 +13,8 @@ One measurement recorded in the Bluelab edenic app, with its volume, EC, pH and 
 The name of the sensor that took a journal entry, such as `ONE-A1F0` for a Bluelab OnePen.
 
 **Key**:
-What identifies a journal entry: its date and time to the second, together with its subject.
+What identifies a journal entry: an identifier it is given when it is received, unique across every dataset, that never changes and follows it through every layer.
+_Avoid_: Natural key. The date and time and the subject no longer identify a journal entry.
 
 **Room**:
 The growing room a journal entry was measured in.
@@ -73,5 +74,12 @@ A reviewer's replacement for a whole journal entry, kept apart from bronze and a
 **Cast error**:
 A received value that could not be converted to its type.
 
-**Meta column**:
-A column that describes how a row was handled rather than what was measured.
+**Metadata**:
+A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.
+_Avoid_: Meta column
+
+**Kind**:
+Which fact a piece of metadata records, such as the source or the reviewer.
+
+**Meta table**:
+The store of a layer's metadata. Every layer has one, and it holds only what that layer decided.
