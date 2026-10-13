@@ -18,9 +18,7 @@ with
             ec,
             ph,
             temp,
-            tags as room,
-            meta_extract_date_time,
-            meta_source
+            tags as room
         from {{ source("dev_bronze", "brnz_journal_entries") }}
 
     ),
@@ -36,9 +34,7 @@ with
             replace(nullif(trim(ec), ''), ',', '.') as ec,
             replace(nullif(trim(ph), ''), ',', '.') as ph,
             replace(nullif(trim(temp), ''), ',', '.') as temp,
-            nullif(trim(room), '') as room,
-            meta_extract_date_time,
-            meta_source
+            nullif(trim(room), '') as room
         from source
 
     ),
@@ -57,9 +53,7 @@ with
             temp,
             -- text left over after the number; empty becomes NULL
             nullif(trim(regexp_replace(notes, '^\d+(?:[.,]\d+)?', '')), '') as notes,
-            room,
-            meta_extract_date_time,
-            meta_source
+            room
         from auto_fixed
 
     ),
@@ -76,8 +70,6 @@ with
             {%- endfor %}
             notes,
             room,
-            meta_extract_date_time,
-            meta_source,
             nullif(
                 concat_ws(
                     ', ',

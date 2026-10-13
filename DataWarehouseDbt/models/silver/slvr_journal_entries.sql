@@ -13,10 +13,6 @@ select
     notes,
     room_filled as room,
     "position",
-    meta_extract_date_time at time zone '{{ var("timezone") }}' as meta_extract_date_time,
-    meta_source,
     now() as meta_silver_date_time,
-    meta_is_corrected,
-    meta_reviewed_by,
-    meta_reviewed_date_time at time zone '{{ var("timezone") }}' as meta_reviewed_date_time
+    meta_is_corrected
 from {{ ref("cand_journal_entries") }}

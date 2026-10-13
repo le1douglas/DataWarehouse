@@ -19,13 +19,9 @@ with
             {%- for col in correctable_columns %}
                 case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
             {%- endfor %}
-            s.meta_extract_date_time,
-            s.meta_source,
             -- a corrected row has no cast errors: its values come from corrections, that is already typed
             case when c.row_id is null then s.meta_cast_errors end as meta_cast_errors,
-            c.row_id is not null as meta_is_corrected,
-            c.meta_reviewed_by,
-            c.meta_reviewed_date_time
+            c.row_id is not null as meta_is_corrected
         from staged as s
         left join corrections as c on s.row_id = c.row_id
     ),
@@ -110,10 +106,6 @@ select
     room_index,
     position_index,
     "position",
-    meta_extract_date_time,
-    meta_source,
     meta_cast_errors,
-    meta_is_corrected,
-    meta_reviewed_by,
-    meta_reviewed_date_time
+    meta_is_corrected
 from assign_room

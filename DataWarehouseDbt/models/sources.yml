@@ -3,8 +3,7 @@ sources:
   - name: dev_bronze
     description: An input layer. The store of all raw data, exactly as received from the sources, one table per source.
                 It has meaning on its own. Everything is stored as text and almost nothing is asserted about it.
-                The only exception is for columns starting with "meta_", which must not be null.
-                meta_ columns store metadata created at ingestion.
+                It has no "meta_" columns, the metadata created at ingestion is in the meta table of the layer.
     tables:
       - name: brnz_journal_entries
         description: csv data coming from the app "edenic" developed by bluelab.
