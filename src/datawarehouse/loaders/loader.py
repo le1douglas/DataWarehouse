@@ -3,15 +3,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, overload
 
+import pandas as pd
 from pydantic import TypeAdapter
 
-from datawarehouse.brnz_record import BrnzRecord
 from datawarehouse.config import DATASET_JOURNAL_ENTRIES
-from datawarehouse.corr_record import CorrRecord
-from datawarehouse.meta_record import MetaRecord
-from datawarehouse.reader_external import ExternalReader
-from datawarehouse.record import RecordT
-from datawarehouse.record_set import RecordSet
+from datawarehouse.readers.reader_external import ExternalReader
+from datawarehouse.records.brnz_record import BrnzRecord
+from datawarehouse.records.corr_record import CorrRecord
+from datawarehouse.records.meta_record import MetaRecord
+from datawarehouse.records.record import RecordT
+from datawarehouse.records.record_set import RecordSet
 
 
 class Loader:
@@ -29,33 +30,28 @@ class Loader:
     """
 
     
-    # pass the class type, not a class instance i.e CSVReader not CSVReader()
+    # takes what ExcelReader.read returns, not the reader itself:
+    # two dataframes with the same rows in the same order, the data and its metadata
     @staticmethod
-    def load(
-        source: Path, reader: type[ExternalReader], record_model: type[RecordT]
+    def load_excel(
+        dataframes: tuple[pd.DataFrame, pd.DataFrame], record_model: type[RecordT]
     ) -> RecordSet[RecordT]:
-        # creates an instance of the reader here
-        df = reader().read(source)
-        raw_rows = df.to_dict(orient="records")
+        data_df, meta_df = dataframes
+        raw_rows = data_df.to_dict(orient="records")
+        raw_meta_rows = meta_df.to_dict(orient="records")
 
         # get the metadata
-        # bronze records for every row from where and when it was loaded: two MetaRecords per row.
-        # the date and time has no time zone, is cut to the second and is the same for every row of the load
+        # one MetaRecord per metadata column: the column name is the kind, the cell is the description.
+        # an empty cell stays None, so MetaRecord refuses it instead of storing the text "None"
         # it is added to the raw row before validation, so a row is created with its metadata already in it
-        if issubclass(record_model, BrnzRecord):
-            extract_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            for raw_row in raw_rows:
-                raw_row["meta_records"] = [
-                    MetaRecord(
-                        kind="source_metadata",
-                        description=str(source),
-                    ),
-                    MetaRecord(
-                        kind="extract_date_time",
-                        description=extract_date_time,
-                    ),
-                ]
+        for raw_row, raw_meta_row in zip(raw_rows, raw_meta_rows, strict=True):
+            raw_row["meta_records"] = [
+                MetaRecord(
+                    kind=kind,
+                    description=str(description),
+                )
+                for kind, description in raw_meta_row.items()
+            ]
 
         # get the actual data
         # validates each row by making them a RecordT

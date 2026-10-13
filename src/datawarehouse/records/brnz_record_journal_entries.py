@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 
-from datawarehouse.brnz_record import BrnzRecord
+from datawarehouse.records.brnz_record import BrnzRecord
 
 
 class BrnzRecordJournalEntries(BrnzRecord):

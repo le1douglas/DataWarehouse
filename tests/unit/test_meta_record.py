@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from datawarehouse.meta_record import MetaRecord
+from datawarehouse.records.meta_record import MetaRecord
 
 
 # the row_id of the row the fact is about is not a field: it lives in the database

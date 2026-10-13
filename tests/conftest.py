@@ -12,8 +12,8 @@ from pydantic import Field
 FIELD_MAX_LENGHT = 50
 value_long = f"this value is longer than {FIELD_MAX_LENGHT}" + ("-" * (FIELD_MAX_LENGHT + 1))
 
-from datawarehouse.brnz_record import BrnzRecord
-from datawarehouse.reader_csv import CSVReader
+from datawarehouse.readers.reader_csv import CSVReader
+from datawarehouse.records.brnz_record import BrnzRecord
 
 MALFORMED_CSV_DIR = ROOT_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv"
 

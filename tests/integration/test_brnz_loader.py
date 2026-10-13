@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from datawarehouse.brnz_record_journal_entries import BrnzRecordJournalEntries
 from datawarehouse.config import JOURNAL_ENTRIES_CSV
-from datawarehouse.loader import Loader
-from datawarehouse.reader_csv import CSVReader
+from datawarehouse.loaders.loader import Loader
+from datawarehouse.readers.reader_csv import CSVReader
+from datawarehouse.records.brnz_record_journal_entries import BrnzRecordJournalEntries
 
 
 def test_load_valid(reader_valid_one_row, record_one_field):

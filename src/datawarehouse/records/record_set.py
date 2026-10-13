@@ -2,7 +2,7 @@ from typing import Generic
 
 from pydantic import BaseModel, model_validator
 
-from datawarehouse.record import RecordT
+from datawarehouse.records.record import RecordT
 
 
 class RecordSet(BaseModel, Generic[RecordT]):

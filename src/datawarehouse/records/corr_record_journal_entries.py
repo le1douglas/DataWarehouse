@@ -4,14 +4,14 @@ from typing import Optional
 
 from pydantic import Field
 
-from datawarehouse.corr_record import CorrRecord
+from datawarehouse.records.corr_record import CorrRecord
 
 
 class CorrRecordJournalEntries(CorrRecord):
     """
     One row of dev_corrections.corr_journal_entries.
 
-    date_time and subject together are the key, unique in the table.
+    row_id is the key, unique in the table. It is declared in CorrRecord.
     date_time is a plain datetime cut to the second, matching PostgreSQL's
     TIMESTAMP(0) (no timezone concept).
 
@@ -20,8 +20,8 @@ class CorrRecordJournalEntries(CorrRecord):
     rejected here, before it reaches the database.
     """
 
-    date_time: datetime  # required key, non-null
-    subject: str = Field(max_length=50)  # required key, non-null
+    date_time: datetime  # required, non-null
+    subject: str = Field(max_length=50)  # required, non-null
     type: Optional[str] = Field(max_length=50)
     ml: Optional[Decimal]
     ec: Optional[Decimal]
@@ -29,6 +29,3 @@ class CorrRecordJournalEntries(CorrRecord):
     temp: Optional[Decimal]
     notes: Optional[str] = Field(max_length=400)
     room: Optional[str] = Field(max_length=50)
-
-    meta_reviewed_by: str = Field(max_length=50)  # required, non-null
-    meta_reviewed_date_time: datetime  # required, non-null

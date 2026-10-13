@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from datawarehouse.brnz_record import BrnzRecord
+from datawarehouse.records.brnz_record import BrnzRecord
 
 
 def test_load_metadata_kinds():

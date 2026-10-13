@@ -1,9 +1,9 @@
 import pytest
 
-from datawarehouse.corr_record_journal_entries import CorrRecordJournalEntries
-from datawarehouse.meta_record import MetaRecord
-from datawarehouse.record_set import RecordSet
-from datawarehouse.sql_postgres_database import PostgreSQLDatabase
+from datawarehouse.databases.sql_postgres_database import PostgreSQLDatabase
+from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalEntries
+from datawarehouse.records.meta_record import MetaRecord
+from datawarehouse.records.record_set import RecordSet
 
 ROW_ID_1 = "0199d8a4-7c7e-7b3a-9d5e-2f1c8a6b4e10"
 ROW_ID_2 = "0199d8a4-7c7e-7b3a-9d5e-2f1c8a6b4e11"

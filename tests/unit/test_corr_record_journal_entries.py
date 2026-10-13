@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from datawarehouse.corr_record_journal_entries import CorrRecordJournalEntries
+from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalEntries
 
 ROW_ID = "0199d8a4-7c7e-7b3a-9d5e-2f1c8a6b4e10"
 

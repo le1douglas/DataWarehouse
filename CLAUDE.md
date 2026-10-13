@@ -98,7 +98,7 @@ psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database
 python src\datawarehouse\load_journal_entries.py
 ```
 
-The `03_` script prints two transaction warnings because `-1` and the file's own `BEGIN`/`COMMIT` overlap; they are harmless. Dropping the database is refused while VS Code SQL tabs are connected to it.
+The `03_` script prints two transaction warnings because `-1` and the file's own `BEGIN`/`COMMIT` overlap; they are harmless. Dropping the database uses `WITH (FORCE)`, which disconnects every session on it, including open VS Code SQL tabs.
 
 In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` or `"position"` arrive unquoted and fail or hit the wrong object. Put such statements in a `.sql` file and run it with `-f`.
 

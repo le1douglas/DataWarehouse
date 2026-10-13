@@ -6,10 +6,10 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
-from datawarehouse.corr_record_journal_entries import CorrRecordJournalEntries
-from datawarehouse.loader import Loader
-from datawarehouse.meta_record import MetaRecord
-from datawarehouse.reader_excel import ExcelReader
+from datawarehouse.loaders.loader import Loader
+from datawarehouse.readers.reader_excel import ExcelReader
+from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalEntries
+from datawarehouse.records.meta_record import MetaRecord
 
 ROW_ID_1 = "0199d8a4-7c7e-7b3a-9d5e-2f1c8a6b4e10"
 ROW_ID_2 = "0199d8a4-7c7e-7b3a-9d5e-2f1c8a6b4e11"

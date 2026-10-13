@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from datawarehouse.record import Record
+from datawarehouse.records.record import Record
 
 
 class MetaRecord(Record):

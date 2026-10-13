@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from datawarehouse.record_set import RecordSet
+from datawarehouse.records.record_set import RecordSet
 
 
 def test_not_empty_no_row(record_one_field):

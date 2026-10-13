@@ -2,7 +2,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from datawarehouse.reader_excel import ExcelReader
+from datawarehouse.readers.reader_excel import ExcelReader
 
 
 # a workbook with two sheets, like the corrections workbook: the corrections and their metadata

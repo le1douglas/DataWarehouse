@@ -1,11 +1,7 @@
 import math
-from pathlib import Path
 from typing import TypeVar
 
-import pandas as pd
-from pydantic import BaseModel, ConfigDict, model_validator, Field
-
-from datawarehouse.meta_record import MetaRecord
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class Record(BaseModel):
@@ -35,11 +31,6 @@ class Record(BaseModel):
                     f"missing values to None before this model saw them."
                 )
         return {k: (None if v == "" else v) for k, v in data.items()}
-
-    
-    # metadata that is recorded about this row. Not a column of the table: is stored in a seperte table.
-    # it is left out of model_dump, so a dumped row is still exactly the columns of the source
-    meta_records: list[MetaRecord] = Field(default_factory=list, exclude=True)
 
 
 RecordT = TypeVar("RecordT", bound=Record)
