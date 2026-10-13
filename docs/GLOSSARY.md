@@ -69,10 +69,10 @@ A person inspecting the flagged rows and deciding what their values should be.
 The person who does a review.
 
 **Correction**:
-A reviewer's replacement for a whole journal entry, kept apart from bronze and applied again on every build.
+A reviewer's replacement for a whole journal entry, kept apart from bronze and applied again on every build. It is trusted: its values are taken as valid.
 
 **Cast error**:
-A received value that could not be converted to its type.
+A received value that could not be converted to its type. It keeps its journal entry out of silver until the journal entry has a correction.
 
 **Metadata**:
 A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.

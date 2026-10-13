@@ -28,7 +28,6 @@ TBL_META_CORRECTIONS = "meta_corrections"
 # the two sheets of the corrections workbook that are uploaded: the corrections and their metadata.
 # the metadata sheet has the columns of the meta table, one row per row_id and kind
 SHEET_CORRECTIONS = "corrected"
-SHEET_META_CORRECTIONS = "meta_corrections"
 
 # the name of a dataset, as written in the dataset column of the meta tables
 DATASET_JOURNAL_ENTRIES = "journal_entries"

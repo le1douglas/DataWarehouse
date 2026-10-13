@@ -1,4 +1,5 @@
 -- the proposed silver: corrections applied, then derived columns.
+-- it has no meta_ columns: the cast errors are in meta_staging, and meta_corrections says which rows are corrected
 -- all the datetimes are without time zone, the time zone is only assigned in silver
 -- the tests run on this view, silver is rebuilt only when all of them pass
 -- the positions that are recorded, in the order they recorded in
@@ -12,27 +13,16 @@ with
 
     corrections as (select * from {{ source("dev_corrections", "corr_journal_entries") }}),
 
-    -- meta_staging has one row per cast error, a reviewer reads them as one text per row
-    aggregate_cast_errors as (
-        select row_id, string_agg(description, ', ' order by description) as meta_cast_errors
-        from {{ ref("meta_staging") }}
-        where kind = 'failed_cast'
-        group by row_id
-    ),
-
     -- a correction replaces all the correctable columns of the row with the same row_id
     combined as (
         select
             s.row_id,
             {%- for col in correctable_columns %}
-                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
+                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }}
+                {{- "," if not loop.last }}
             {%- endfor %}
-            -- a corrected row has no cast errors: its values come from corrections, that is already typed
-            case when c.row_id is null then e.meta_cast_errors end as meta_cast_errors,
-            c.row_id is not null as meta_is_corrected
         from staged as s
         left join corrections as c on s.row_id = c.row_id
-        left join aggregate_cast_errors as e on s.row_id = e.row_id
     ),
 
     -- date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
@@ -114,7 +104,5 @@ select
     room_filled,
     room_index,
     position_index,
-    "position",
-    meta_cast_errors,
-    meta_is_corrected
+    "position"
 from assign_room
