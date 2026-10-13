@@ -56,8 +56,8 @@ def load_corrections():
 
 
 def main():
-    #load_bronze()
-    load_corrections()
+    load_bronze()
+    #load_corrections()
 
 
 if __name__ == "__main__":

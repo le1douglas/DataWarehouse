@@ -1,7 +1,7 @@
--- all the mecahnincal steps: auto-fix rules, then casts.
--- same column names and types as corrections, except for the meta_ columns
--- the columns that are cast to numeric
-{% set numeric_columns = ["ml", "ec", "ph", "temp"] %}
+-- everything written by hand for the dataset: picks and renames the columns, auto-fix rules, split of notes.
+-- the output has the column names of stg_journal_entries__cast, all text except date_time.
+-- ephemeral: it is inlined in the models that read it, so dev_staging gets no extra object
+{{ config(materialized="ephemeral") }}
 
 with
     source as (
@@ -56,34 +56,7 @@ with
             room
         from auto_fixed
 
-    ),
-
-    -- guarded casts: a value that cannot be cast becomes NULL and is reported in meta_cast_errors
-    casted as (
-        select
-            row_id,
-            date_time,
-            subject,
-            type,
-            {%- for col in numeric_columns %}
-                case when pg_input_is_valid({{ col }}, 'numeric') then {{ col }}::numeric end as {{ col }},
-            {%- endfor %}
-            notes,
-            room,
-            nullif(
-                concat_ws(
-                    ', ',
-                    {%- for col in numeric_columns %}
-                        case
-                            when not pg_input_is_valid({{ col }}, 'numeric') then '{{ col }}: ''' || {{ col }} || ''''
-                        end{{ "," if not loop.last }}
-                    {%- endfor %}
-                ),
-                ''
-            ) as meta_cast_errors
-        from notes_split
-
     )
 
-select *
-from casted
+select row_id, date_time, subject, type, ml, ec, ph, temp, notes, room
+from notes_split

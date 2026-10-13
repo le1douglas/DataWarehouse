@@ -8,9 +8,17 @@
 {% set correctable_columns = ["date_time", "subject", "type", "ml", "ec", "ph", "temp", "notes", "room"] %}
 
 with
-    staged as (select * from {{ ref("stg_journal_entries") }}),
+    staged as (select * from {{ ref("stg_journal_entries__cast") }}),
 
     corrections as (select * from {{ source("dev_corrections", "corr_journal_entries") }}),
+
+    -- meta_staging has one row per cast error, a reviewer reads them as one text per row
+    aggregate_cast_errors as (
+        select row_id, string_agg(description, ', ' order by description) as meta_cast_errors
+        from {{ ref("meta_staging") }}
+        where kind = 'failed_cast'
+        group by row_id
+    ),
 
     -- a correction replaces all the correctable columns of the row with the same row_id
     combined as (
@@ -20,10 +28,11 @@ with
                 case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
             {%- endfor %}
             -- a corrected row has no cast errors: its values come from corrections, that is already typed
-            case when c.row_id is null then s.meta_cast_errors end as meta_cast_errors,
+            case when c.row_id is null then e.meta_cast_errors end as meta_cast_errors,
             c.row_id is not null as meta_is_corrected
         from staged as s
         left join corrections as c on s.row_id = c.row_id
+        left join aggregate_cast_errors as e on s.row_id = e.row_id
     ),
 
     -- date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable

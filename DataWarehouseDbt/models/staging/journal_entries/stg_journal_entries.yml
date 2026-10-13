@@ -1,0 +1,23 @@
+
+models:
+  - name: stg_journal_entries__cast
+    description: The staged journal entries with their types. Same column names and types as corrections.
+    # the columns are selected in the order they are listed here, which matches the corrections table and the
+    # excel upload: do not rearrange them.
+    # guarded_cast is the type of the column: a value that cannot be cast to it becomes null and is reported in
+    # meta_staging as a cast error. a column without it is selected as stg_journal_entries gives it.
+    columns:
+      - name: row_id
+      - name: date_time
+      - name: subject
+      - name: type
+      - name: ml
+        meta: {guarded_cast: numeric}
+      - name: ec
+        meta: {guarded_cast: numeric}
+      - name: ph
+        meta: {guarded_cast: numeric}
+      - name: temp
+        meta: {guarded_cast: numeric}
+      - name: notes
+      - name: room

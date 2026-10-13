@@ -1,0 +1,33 @@
+
+models:
+  - name: meta_staging
+    description: The meta table of staging, one row per cast error. Shaped like meta_bronze and meta_corrections,
+                except for the key - a row can have several cast errors, so the description is part of it.
+                Rebuilt on every build, so it can lag behind bronze between a load and a build.
+    config:
+      contract: {enforced: true}
+    constraints:
+      # the primary key has no name on purpose: its index is a relation, and a rebuild creates the new table next
+      # to the old one, so a fixed name would already exist. postgres picks a free name instead
+      - type: primary_key
+        columns: [row_id, kind, description]
+      # row_id is decided in bronze, so every meta table references bronze.
+      # dropping the bronze table needs cascade because of this constraint
+      - type: foreign_key
+        name: fk_meta_staging_row_id
+        columns: [row_id]
+        to: source('dev_bronze', 'brnz_journal_entries')
+        to_columns: [row_id]
+    columns:
+      - name: row_id
+        data_type: uuid
+        constraints:
+          - type: not_null
+      - name: kind
+        data_type: varchar(50)
+        constraints:
+          - type: not_null
+      - name: description
+        data_type: varchar(400)
+        constraints:
+          - type: not_null
