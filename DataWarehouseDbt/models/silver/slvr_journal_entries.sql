@@ -17,6 +17,5 @@ select
     temp,
     notes,
     room_filled as room,
-    "position",
-    now() as meta_silver_date_time
+    "position"
 from {{ ref("cand_journal_entries") }}

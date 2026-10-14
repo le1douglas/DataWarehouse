@@ -18,6 +18,7 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there are no tests for `ExcelReader`, `CorrLoader`, `CorrRecordJournalEntries` or the upsert.
 - **Hardcoded values:** the workbook path in `load_journal_entries.py`, the sheet name `corrected` in `ExcelReader`, the reviewer name in the workbook's Power Query.
 - **Outdated files:** `README.md` still describes the prod target, the `experiments` workflow and the old `bronze_to_silver` / `silver_to_gold` folders. `Database/04_select_example.sql`, `Database/05_see_test_results.sql` and `Database/corrections.sql` reference schemas and shapes that no longer exist.
+- **Audit view removed on purpose:** `dev_audit.aud_journal_entries` and the `create_audit_views` macro are gone, but are still described as current in this file (Pipeline: the audit view and review-in-Excel bullets; Reminders: corrections loader rules, audit view leftovers), in `docs/CODING_STANDARDS.md` (the data test and audit view lines), in the `on-run-end` edge of `docs/DATA_FLOW_DIAGRAM.md`, and in ADR 0001, which should be marked superseded. The workbook's Power Query still reads the view.
 - **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.
 
 ## Conventions
