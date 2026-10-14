@@ -1,19 +1,16 @@
 
 models:
   - name: meta_staging
-    description: The meta table of staging, one row per cast error and one row per journal entry with the date_time
-                it first reached staging. Shaped like meta_bronze and meta_corrections, except for the key - a row
-                can have several cast errors, so the description is part of it. The cast errors are written again on
-                every build; a date_time is written once and never updated, and dbt build --full-refresh drops the
-                table and stamps every row with the time of that build. It can lag behind bronze between a load and
-                a build.
+    description: The meta table of staging, one row per journal entry with the date_time it first reached staging.
+                Shaped like meta_bronze and meta_corrections. A row is written once and never updated;
+                dbt build --full-refresh drops the table and stamps every row with the time of that build.
     config:
       contract: {enforced: true}
     constraints:
       # the primary key has no name on purpose: its index is a relation, and a rebuild creates the new table next
       # to the old one, so a fixed name would already exist. postgres picks a free name instead
       - type: primary_key
-        columns: [row_id, kind, description]
+        columns: [row_id, kind]
       # row_id is decided in bronze, so every meta table references bronze.
       # dropping the bronze table needs cascade because of this constraint
       - type: foreign_key

@@ -1,0 +1,9 @@
+
+models:
+  - name: meta_staging__failed_casts
+    description: The cast errors of staging, for every dataset of the layer. One row per value that is not null and
+                cannot be cast to the guarded_cast type of its column; a journal entry can have several. A view, so
+                it always follows bronze and the declarations in the yml of each dataset.
+    columns:
+      - name: row_id
+      - name: description

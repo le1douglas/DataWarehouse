@@ -5,9 +5,9 @@ A data test used to return whole candidate rows, so a failure table showed a rev
 ## Considered Options
 
 - **Whole candidate rows.** A failure table can be read on its own, but every test has the columns of its candidate, so combining them needed the `create_audit_views` macro to compare columns and leave out the tests that did not fit.
-- **One row per cast error in the cast test**, with the description of the cast error. Rejected: the text is already in `meta_staging`, and the table would hold the same fact twice.
+- **One row per cast error in the cast test**, with the description of the cast error. Rejected: the text is already in `meta_staging__failed_casts`, and the table would hold the same fact twice.
 
 ## Consequences
 
-- A failure table says which journal entry failed which rule and nothing more. The values come from the candidate and the cast error texts from `meta_staging`, joined on `row_id`.
+- A failure table says which journal entry failed which rule and nothing more. The values come from the candidate and the cast error texts from `meta_staging__failed_casts`, joined on `row_id`.
 - A generic dbt test (`not_null`, `unique`) does not return this shape, so it does not fit in a `union all` with the others.

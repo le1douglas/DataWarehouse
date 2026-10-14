@@ -19,8 +19,8 @@
 {% endmacro %}
 
 
-{# the cast errors of a dataset, as rows of meta_staging: one row per value that is not null and cannot be cast to
-   the type of its column. it reads the same text values as the casts, from stg_<dataset> #}
+{# the cast errors of a dataset, the rows of meta_staging__failed_casts: one row per value that is not null and
+   cannot be cast to the type of its column. it reads the same text values as the casts, from stg_<dataset> #}
 {% macro failed_casts(dataset) %}
     {# the ref stays outside any execute check: dbt finds dependencies while parsing, when execute is false #}
     {% set staged = ref("stg_" ~ dataset) %}
@@ -32,7 +32,6 @@
             {% set block %}
                 select
                     row_id,
-                    'failed_cast'::varchar(50) as kind,
                     (
                         'failed to cast ''' || {{ column.name }} || ''' to {{ type }} on column {{ column.name }}'
                     )::varchar(400) as description
@@ -46,7 +45,7 @@
     {% if blocks | length > 0 %} {{ blocks | join("\nunion all\n") }}
     {# a dataset without a guarded cast has no cast errors: the same columns and no rows #}
     {% else %}
-        select row_id, null::varchar(50) as kind, null::varchar(400) as description
+        select row_id, null::varchar(400) as description
         from {{ staged }}
         where false
     {% endif %}

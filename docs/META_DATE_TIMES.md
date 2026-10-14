@@ -13,8 +13,9 @@ date-time, and how each one behaves.
 | `dev_silver.meta_silver` | `silver_date_time` | dbt, incremental append, from `slvr_journal_entries` | Postgres `localtimestamp(0)` | The first build in which every candidate data test passes | No: a row published again after a correction keeps its first date-time. Except `--full-refresh` |
 | `dev_corrections.meta_corrections` | the header of the workbook's last column (the review date-time) | Python, `ExcelReader` | The reviewer's Excel / Power Query | When the reviewer reviewed the row, not when it was loaded | Yes: the load upserts on `(row_id, kind)`, so every upload of the row overwrites it |
 
-The cast errors in `meta_staging` (`kind = 'failed_cast'`) are not date-times. They are deleted and written again
-on every build.
+The cast errors are not in `meta_staging`: they are in `dev_staging.meta_staging__failed_casts`, a view over every
+dataset that is computed again on every read, just as the failed data tests are in `dev_audit` and not in
+`meta_candidate`. They carry no date-time.
 
 ## What the date-times mean
 
@@ -38,9 +39,7 @@ Every dbt model commits in its own transaction, and a failure only skips the mod
 already finished are not rolled back.
 
 - A candidate data test fails: `meta_staging` and `meta_candidate` are stamped, silver and `meta_silver` are skipped.
-- `meta_candidate` fails: `meta_staging` is still stamped, neither depends on the other.
-- `meta_staging` fails: its pre_hook delete and its insert are one transaction, so the cast errors are rolled back
-  with it, not lost. `meta_candidate` still runs.
+- `meta_candidate` fails: `meta_staging` is still stamped, and the other way around: neither depends on the other.
 - The unguarded `date_time` cast fails: `stg_journal_entries` is ephemeral and inlined in every model that reads it,
   so every staging and candidate model fails and no meta table is stamped.
 

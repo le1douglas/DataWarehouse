@@ -5,7 +5,7 @@ models:
     # the columns are selected in the order they are listed here, which matches the corrections table and the
     # excel upload: do not rearrange them.
     # guarded_cast is the type of the column: a value that cannot be cast to it becomes null and is reported in
-    # meta_staging as a cast error. a column without it is selected as stg_journal_entries gives it.
+    # meta_staging__failed_casts. a column without it is selected as stg_journal_entries gives it.
     columns:
       - name: row_id
       - name: date_time

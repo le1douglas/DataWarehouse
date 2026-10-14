@@ -4,7 +4,7 @@
 -- the data test no_cast_errors also reads the two relations below. dbt lets a data test stop a model only when the
 -- model depends on everything the test reads, so they are named here although nothing is selected from them.
 -- without these two lines a cast error does not keep silver from being built
--- depends_on: {{ ref("meta_staging") }}
+-- depends_on: {{ ref("meta_staging__failed_casts") }}
 -- depends_on: {{ source("dev_corrections", "meta_corrections") }}
 select
     row_id,

@@ -1,5 +1,6 @@
 -- the proposed silver: corrections applied, then derived columns.
--- it has no meta_ columns: the cast errors are in meta_staging, and meta_corrections says which rows are corrected
+-- it has no meta_ columns: the cast errors are in meta_staging__failed_casts, and meta_corrections says which
+-- rows are corrected
 -- all the datetimes are without time zone, the time zone is only assigned in silver
 -- the tests run on this view, silver is rebuilt only when all of them pass
 -- the positions that are recorded, in the order they recorded in
