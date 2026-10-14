@@ -1,12 +1,12 @@
 -- the proposed silver: corrections applied, then derived columns. this is what the reviewer sees.
--- the measurements are still text: they are cast in silver, and the castable test checks them before
+-- every column except row_id is still text: it is cast in silver, and the castable test checks it before
 -- all the datetimes are without time zone, the time zone is only assigned in silver
 -- the tests run on this view, silver is rebuilt only when all of them pass
 -- the positions that are recorded, in the order they recorded in
 {% set positions = ["drip_left", "drip_right", "drain_left", "drain_right"] %}
 
 -- the columns that a correction replaces, they have the same name and type in staging and corrections
-{% set correctable_columns = ["date_time", "subject", "type", "ml", "ec", "ph", "temp", "notes", "room"] %}
+{% set correctable_columns = ["date_time", "subject", "type", "ml", "ec", "ph", "temp", "notes", "room_raw"] %}
 
 with
     staged as (select * from {{ ref("stg_journal_entries") }}),
@@ -26,12 +26,13 @@ with
         left join corrections as c on s.row_id = c.row_id
     ),
 
-    -- date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
+    -- date_time is text in the shape YYYY-MM-DD HH:MM:SS, from staging and from corrections, so its text sorts in time
+    -- order. date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
     identify_room_entry_index as (
         select
             *,
             -- goes down the list in date_time order and increments every time it hits a room that is not null
-            count(room) over (order by date_time, subject, row_id) as room_entry_index
+            count(room_raw) over (order by date_time, subject, row_id) as room_entry_index
         from combined
     ),
 
@@ -41,7 +42,9 @@ with
             -- the room sits on the first row of its room_entry_index, copy it down so every row knows the room it is
             -- in.
             -- this is the only place where the room is copied down
-            first_value(room) over (partition by room_entry_index order by date_time, subject, row_id) as room_carried
+            first_value(room_raw) over (
+                partition by room_entry_index order by date_time, subject, row_id
+            ) as room_carried
         from identify_room_entry_index
     ),
 
@@ -51,7 +54,8 @@ with
             -- a room group starts on a row whose room is not null and is different from the room of the row before it.
             -- a row that repeats the room it is already in stays in the same room group
             (
-                room is not null and room is distinct from lag(room_carried) over (order by date_time, subject, row_id)
+                room_raw is not null
+                and room_raw is distinct from lag(room_carried) over (order by date_time, subject, row_id)
             ) as is_new_room_group
         from carry_room
     ),
@@ -94,7 +98,7 @@ with
             *,
             -- every row already carries the room of its room group,
             -- keep it only for the first positions.size rows; everything after stays null
-            case when position_index <= {{ positions | length }} then room_carried end as room_filled
+            case when position_index <= {{ positions | length }} then room_carried end as room
         from assign_position
 
     )
@@ -102,7 +106,7 @@ with
 select
     row_id,
     {%- for col in correctable_columns %} {{ col }}, {%- endfor %}
-    room_filled,
+    room,
     room_index,
     position_index,
     "position",

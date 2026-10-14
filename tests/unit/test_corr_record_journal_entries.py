@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID
 
 import pytest
@@ -18,7 +17,7 @@ VALID_ROW = {
     "ph": "5.8",
     "temp": "21.5",
     "notes": None,
-    "room": "room_1",
+    "room_raw": "room_1",
 }
 
 
@@ -28,7 +27,7 @@ def test_valid_row():
 
     assert row.model_dump() == {
         "row_id": UUID(ROW_ID),
-        "date_time": datetime(2026, 9, 17, 15, 13, 8),
+        "date_time": "2026-09-17 15:13:08",
         "subject": "ONE-A1F0",
         "type": "measurement",
         "ml": "250",
@@ -36,7 +35,7 @@ def test_valid_row():
         "ph": "5.8",
         "temp": "21.5",
         "notes": None,
-        "room": "room_1",
+        "room_raw": "room_1",
     }
     assert list(row.model_dump().keys()) == list(VALID_ROW.keys())
 
@@ -48,6 +47,24 @@ def test_valid_row():
 def test_metadata_column_is_refused(column, value):
     with pytest.raises(ValidationError):
         CorrRecordJournalEntries(**VALID_ROW, **{column: value})
+
+
+# candidate sorts room groups by the text of date_time, so only the shape YYYY-MM-DD HH:MM:SS is accepted,
+# even for a value that is a valid timestamp
+@pytest.mark.parametrize(
+    "date_time",
+    ["2026-9-17 15:02:12", "2026-09-17 9:02:12", "2026-09-17T15:02:12", "2026-09-17 15:02:12.5", "2026-09-17 15:02"],
+)
+def test_date_time_in_another_shape_is_refused(date_time):
+    with pytest.raises(ValidationError):
+        CorrRecordJournalEntries(**{**VALID_ROW, "date_time": date_time})
+
+
+# the shape is checked, not the value: a date_time that is not a timestamp is reported by the castable test in dbt
+def test_date_time_in_the_shape_that_is_not_a_timestamp_is_accepted():
+    row = CorrRecordJournalEntries(**{**VALID_ROW, "date_time": "2026-09-17 25:00:00"})
+
+    assert row.date_time == "2026-09-17 25:00:00"
 
 
 # the measurements are text: a value that is not a number is reported by the castable test in dbt, not refused here

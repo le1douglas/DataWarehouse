@@ -28,7 +28,7 @@ def correction(row_id):
         ph=None,
         temp=None,
         notes=None,
-        room=None,
+        room_raw=None,
     )
 
 

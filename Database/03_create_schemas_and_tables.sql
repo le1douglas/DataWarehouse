@@ -42,13 +42,15 @@ CREATE TABLE IF NOT EXISTS dev_bronze.brnz_journal_entries (
 -- manual corrections made in excel, typed like staging. written by the python corrections loader.
 -- one row per row_id, the other columns override the staging values in the candidate view.
 -- row_id is the bronze row_id of the corrected row: it comes from the upload and is never generated here.
--- date_time is a timestamp cut to the second, without time zone, like in staging and candidate.
--- the measurements are text, like in staging: they are cast in silver, after the castable test on candidate,
--- so a correction that is not a number is reported by the test instead of refused by the load.
+-- every column except row_id is text, like in staging: it is cast in silver, after the castable test on candidate,
+-- so a correction that cannot be cast is reported by the test instead of refused by the load.
+-- date_time is YYYY-MM-DD HH:MM:SS, without time zone, like in staging and candidate. the shape is enforced here,
+-- because candidate sorts room groups by its text: a value in another shape is refused, even when it is a timestamp.
+-- whether it is a valid timestamp (no 25:00:00) is still the castable test's job.
 -- the columns have the same names as staging and silver.
 CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
     row_id UUID NOT NULL,
-    date_time TIMESTAMP(0) NOT NULL,
+    date_time VARCHAR(50) NOT NULL,
     subject VARCHAR(50) NOT NULL,
     type VARCHAR(50),
     ml VARCHAR(50),
@@ -56,8 +58,10 @@ CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
     ph VARCHAR(50),
     temp VARCHAR(50),
     notes VARCHAR(400),
-    room VARCHAR(50),
+    room_raw VARCHAR(50),
     CONSTRAINT pk_corr_journal_entries PRIMARY KEY (row_id),
+    CONSTRAINT ck_corr_journal_entries_date_time
+    CHECK (date_time ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'),
     -- a correction is refused when its row_id is not a journal entry in bronze
     CONSTRAINT fk_corr_journal_entries_row_id FOREIGN KEY (row_id)
     REFERENCES dev_bronze.brnz_journal_entries (row_id)

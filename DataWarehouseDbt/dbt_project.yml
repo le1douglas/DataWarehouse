@@ -9,9 +9,8 @@ version: '1.0.0'
 profile: 'DataWarehouseDbt'
 
 vars:
+  # assigned in silver to every timestamptz column, the datetimes have no time zone before it
   timezone: 'Europe/Amsterdam'
-  # text up to candidate, cast to numeric in silver. the castable test checks them first
-  journal_entries_numeric_columns: ['ml', 'ec', 'ph', 'temp']
 
 # These configurations specify where dbt should look for different types of files.
 # The `model-paths` config, for example, states that models in this project can be

@@ -104,7 +104,7 @@ classDiagram
 
     class CorrRecordJournalEntries {
         <<pydantic model>>
-        + datetime date_time
+        + str date_time
         + str subject
         + Optional[str] type
         + Optional[str] ml
@@ -112,7 +112,7 @@ classDiagram
         + Optional[str] ph
         + Optional[str] temp
         + Optional[str] notes
-        + Optional[str] room
+        + Optional[str] room_raw
         + str meta_reviewed_by
         + datetime meta_reviewed_date_time
     }

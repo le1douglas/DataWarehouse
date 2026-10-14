@@ -1,0 +1,40 @@
+models:
+  - name: slvr_journal_entries
+    description: The published journal entries, the candidate with its values converted to their types.
+                It is rebuilt only when the candidate passes every data test.
+                The columns and types below are the only place they are declared, silver_select and the castable
+                test are generated from them, and the contract checks that the table has exactly these.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: row_id
+        data_type: uuid
+        description: The key, assigned by bronze when the journal entry was received.
+      - name: date_time
+        data_type: timestamptz(0)
+        description: When the journal entry was measured, in the time zone of the timezone var.
+      - name: subject
+        data_type: text
+        description: The sensor that took the journal entry.
+      - name: type
+        data_type: text
+      - name: ml
+        data_type: numeric
+        description: The volume, the leading number of the notes in the app.
+      - name: ec
+        data_type: numeric
+      - name: ph
+        data_type: numeric
+      - name: temp
+        data_type: numeric
+        description: The temperature.
+      - name: notes
+        data_type: text
+        description: The notes without their leading number.
+      - name: room
+        data_type: text
+        description: The room of the room group, on its first four journal entries.
+      - name: position
+        data_type: text
+        description: Drip left, drip right, drain left or drain right.

@@ -25,7 +25,7 @@ CORRECTIONS = [
         "ph": 5.8,
         "temp": 21.5,
         "notes": None,
-        "room": "room_1",
+        "room_raw": "room_1",
     },
     {
         "row_id": ROW_ID_2,
@@ -37,7 +37,7 @@ CORRECTIONS = [
         "ph": 5.9,
         "temp": None,
         "notes": "refilled",
-        "room": None,
+        "room_raw": None,
     },
 ]
 

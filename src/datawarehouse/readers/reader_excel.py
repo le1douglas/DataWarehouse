@@ -15,7 +15,7 @@ class ExcelReader:
             source,
             sheet_name=sheet,
             # every cell is text, like a csv: excel stores numbers as numbers, and the row model only takes text.
-            # the row model parses the cells that are not text in the database (row_id, date_time)
+            # the row model parses the only cell that is not text in the database (row_id)
             dtype=str,
             keep_default_na=False,  # dont assume "N/A", "n/a", "null" etc are null values.
             na_values=[""],  # instead only assume an empty cell is null
