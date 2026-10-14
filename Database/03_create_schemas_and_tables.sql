@@ -1,4 +1,4 @@
--- DO NOT RUN THIS DIRECTLY, instread from terminal run
+-- DO NOT RUN THIS DIRECTLY, instead from terminal run
 -- psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\03_create_schemas_and_tables.sql
 -- if you run from here you must also
 -- ROLLBACK
@@ -61,15 +61,17 @@ CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
     room_raw VARCHAR(50),
     CONSTRAINT pk_corr_journal_entries PRIMARY KEY (row_id),
     CONSTRAINT ck_corr_journal_entries_date_time
-    CHECK (date_time ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'),
+    CHECK (date_time ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'), -- for example 2026-09-17 15:13:08
     -- a correction is refused when its row_id is not a journal entry in bronze
     CONSTRAINT fk_corr_journal_entries_row_id FOREIGN KEY (row_id)
     REFERENCES dev_bronze.brnz_journal_entries (row_id)
 );
 
--- the meta table of a layer holds the metadata that the layer decided, for every dataset of that layer.
+-- the meta table of a layer holds the metadata recorded when its rows were loaded, for every dataset of that layer:
+-- in bronze the source and the extract date-time, in corrections the reviewer and the review date-time.
 -- the main tables above have no metadata columns.
--- one row is one fact about one row_id: kind says which fact, description holds its value as text.
+-- one row is one fact about one row_id: kind says which fact (always starting with meta_), description holds its
+-- value as text.
 -- a fact is recorded only when there is something to say, so description is never null.
 -- row_id is decided in bronze and carried through every layer, so every meta table references bronze.
 -- only the two inputs have a meta table, both filled by python. the layers built by dbt have none.

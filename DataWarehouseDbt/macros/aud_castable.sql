@@ -4,7 +4,7 @@
     pg_input_is_valid of null is null. a timestamptz column is checked as a timestamp, its text has no zone yet.
     silver's yml is read from the graph, not with ref, so the test does not depend on silver
 #}
-{% macro castable(dataset) %}
+{% macro aud_castable(dataset) %}
 select *
 from {{ ref("cand_" ~ dataset) }}
 where

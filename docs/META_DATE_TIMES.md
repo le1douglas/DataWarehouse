@@ -7,7 +7,7 @@ date-time, and how each one behaves. Only the two inputs have a meta table; the 
 
 | Meta table | `kind` | Written by | Clock | Written when | Changes later? |
 |---|---|---|---|---|---|
-| `dev_bronze.meta_bronze` | `extract_date_time` | Python, `CSVReader` | Python `datetime.now()`, local time of the machine running the load | When the CSV is read, just before the insert. The same value for every row of the file | No: bronze only inserts |
+| `dev_bronze.meta_bronze` | `meta_extract_date_time` | Python, `CSVReader` | Python `datetime.now()`, local time of the machine running the load | When the CSV is read, just before the insert. The same value for every row of the file | No: bronze only inserts |
 | `dev_corrections.meta_corrections` | `meta_reviewed_date_time`, the header of the workbook's last column | Python, `ExcelReader` | The reviewer's Excel / Power Query | When the reviewer reviewed the row, not when it was loaded | Yes: the load upserts on `(row_id, kind)`, so every upload of the row overwrites it |
 
 ## What the date-times mean

@@ -10,13 +10,14 @@ with
 
     ),
 
-    -- auto-fix rules: trim, empty becomes NULL, decimal comma becomes dot.
-    -- date_time gets the shape of the corrections, YYYY-MM-DD HH:MM:SS: the T becomes a space and the fraction of the
-    -- second is cut. bronze always has the form 2026-09-17T15:13:08.363212 (or with fewer decimals, .36), so the result
-    -- always has the shape and it is not tested. no time zone here: it is only assigned in silver
+    -- auto-fix rules: trim, empty becomes NULL, decimal comma becomes dot, harmonize date_time.
     auto_fixed as (
         select
             row_id,
+            -- date_time gets the shape of the corrections, YYYY-MM-DD HH:MM:SS (T becomes a space and it is cut to the
+            -- whole second).
+            -- bronze always has the form 2026-09-17T15:13:08.363212 (or with fewer decimals), so the result always has
+            -- the shape and it is not tested. no time zone here: it is only assigned in silver
             regexp_replace(replace(nullif(trim(date_time), ''), 'T', ' '), '\.\d+$', '') as date_time,
             subject,
             nullif(trim(notes), '') as notes,

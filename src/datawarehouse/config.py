@@ -25,11 +25,10 @@ TBL_CORR_JOURNAL_ENTRIES = "corr_journal_entries"
 TBL_META_BRONZE = "meta_bronze"
 TBL_META_CORRECTIONS = "meta_corrections"
 
-# the two sheets of the corrections workbook that are uploaded: the corrections and their metadata.
-# the metadata sheet has the columns of the meta table, one row per row_id and kind
+# the sheet of the corrections workbook that is uploaded: the corrections, then their metadata in the last two columns
 SHEET_CORRECTIONS = "corrected"
 
-# the name of a dataset, as written in the dataset column of the meta tables
+# the name of a dataset, as used in table names (brnz_journal_entries)
 DATASET_JOURNAL_ENTRIES = "journal_entries"
 
 # row_id identifies a journal entry, it is assigned by the database when the row enters bronze

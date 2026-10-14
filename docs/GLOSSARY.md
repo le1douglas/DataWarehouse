@@ -16,12 +16,15 @@ The name of the sensor that took a journal entry, such as `ONE-A1F0` for a Bluel
 What identifies a journal entry: an identifier it is given when it is received, unique across every dataset, that never changes and follows it through every layer.
 _Avoid_: Natural key. The date and time and the subject no longer identify a journal entry.
 
-**Room**:
-The growing room a journal entry was measured in.
+**Recorded room**:
+The room written down with a journal entry when it was measured. It can be missing or wrong, and it is what a reviewer corrects.
 _Avoid_: Tag
 
+**Room**:
+The growing room of a room group, derived from the recorded rooms. Every journal entry of the group was measured in it.
+
 **Room group**:
-The consecutive journal entries measured in the same room, normally four, one per position.
+Consecutive journal entries that start where the recorded room changes, normally four, one per position.
 
 **Position**:
 The place in a room where a journal entry was measured: drip left, drip right, drain left or drain right.
@@ -42,7 +45,7 @@ The store of all raw data, exactly as received from the sources. An input that h
 The store of all corrections, as uploaded by reviewers. An input that has meaning only for journal entries already in the warehouse.
 
 **Staging**:
-Bronze with automatic fixes applied, in silver's column names. The values stay text, so a value that cannot be converted can still be corrected.
+Bronze with automatic fixes applied, in the same shape as a correction. The values stay text, so a value that cannot be converted can still be corrected.
 
 **Candidate**:
 The proposal for silver: staging with corrections applied and room groups and positions derived. It is what the data tests judge and what the reviewer sees: silver's rows and columns, before the values are converted to their types.
@@ -76,7 +79,9 @@ A value, received or corrected, that cannot be converted to its type. Its journa
 
 **Metadata**:
 A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.
-_Avoid_: Meta column
+
+**Meta column**:
+Metadata kept on the journal entry itself, such as whether it was corrected or which data tests it failed. The inputs have none: their metadata is in their meta table.
 
 **Kind**:
 Which fact a piece of metadata records, such as the source or the reviewer.

@@ -37,8 +37,8 @@ class CSVReader:
             # the date and time has no time zone, is cut to the second and is the same for every row of the read
             meta_df = pd.DataFrame(
                 {
-                    "source_metadata": str(source),
-                    "extract_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "meta_source": str(source),
+                    "meta_extract_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 },
                 index=df.index,
                 dtype=object,

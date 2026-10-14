@@ -18,7 +18,7 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Corrections behaviour to revisit:** every flagged row is uploaded and marked `meta_is_corrected` even if untouched; an empty cell overwrites with null; there is no way to withdraw a correction except SQL.
 - **Subject cleaning** (stripping ` - Measurement`) was removed while `subject` was part of the key. It no longer is (the key is `row_id`), so nothing blocks it now. The user will decide on a strategy later.
 - **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there is no test for the upsert. On 2026-10-14, 30 of the Python tests failed because they call APIs that have since changed (the CSV and Excel readers, `Loader.load`, `MetaRecord`, `load_to_dev_corrections`).
-- **Hardcoded values:** the workbook path in `load_journal_entries.py`, the sheet name `corrected` in `ExcelReader`, the reviewer name in the workbook's Power Query.
+- **Hardcoded values:** the workbook path in `load_journal_entries.py`, the reviewer name in the workbook's Power Query.
 - **Outdated files:** `README.md` still describes the prod target, the `experiments` workflow and the old `bronze_to_silver` / `silver_to_gold` folders. `Database/04_select_example.sql`, `Database/05_see_test_results.sql` and `Database/corrections.sql` reference schemas and shapes that no longer exist.
 - **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.
 
@@ -43,7 +43,7 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 
 - Bronze stores everything as text, exactly as received.
 - Staging and the corrections table have the same column names and types. Everything is text except `row_id`, including `date_time` and the measurements (`ml`, `ec`, `ph`, `temp`), so a value that cannot be cast can still be corrected.
-- Silver's columns and types are declared only in `DataWarehouseDbt/models/silver/slvr_<dataset>.yml`, with an enforced contract. Silver is generated from it by the `silver_select` macro: every column except `row_id` is cast to its `data_type`, without a guard. The data test `aud_<dataset>__castable` (the `castable` macro) checks every value with `pg_input_is_valid` on candidate first, so a bad value is a flagged row and silver is skipped. To change a type, change the yml. See `docs/adr/0004-silver-generated-from-its-yml.md`.
+- Silver's columns and types are declared only in `DataWarehouseDbt/models/silver/slvr_<dataset>.yml`, with an enforced contract. Silver is generated from it by the `silver_select` macro: every column except `row_id` is cast to its `data_type`, without a guard. The data test `aud_<dataset>__castable` (the `aud_castable` macro) checks every value with `pg_input_is_valid` on candidate first, so a bad value is a flagged row and silver is skipped. To change a type, change the yml.
 - `date_time` is text in the shape `YYYY-MM-DD HH:MM:SS`: staging turns bronze's `2026-09-16T14:43:01.768170` into it with text rules, without a cast. Bronze always has the form `2026-09-17T15:13:08.363212`, or with fewer decimals (`.36`), so the result always has the shape and there is no data test for it. Corrections must have the same shape: `CorrRecordJournalEntries` refuses any other (a pattern) and the table has the check constraint `ck_corr_journal_entries_date_time`, even for a valid timestamp such as `2026-9-17 15:02:12`. So every `date_time` in candidate has one shape, and candidate orders room groups by its text. Whether it is a valid timestamp is still the castable test's job.
 - Datetimes have no time zone anywhere before silver, and are cut to the second. Silver is the only place a zone is assigned, from the `timezone` var (`Europe/Amsterdam`).
 - The key of a journal entry is `row_id`, a `uuidv7()` assigned by bronze on insert and carried unchanged through staging, corrections, candidate, audit, silver and Excel. `date_time` and `subject` do not identify a journal entry.
@@ -57,7 +57,7 @@ A small bronze/silver data warehouse on local PostgreSQL 18 for sensor measureme
 
 ### Pipeline
 
-The diagram of the pipeline is in `docs/DATA-FLOW.md`. Update it when an object or a dependency between objects changes.
+The diagram of the pipeline is in `docs/DATA_FLOW_DIAGRAM.md`. Update it when an object or a dependency between objects changes.
 
 - **Bronze and corrections are the two inputs.** Both are filled by Python from outside the warehouse, and dbt reads them without ever changing them. Bronze has meaning on its own: it is the store of all raw data, exactly as received. Corrections has meaning only for journal entries already in the warehouse.
 - **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver only casts every column to the type in its yml and assigns the time zone to `timestamptz` columns, so candidate's column names must be silver's.
@@ -81,7 +81,7 @@ Only a `dev` target exists in `%USERPROFILE%\.dbt\profiles.yml`. Database creden
 
 ### Python flow
 
-`<Format>Reader.read()` returns a dataframe, a `<Layer>Loader` validates each row into a `Record` subclass and wraps them in a `RecordSet`, and `PostgreSQLDatabase` writes it. `BrnzLoader` stamps `meta_extract_date_time` and `meta_source` and the load appends; `CorrLoader` adds nothing and the load upserts on the key.
+`<Format>Reader.read()` returns two dataframes with the same rows: the data and its metadata. `CSVReader` stamps the kinds `meta_source` and `meta_extract_date_time`; `ExcelReader` splits off the workbook's last two columns (`meta_reviewed_by`, `meta_reviewed_date_time`). `Loader.load` turns every metadata cell into a `MetaRecord`, validates each row into a `Record` subclass and wraps them in a `RecordSet`, and `PostgreSQLDatabase` writes the rows and their metadata in one transaction: `load_to_dev_bronze` appends, `load_to_dev_corrections` upserts on the primary key.
 
 ### Commands
 
@@ -119,5 +119,5 @@ Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this
 
 ### Domain docs
 
-One context: `GLOSSARY-MAP.md` at the repo root points to `docs/GLOSSARY.md`, and ADRs are in `docs/adr/`. See `docs/agents/domain.md`.
+One context: `GLOSSARY-MAP.md` at the repo root points to `docs/GLOSSARY.md`. There are no ADRs; a new one goes in `docs/adr/`. See `docs/agents/domain.md`.
 Do not create a `GLOSSARY.md` in the repo root, instead follow the instructions in `GLOSSARY-MAP.md`.

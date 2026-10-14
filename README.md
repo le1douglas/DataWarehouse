@@ -7,7 +7,7 @@ The design goal is that bad data never reaches silver, and that a non technical 
 
 ## Architecture
 
-For a compelte overview of the data pipeline, see also: [DATA-FLOW.md](docs/DATA-FLOW.md)
+For a compelte overview of the data pipeline, see also: [DATA_FLOW_DIAGRAM.md](docs/DATA_FLOW_DIAGRAM.md)
 
 | Stage | Status | Done with |
 |---|---|---|
@@ -74,7 +74,7 @@ Not built. Candidates:
 | Document | What it is for |
 |---|---|
 | [docs/INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md) | Setting up a new Windows PC: from scratch to operational |
-| [docs/DATA-FLOW.md](docs/DATA-FLOW.md) | Diagram of how data moves from collection to gold, including corrections|
+| [docs/DATA_FLOW_DIAGRAM.md](docs/DATA_FLOW_DIAGRAM.md) | Diagram of how data moves from collection to gold, including corrections|
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | The terms used for domain concepts |
 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Naming conventions, layer prefixes, SQL and Python style guide|
 | [CLAUDE.md](CLAUDE.md) | Context and instructions for calude code |

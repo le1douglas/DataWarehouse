@@ -68,7 +68,7 @@ with
         from flag_new_room_group
     ),
 
-    -- TODO DEAL WITH ROOM WITH LESS THAN 3 positions
+    -- TODO DEAL WITH ROOM WITH LESS THAN 4 positions
     identify_position_index as (
 
         select

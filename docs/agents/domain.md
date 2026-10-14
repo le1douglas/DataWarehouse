@@ -18,8 +18,7 @@ If `docs/adr/` doesn't exist, **proceed silently**. Don't flag its absence; don'
 ├── GLOSSARY-MAP.md                    ← points at docs/GLOSSARY.md
 ├── docs/
 │   ├── GLOSSARY.md
-│   └── adr/
-│       └── 0001-audit-view-created-by-on-run-end-macro.md
+│   └── adr/                           ← created when the first ADR is written
 └── src/
 ```
 
