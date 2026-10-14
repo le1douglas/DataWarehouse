@@ -43,16 +43,18 @@ CREATE TABLE IF NOT EXISTS dev_bronze.brnz_journal_entries (
 -- one row per row_id, the other columns override the staging values in the candidate view.
 -- row_id is the bronze row_id of the corrected row: it comes from the upload and is never generated here.
 -- date_time is a timestamp cut to the second, without time zone, like in staging and candidate.
+-- the measurements are text, like in staging: they are cast in silver, after the castable test on candidate,
+-- so a correction that is not a number is reported by the test instead of refused by the load.
 -- the columns have the same names as staging and silver.
 CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
     row_id UUID NOT NULL,
     date_time TIMESTAMP(0) NOT NULL,
     subject VARCHAR(50) NOT NULL,
     type VARCHAR(50),
-    ml NUMERIC,
-    ec NUMERIC,
-    ph NUMERIC,
-    temp NUMERIC,
+    ml VARCHAR(50),
+    ec VARCHAR(50),
+    ph VARCHAR(50),
+    temp VARCHAR(50),
     notes VARCHAR(400),
     room VARCHAR(50),
     CONSTRAINT pk_corr_journal_entries PRIMARY KEY (row_id),
@@ -66,7 +68,7 @@ CREATE TABLE IF NOT EXISTS dev_corrections.corr_journal_entries (
 -- one row is one fact about one row_id: kind says which fact, description holds its value as text.
 -- a fact is recorded only when there is something to say, so description is never null.
 -- row_id is decided in bronze and carried through every layer, so every meta table references bronze.
--- only the meta tables that python fills are created here. dbt creates meta_staging, meta_candidate and meta_silver.
+-- only the two inputs have a meta table, both filled by python. the layers built by dbt have none.
 CREATE TABLE IF NOT EXISTS dev_bronze.meta_bronze (
     row_id UUID NOT NULL,
     kind VARCHAR(50) NOT NULL,

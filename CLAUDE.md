@@ -8,17 +8,18 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 
 - **Test suite for the pipeline.** The loops of 2026-10-09 were run by hand. `.scratch/pipeline-test-suite/spec.md` lists every scenario that was run with its observed result, and the ones that were not run with their expected result, as the specification of a suite that runs them on a scratch database.
 - **Source names contain `dev_`.** `source("dev_bronze", ...)` writes the environment in every call. Accepted until the prod target comes back, then to be revisited.
-- **Corrections loader rules, possible now that the audit view exists:** reject keys that are not in `dev_audit.aud_journal_entries`, reject an upload based on an audit older than the last corrections load. The view does not say when the audit was taken, and after a partial run it mixes fresh results with older ones.
-- **Audit view leftovers:** a view or failure table stays behind in `dev_audit` after its model or data test is renamed or deleted.- **Duplicate keys inside one file** are not checked in `RecordSet`; the database index rejects them. The user accepted failing in SQL for now.
-- **Bronze re-load:** loading the same CSV twice fails on the unique index. "Skip identical rows, abort on same key with different values" is not implemented.
+- **Corrections loader rules:** reject an upload whose `row_id`s are not in `dev_audit.aud_journal_entries`, reject an upload based on a workbook refreshed before the last corrections load. The view does not say when the audit was taken, and after a partial run it mixes fresh results with older ones.
+- **Leftovers after a delete or rename:** dbt does not drop the relation of a deleted model or data test. After the 2026-10-14 rebuild the database is clean, but every later delete or rename leaves one behind.
+- **Duplicate keys inside one file** are not checked in `RecordSet`; the database index rejects them. The user accepted failing in SQL for now.
+- **Bronze re-load:** bronze has no unique index on the content of a row, so loading the same CSV twice silently duplicates every journal entry under new `row_id`s, and the corrections stay on the old ones. "Skip identical rows, abort on same content with different values" is not implemented.
+- **Correction history:** corrections and `meta_corrections` are upserted, so a later correction overwrites the earlier one and its reviewer. Snapshots on the two tables were proposed and postponed.
 - **Position test is weak:** it only checks `position_index > 4`. A check that every room group has each position exactly once was suggested, not agreed.
 - **Same room twice in a row:** with the new position logic two consecutive rounds in the same room merge into one group of 8, and a correction cannot split them.
 - **Corrections behaviour to revisit:** every flagged row is uploaded and marked `meta_is_corrected` even if untouched; an empty cell overwrites with null; there is no way to withdraw a correction except SQL.
-- **Subject cleaning** (stripping ` - Measurement`) was removed because `subject` is part of the key. The user will decide on a strategy later.
-- **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there are no tests for `ExcelReader`, `CorrLoader`, `CorrRecordJournalEntries` or the upsert.
+- **Subject cleaning** (stripping ` - Measurement`) was removed while `subject` was part of the key. It no longer is (the key is `row_id`), so nothing blocks it now. The user will decide on a strategy later.
+- **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there is no test for the upsert. On 2026-10-14, 30 of the Python tests failed because they call APIs that have since changed (the CSV and Excel readers, `Loader.load`, `MetaRecord`, `load_to_dev_corrections`).
 - **Hardcoded values:** the workbook path in `load_journal_entries.py`, the sheet name `corrected` in `ExcelReader`, the reviewer name in the workbook's Power Query.
 - **Outdated files:** `README.md` still describes the prod target, the `experiments` workflow and the old `bronze_to_silver` / `silver_to_gold` folders. `Database/04_select_example.sql`, `Database/05_see_test_results.sql` and `Database/corrections.sql` reference schemas and shapes that no longer exist.
-- **Audit view removed on purpose:** `dev_audit.aud_journal_entries` and the `create_audit_views` macro are gone, but are still described as current in this file (Pipeline: the audit view and review-in-Excel bullets; Reminders: corrections loader rules, audit view leftovers), in `docs/CODING_STANDARDS.md` (the data test and audit view lines), in the `on-run-end` edge of `docs/DATA_FLOW_DIAGRAM.md`, and in ADR 0001, which should be marked superseded. The workbook's Power Query still reads the view.
 - **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.
 
 ## Conventions
@@ -41,10 +42,11 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 ### Types and data rules
 
 - Bronze stores everything as text, exactly as received.
-- Staging and the corrections table have the same column names and types, apart from their `meta_` columns. Measurements (`ml`, `ec`, `ph`, `temp`) are numeric in both.
-- Casts are guarded with `pg_input_is_valid` in staging: a value that cannot be cast becomes null and is reported in `meta_cast_errors`. The one unguarded cast is the key's `date_time`, which is allowed to fail the whole build.
+- Staging and the corrections table have the same column names and types. Everything is text except `row_id` and `date_time`, including the measurements (`ml`, `ec`, `ph`, `temp`), so a value that cannot be cast can still be corrected.
+- The measurements are cast to `numeric` in silver, without a guard. The data test `aud_journal_entries__castable` checks them with `pg_input_is_valid` on candidate first, so a bad value is a flagged row and silver is skipped. The list of numeric columns is the var `journal_entries_numeric_columns` in `dbt_project.yml`, read by candidate, the test and silver.
+- `date_time` is cast in staging, without a guard: it is the sort order of room groups, and a value that is not a timestamp fails the whole build.
 - Datetimes have no time zone anywhere before silver, and are cut to the second. Silver is the only place a zone is assigned, from the `timezone` var (`Europe/Amsterdam`).
-- The key of a journal entry is `date_time` cut to the second plus `subject`, identical in bronze, staging, corrections, candidate, audit and Excel.
+- The key of a journal entry is `row_id`, a `uuidv7()` assigned by bronze on insert and carried unchanged through staging, corrections, candidate, audit, silver and Excel. `date_time` and `subject` do not identify a journal entry.
 - Empty string means null. The decimal separator is `.`; staging turns a decimal comma into a dot.
 
 ## Overview
@@ -58,10 +60,12 @@ A small bronze/silver data warehouse on local PostgreSQL 18 for sensor measureme
 The diagram of the pipeline is in `docs/DATA-FLOW.md`. Update it when an object or a dependency between objects changes.
 
 - **Bronze and corrections are the two inputs.** Both are filled by Python from outside the warehouse, and dbt reads them without ever changing them. Bronze has meaning on its own: it is the store of all raw data, exactly as received. Corrections has meaning only for journal entries already in the warehouse.
-- **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver is close to a plain select.
-- **A correction replaces the whole row.** When a key exists in corrections, every correctable column comes from the correction. Corrections stay in their table and are re-applied on every build; bronze is never modified.
-- **The audit view** `dev_audit.aud_journal_entries` lists every flagged row once, with the candidate's columns and `meta_failed_tests` (the rules it failed, alphabetical, separated by `, `). The `create_audit_views` macro recreates it after every dbt run, because dbt drops the failure tables with `cascade`; it exists with zero rows when nothing failed. The failure tables stay the source of truth.
-- **Review in Excel** reads candidate for context and the audit view for the flagged keys (via the ODBC DSN `PostgreSQL_DataWarehouse`), marks rows `needs_review`, and produces the `corrected` sheet with staging's non-`meta_` columns plus `meta_reviewed_by` and `meta_reviewed_date_time`.
+- **Candidate is the proposal, silver is the published result.** `dbt build` runs the tests on candidate and skips silver when any fails, so silver keeps its last good data. Anything that can be wrong, that a test looks at, or that a reviewer needs to see belongs in candidate. Silver only casts the measurements and assigns the time zone.
+- **A correction replaces the whole row.** When a `row_id` exists in corrections, every correctable column comes from the correction, and candidate's `meta_is_corrected` is true. Corrections are applied to staging's text, before the cast, and are judged by the data tests like any other row. They stay in their table and are re-applied on every build; bronze is never modified.
+- **Corrections are applied after staging's rules.** A row uploaded exactly as candidate shows it must not change, so a rule that is not safe to run twice (the notes split) has to stay in staging, before the join.
+- **Data tests** return whole candidate rows (`select *`), one failure table per test in `dev_audit`.
+- **The audit view** `dev_audit.aud_journal_entries` lists every flagged row once, with the current candidate's columns and `meta_failed_tests` (the rules it failed, alphabetical, separated by `, `). The `create_audit_view` macro recreates it in `on-run-end`, because dbt drops the failure tables with `cascade`; it exists with zero rows when nothing failed. It reads only `row_id` from the failure tables, and only those of data tests that still exist in the project. The failure tables stay the source of truth.
+- **Review in Excel** reads candidate and the audit view (via the ODBC DSN `PostgreSQL_DataWarehouse`) and produces the `corrected` sheet: `row_id`, the correctable columns as text (`date_time` as `YYYY-MM-DD HH:MM:SS`, `.` as the decimal separator, an empty cell for null), then `meta_reviewed_by` and `meta_reviewed_date_time` (`YYYY-MM-DD HH:MM:SS`) as the last two columns. `ExcelReader` reads every cell as text, and splits off the last two columns by position: their headers become the `kind` in `meta_corrections`.
 - **Room and position** are derived in candidate: rows are ordered by `date_time`, a room group starts when the room changes, and the rows of a group get the positions `drip_left`, `drip_right`, `drain_left`, `drain_right`.
 
 ### Who owns what
@@ -70,7 +74,7 @@ The diagram of the pipeline is in `docs/DATA-FLOW.md`. Update it when an object 
 |---|---|
 | Hand-written DDL (`Database/03_create_schemas_and_tables.sql`) | `dev_bronze` and `dev_corrections` schemas and tables, their unique indexes |
 | Python (`src/datawarehouse`) | Reading CSV/Excel, validating rows, loading into those two tables |
-| dbt (`DataWarehouseDbt`) | `dev_staging`, `dev_candidate`, `dev_audit`, `dev_silver` and everything in them |
+| dbt (`DataWarehouseDbt`) | `dev_staging`, `dev_candidate`, `dev_audit`, `dev_silver` and everything in them. These layers have no meta tables |
 | The user, in Excel | The review workbook and its Power Query |
 
 Only a `dev` target exists in `%USERPROFILE%\.dbt\profiles.yml`. Database credentials for Python come from `.env` (`POSTGRESQL_*`), which is not in git.

@@ -1,8 +1,6 @@
--- everything written by hand for the dataset: picks and renames the columns, auto-fix rules, split of notes.
--- the output has the column names of stg_journal_entries__cast, all text except date_time.
--- ephemeral: it is inlined in the models that read it, so dev_staging gets no extra object
-{{ config(materialized="ephemeral") }}
-
+-- the staged journal entries: picks and renames the columns, auto-fix rules, split of notes.
+-- the column names and order of silver, all text except date_time: the measurements are cast in silver, after the
+-- corrections, so a value that cannot be cast can still be corrected
 with
     source as (
         select

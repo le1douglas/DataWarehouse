@@ -10,6 +10,8 @@ profile: 'DataWarehouseDbt'
 
 vars:
   timezone: 'Europe/Amsterdam'
+  # text up to candidate, cast to numeric in silver. the castable test checks them first
+  journal_entries_numeric_columns: ['ml', 'ec', 'ph', 'temp']
 
 # These configurations specify where dbt should look for different types of files.
 # The `model-paths` config, for example, states that models in this project can be
@@ -37,10 +39,10 @@ models:
     staging:             # text except the key: mechanical changes plus auto-fix rules
       +materialized: view
       +schema: staging
-    candidate:           # corrections override staging, then guarded casts and derived columns
+    candidate:           # corrections override staging, then derived columns. still text
       +materialized: view
       +schema: candidate
-    silver:              # typed and derived columns, rebuilt only when all candidate tests pass
+    silver:              # casts and time zone, rebuilt only when all candidate tests pass
       +materialized: table
       +schema: silver
 
@@ -49,3 +51,7 @@ data_tests:
   DataWarehouseDbt:
     +store_failures: true
     +schema: audit
+
+# the audit view, one per dataset: every flagged row once, for the review in excel. see macros/create_audit_view.sql
+on-run-end:
+  - "{{ create_audit_view('journal_entries') }}"

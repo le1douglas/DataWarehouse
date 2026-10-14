@@ -12,5 +12,3 @@ sources:
                 It has meaning only for journal entries already in the warehouse.
     tables:
       - name: corr_journal_entries
-      - name: meta_corrections
-        description: The meta table of corrections. A journal entry with a row here has a correction.

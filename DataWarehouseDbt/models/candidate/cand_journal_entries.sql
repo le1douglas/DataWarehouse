@@ -1,6 +1,5 @@
--- the proposed silver: corrections applied, then derived columns.
--- it has no meta_ columns: the cast errors are in meta_staging__failed_casts, and meta_corrections says which
--- rows are corrected
+-- the proposed silver: corrections applied, then derived columns. this is what the reviewer sees.
+-- the measurements are still text: they are cast in silver, and the castable test checks them before
 -- all the datetimes are without time zone, the time zone is only assigned in silver
 -- the tests run on this view, silver is rebuilt only when all of them pass
 -- the positions that are recorded, in the order they recorded in
@@ -10,7 +9,7 @@
 {% set correctable_columns = ["date_time", "subject", "type", "ml", "ec", "ph", "temp", "notes", "room"] %}
 
 with
-    staged as (select * from {{ ref("stg_journal_entries__cast") }}),
+    staged as (select * from {{ ref("stg_journal_entries") }}),
 
     corrections as (select * from {{ source("dev_corrections", "corr_journal_entries") }}),
 
@@ -19,9 +18,10 @@ with
         select
             s.row_id,
             {%- for col in correctable_columns %}
-                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }}
-                {{- "," if not loop.last }}
+                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
             {%- endfor %}
+            -- tells the reviewer which rows already have a correction
+            c.row_id is not null as meta_is_corrected
         from staged as s
         left join corrections as c on s.row_id = c.row_id
     ),
@@ -105,5 +105,6 @@ select
     room_filled,
     room_index,
     position_index,
-    "position"
+    "position",
+    meta_is_corrected
 from assign_room

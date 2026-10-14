@@ -42,16 +42,16 @@ The store of all raw data, exactly as received from the sources. An input that h
 The store of all corrections, as uploaded by reviewers. An input that has meaning only for journal entries already in the warehouse.
 
 **Staging**:
-Bronze with automatic fixes applied and values converted to their types.
+Bronze with automatic fixes applied, in silver's column names. The values stay text, so a value that cannot be converted can still be corrected.
 
 **Candidate**:
-The proposal for silver: staging with corrections applied and room groups and positions derived. It is what the data tests judge.
+The proposal for silver: staging with corrections applied and room groups and positions derived. It is what the data tests judge and what the reviewer sees: silver's rows and columns, before the values are converted to their types.
 
 **Audit**:
 The record of which journal entries failed which data tests.
 
 **Silver**:
-The published result. It changes only when the candidate passes every data test.
+The published result: the candidate with its values converted to their types. It changes only when the candidate passes every data test.
 
 ### Review
 
@@ -69,10 +69,10 @@ A person inspecting the flagged rows and deciding what their values should be.
 The person who does a review.
 
 **Correction**:
-A reviewer's replacement for a whole journal entry, kept apart from bronze and applied again on every build. It is trusted: its values are taken as valid.
+A reviewer's replacement for a whole journal entry, kept apart from bronze and applied again on every build. It is not trusted: the data tests judge a corrected journal entry like any other.
 
 **Cast error**:
-A received value that could not be converted to its type. It keeps its journal entry out of silver until the journal entry has a correction.
+A value, received or corrected, that cannot be converted to its type. Its journal entry is a flagged row, and silver is not published until a correction fixes it.
 
 **Metadata**:
 A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.
@@ -82,4 +82,4 @@ _Avoid_: Meta column
 Which fact a piece of metadata records, such as the source or the reviewer.
 
 **Meta table**:
-The store of a layer's metadata. Every layer has one, and it holds only what that layer decided.
+The store of an input's metadata: bronze and corrections each have one, and it holds only what that input recorded at load time. The layers built by dbt have none.

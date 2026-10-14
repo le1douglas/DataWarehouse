@@ -107,10 +107,10 @@ classDiagram
         + datetime date_time
         + str subject
         + Optional[str] type
-        + Optional[Decimal] ml
-        + Optional[Decimal] ec
-        + Optional[Decimal] ph
-        + Optional[Decimal] temp
+        + Optional[str] ml
+        + Optional[str] ec
+        + Optional[str] ph
+        + Optional[str] temp
         + Optional[str] notes
         + Optional[str] room
         + str meta_reviewed_by

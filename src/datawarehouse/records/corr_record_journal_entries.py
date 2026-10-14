@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from typing import Optional
 
 from pydantic import Field
@@ -15,17 +14,18 @@ class CorrRecordJournalEntries(CorrRecord):
     date_time is a plain datetime cut to the second, matching PostgreSQL's
     TIMESTAMP(0) (no timezone concept).
 
-    Unlike bronze, corrections are typed: the measurements are numbers,
-    matching NUMERIC in PostgreSQL. A correction that is not a number is
-    rejected here, before it reaches the database.
+    The measurements are text, like in staging, matching VARCHAR in
+    PostgreSQL. A correction that is not a number is accepted here: the
+    castable test on candidate reports it, and silver is not built until
+    it is corrected again.
     """
 
     date_time: datetime  # required, non-null
     subject: str = Field(max_length=50)  # required, non-null
     type: Optional[str] = Field(max_length=50)
-    ml: Optional[Decimal]
-    ec: Optional[Decimal]
-    ph: Optional[Decimal]
-    temp: Optional[Decimal]
+    ml: Optional[str] = Field(max_length=50)
+    ec: Optional[str] = Field(max_length=50)
+    ph: Optional[str] = Field(max_length=50)
+    temp: Optional[str] = Field(max_length=50)
     notes: Optional[str] = Field(max_length=400)
     room: Optional[str] = Field(max_length=50)

@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from uuid import UUID
 
 import pytest
@@ -32,10 +31,10 @@ def test_valid_row():
         "date_time": datetime(2026, 9, 17, 15, 13, 8),
         "subject": "ONE-A1F0",
         "type": "measurement",
-        "ml": Decimal("250"),
-        "ec": Decimal("2.4"),
-        "ph": Decimal("5.8"),
-        "temp": Decimal("21.5"),
+        "ml": "250",
+        "ec": "2.4",
+        "ph": "5.8",
+        "temp": "21.5",
         "notes": None,
         "room": "room_1",
     }
@@ -51,7 +50,14 @@ def test_metadata_column_is_refused(column, value):
         CorrRecordJournalEntries(**VALID_ROW, **{column: value})
 
 
-# unlike bronze, corrections are typed
-def test_measurement_that_is_not_a_number_is_refused():
+# the measurements are text: a value that is not a number is reported by the castable test in dbt, not refused here
+def test_measurement_that_is_not_a_number_is_accepted():
+    row = CorrRecordJournalEntries(**{**VALID_ROW, "ec": "not a number"})
+
+    assert row.ec == "not a number"
+
+
+# excel hands numbers over as numbers: the reader turns them into text, the row model does not
+def test_measurement_that_is_a_number_is_refused():
     with pytest.raises(ValidationError):
-        CorrRecordJournalEntries(**{**VALID_ROW, "ec": "not a number"})
+        CorrRecordJournalEntries(**{**VALID_ROW, "ec": 2.4})

@@ -14,7 +14,9 @@ class ExcelReader:
         df = pd.read_excel(
             source,
             sheet_name=sheet,
-            dtype=object,  # every cell is a plain Python object, no assuptions about the type.
+            # every cell is text, like a csv: excel stores numbers as numbers, and the row model only takes text.
+            # the row model parses the cells that are not text in the database (row_id, date_time)
+            dtype=str,
             keep_default_na=False,  # dont assume "N/A", "n/a", "null" etc are null values.
             na_values=[""],  # instead only assume an empty cell is null
         )
