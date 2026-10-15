@@ -51,7 +51,7 @@ Bronze with automatic fixes applied, in the same shape as a correction. The valu
 The proposal for silver: staging with corrections applied and room groups and positions derived. It is what the data tests judge and what the reviewer sees: silver's rows and columns, before the values are converted to their types.
 
 **Audit**:
-The record of which journal entries failed which data tests.
+The record of which journal entries failed which data tests, and why: one entry per journal entry and failed rule, with the reason the data test gave. It holds no values of the journal entry; those are read from the candidate.
 
 **Snapshot**:
 The record of every value the rows of one table have had, kept by the warehouse itself: one version per change, in the same shape as the table it records.
@@ -88,7 +88,7 @@ A value, received or corrected, that cannot be converted to its type. Its journa
 A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.
 
 **Meta column**:
-Metadata kept on the journal entry itself, such as which data tests it failed. Whether a journal entry was corrected is not one: it is read by joining `row_id` to the corrections. The inputs have none: their metadata is in their meta table.
+Metadata kept on the journal entry itself, such as who reviewed it in the workbook. Which data tests it failed is not stored as one: the audit holds one entry per failed rule, and the workbook combines them into a meta column. Whether a journal entry was corrected is not one: it is read by joining `row_id` to the corrections. The inputs have none: their metadata is in their meta table.
 
 **Kind**:
 Which fact a piece of metadata records, such as the source or the reviewer.
