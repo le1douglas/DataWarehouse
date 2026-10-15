@@ -11,6 +11,9 @@ models:
       - name: row_id
         data_type: uuid
         description: The key, assigned by bronze when the journal entry was received.
+        constraints:
+          - type: primary_key
+            name: pk_slvr_journal_entries
       - name: date_time
         data_type: timestamptz(0)
         description: When the journal entry was measured, in the time zone of the timezone var.

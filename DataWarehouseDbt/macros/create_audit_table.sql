@@ -4,7 +4,8 @@
     what it holds
     - the shape of a meta table: row_id, kind, description, one row per row_id and failed rule
     - kind is the bare rule, the part of the test name after "__"; description is the reason the test returned
-    - the key is (row_id, kind): each data test returns at most one row per row_id
+    - the key is (row_id, kind), the primary key pk_aud_<dataset>: each data test returns at most one row per row_id
+    - each failure table gets the primary key pk_<failure table> on row_id
     - no columns of the candidate: a reader joins row_id to the candidate
     - zero rows when nothing failed
 
@@ -42,8 +43,13 @@
     {% for test in tests if test.unique_id not in judged %} {{ return("") }} {% endfor %}
 
     {% set failures = [] %}
+    {% set failure_keys = [] %}
     {% for test in tests %}
         {% set failure_table = api.Relation.create(database=test.database, schema=test.schema, identifier=test.alias) %}
+        {# dbt creates the failure table without constraints, so its key is added here, after the test ran #}
+        {% do failure_keys.append(
+            "alter table " ~ failure_table ~ " add constraint pk_" ~ test.alias ~ " primary key (row_id);"
+        ) %}
         {% do failures.append(
             "select row_id, '" ~ test.name[prefix | length:] ~ "'::text as kind, description from " ~ failure_table
         ) %}
@@ -53,10 +59,14 @@
         database=tests[0].database, schema=tests[0].schema, identifier="aud_" ~ dataset
     ) %}
 
+    {# the failure keys go first: a test that returns a row_id twice fails here, before the audit table is replaced #}
     {% set sql %}
+        {{ failure_keys | join("\n") }}
         drop table if exists {{ audit_table }};
         create table {{ audit_table }} as
         {{ failures | join("\nunion all\n") }};
+        {# a row_id is flagged at most once per rule #}
+        alter table {{ audit_table }} add constraint pk_aud_{{ dataset }} primary key (row_id, kind);
     {% endset %}
 
     {{ return(sql) }}

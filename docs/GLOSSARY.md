@@ -53,6 +53,10 @@ The proposal for silver: staging with corrections applied and room groups and po
 **Audit**:
 The record of which journal entries failed which data tests, and why: one entry per journal entry and failed rule, with the reason the data test gave. It holds no values of the journal entry; those are read from the candidate.
 
+**Failure table**:
+What one data test found in its last run: each journal entry that failed it, once, with the reason. The audit combines the failure tables of a dataset, and they stay the source of truth for it.
+_Avoid_: Test results, failures on their own
+
 **Snapshot**:
 The record of every value the rows of one table have had, kept by the warehouse itself: one version per change, in the same shape as the table it records.
 _Avoid_: SCD, slowly changing dimension, history table
