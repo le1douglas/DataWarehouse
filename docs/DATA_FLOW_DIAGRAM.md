@@ -11,7 +11,7 @@ flowchart TD
     cand("Candidate<br/><span style='color: #e6b800'>dev_candidate</span>.cand_#lt;dataset#gt;")
     tests{"Data tests"}
     fail@{ shape: st-rect, label: "Audit, failure tables<br/><span style='color: #e6b800'>dev_audit</span>.aud_#lt;dataset#gt;__#lt;rule#gt;<br/>one table per data test" }
-    aud("Audit, view<br/><span style='color: #e6b800'>dev_audit</span>.aud_#lt;dataset#gt;")
+    aud["Audit, table<br/><span style='color: #e6b800'>dev_audit</span>.aud_#lt;dataset#gt;"]
     slvr["Silver<br/><span style='color: #e6b800'>dev_silver</span>.slvr_#lt;dataset#gt;"]
     snapcorr@{ shape: lin-cyl, label: "Snapshots of corrections<br/><span style='color: #e6b800'>dev_snapshots</span>.snap_corr_#lt;dataset#gt;<br/><span style='color: #e6b800'>dev_snapshots</span>.snap_meta_corrections" }
     snapslvr@{ shape: lin-cyl, label: "Snapshot of silver<br/><span style='color: #e6b800'>dev_snapshots</span>.snap_slvr_#lt;dataset#gt;" }
@@ -19,10 +19,10 @@ flowchart TD
     subgraph xlsx["Excel workbook"]
         qcols{{"Power Query<br/>staging's column names"}}
         qcand{{"Power Query<br/>candidate's rows, but only the columns that exist in staging"}}
-        qaud{{"Power Query<br/>the audit view's flagged rows"}}
+        qaud{{"Power Query<br/>the audit table's flagged rows"}}
         comb{{"Power Query<br/>combine context and flagged rows"}}
         review["Excel sheet_name1<br/>where the user actually modifies the values"]
-        qsel{{"Power Query<br/>read the whole corrected table,<br/>keep only the rows from the audit view"}}
+        qsel{{"Power Query<br/>read the whole corrected table,<br/>keep only the rows from the audit table"}}
         corrected["Excel sheet_name2<br/>only the corrected rows, with no context"]
     end
 

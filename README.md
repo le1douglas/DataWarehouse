@@ -37,11 +37,11 @@ dbt (`DataWarehouseDbt`) builds every layer between bronze and silver, and never
 | Staging | `dev_staging` | View. Renames the columns and applies the automatic fixes; the values stay text |
 | Corrections | `dev_corrections` | Input. Rows fixed by a human, loaded by Python from the Excel workbook, as text |
 | Candidate | `dev_candidate` | View. Staging with the corrections applied, plus the derived columns, still text. This is the proposal for silver, and what the reviewer sees |
-| Audit | `dev_audit` | One failure table per data test, and a view that aggregates these tables per dataset |
+| Audit | `dev_audit` | One failure table per data test, and a table that aggregates these tables per dataset |
 | Silver | `dev_silver` | Table. The published result: the candidate, cast to its types, once it passes all the tests |
 
 - **The gate:** `dbt build` runs the data tests on candidate and skips silver when any fails, so silver keeps its last good data.
-- **Excel manual review:** the workbook reads candidate and the audit view through ODBC, the reviewer fixes the flagged rows, and Python loads the `corrected` sheet into corrections.
+- **Excel manual review:** the workbook reads candidate and the audit table through ODBC, the reviewer fixes the flagged rows, and Python loads the `corrected` sheet into corrections.
 - **A correction replaces the whole row.** Corrections stay in their table and are re-applied on every build.
 
 A full loop is: DDL, load bronze, `dbt build` (tests fail, silver skipped), review in Excel, load corrections, `dbt build` (tests succeed, silver built).

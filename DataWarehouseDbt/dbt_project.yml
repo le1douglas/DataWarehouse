@@ -54,6 +54,6 @@ data_tests:
     +store_failures: true
     +schema: audit
 
-# the audit view, one per dataset: every flagged row once, for the review in excel. see macros/create_audit_view.sql
+# the audit table, one per dataset: every flagged row once, for the review in excel. see macros/create_audit_table.sql
 on-run-end:
-  - "{{ create_audit_view('journal_entries') }}"
+  - "{{ create_audit_table('journal_entries', results) }}"
