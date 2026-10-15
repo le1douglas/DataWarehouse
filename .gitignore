@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 
 # local issue tracker used by the agent skills
 .scratch/
+
+# local helper scripts (rebuild, load corrections)
+.scripts/

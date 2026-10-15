@@ -22,7 +22,7 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Corrections behaviour to revisit:** every flagged row is uploaded and marked `meta_is_corrected` even if untouched; an empty cell overwrites with null; there is no way to withdraw a correction except SQL.
 - **Subject cleaning** (stripping ` - Measurement`) was removed while `subject` was part of the key. It no longer is (the key is `row_id`), so nothing blocks it now. The user will decide on a strategy later.
 - **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there is no test for the upsert. On 2026-10-14, 30 of the Python tests failed because they call APIs that have since changed (the CSV and Excel readers, `Loader.load`, `MetaRecord`, `load_to_dev_corrections`).
-- **Hardcoded values:** the workbook path in `load_journal_entries.py`, the reviewer name in the workbook's Power Query.
+- **Hardcoded values:** the workbook path (`CORRECTIONS_WORKBOOK` in `src/datawarehouse/config.py`), the reviewer name in the workbook's Power Query.
 - **Outdated files:** `README.md` still describes the prod target, the `experiments` workflow and the old `bronze_to_silver` / `silver_to_gold` folders. `Database/04_select_example.sql`, `Database/05_see_test_results.sql` and `Database/corrections.sql` reference schemas and shapes that no longer exist.
 - **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.
 
@@ -99,12 +99,16 @@ python -m pytest tests/unit/test_record.py::test_empty_string_to_null_nan
 dbt build --project-dir DataWarehouseDbt
 dbt build --select stg_journal_entries --project-dir DataWarehouseDbt
 
-# rebuild the database from nothing: run Database\01_drop_database.sql and 02_create_database.sql
-# while connected to the postgres database, then
+# rebuild everything from nothing: drop and create the database, run the 03_ DDL, python -m datawarehouse, dbt build
+# (asks for the postgres password as a guard against running it by accident; server, port and user come from .env)
+.\.scripts\rebuild.ps1   (local, not in git)
+
+# or only the database: 01_ and 02_ while connected to the postgres database, then
 psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\03_create_schemas_and_tables.sql
 
-# loads: main() currently calls load_corrections() only, load_bronze() is commented out
-python src\datawarehouse\load_journal_entries.py
+# loads, through the package entry point src\datawarehouse\__main__.py
+python -m datawarehouse bronze        # csv -> dev_bronze (append)
+python -m datawarehouse corrections   # excel -> dev_corrections (upsert), also .\.scripts\load_corrections.ps1
 ```
 
 The `03_` script prints two transaction warnings because `-1` and the file's own `BEGIN`/`COMMIT` overlap; they are harmless. Dropping the database uses `WITH (FORCE)`, which disconnects every session on it, including open VS Code SQL tabs.

@@ -1,2 +1,2 @@
-CREATE DATABASE "DataWarehouse"
--- connect to this database with psql \connect "DataWarehouse"
+-- run while connected to the postgres database.
+CREATE DATABASE "DataWarehouse";

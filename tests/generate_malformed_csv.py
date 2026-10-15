@@ -1,4 +1,4 @@
-# Generates the malformed CSV files used to test load_journal_entries.py.
+# Generates the malformed CSV files used to test __main__.py.
 
 import csv
 import io

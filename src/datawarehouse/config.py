@@ -26,7 +26,9 @@ TBL_META_BRONZE = "meta_bronze"
 TBL_META_CORRECTIONS = "meta_corrections"
 
 # the sheet of the corrections workbook that is uploaded: the corrections, then their metadata in the last two columns
-SHEET_CORRECTIONS = "corrected"
+CORRECTIONS_SHEET = "corrected"
+CORRECTIONS_WORKBOOK = Path(r"C:\Users\TeeltQ-Farms\OneDrive - Q-Farms\Bureaublad\journal_entries_corrections.xlsx")
+
 
 # the name of a dataset, as used in table names (brnz_journal_entries)
 DATASET_JOURNAL_ENTRIES = "journal_entries"

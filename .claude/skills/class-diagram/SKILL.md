@@ -27,7 +27,7 @@ Draw everything the user wrote, and nothing they did not.
 
 - Every class defined in the package, including a `Protocol`, an abstract class, a dataclass, an enum and a nested class.
 - Every generic type defined in the package, such as `RecordT = TypeVar("RecordT", bound=Record)`. Mark it `<<TypeVar>>` and connect it to its bound.
-- Every module that has functions of its own at module level, such as `load_journal_entries.py`. Draw it as a box marked `<<module>>`, named after the file without `.py`, with its functions listed as methods.
+- Every module that has functions of its own at module level, such as `__main__.py`. Draw it as a box marked `<<module>>`, named after the file without `.py`, with its functions listed as methods.
 
 **Not drawn:**
 
@@ -81,9 +81,9 @@ Only between boxes that are drawn.
 
 Label a dependency with one or two words that say what happens: `calls`, `creates`, `reads with`, `writes`.
 
-Draw no arrow for a class or object that is only handed on as an argument. `load_bronze()` passes `CSVReader` and `BrnzRecordJournalEntries` to `BrnzLoader.load` and never touches them, so `load_journal_entries` gets no arrow to either. What matters there is the signature of `load`, which asks for an `ExternalReader` and a `RecordT`, and those arrows are drawn from the loader. Which concrete class is passed in is a detail of the call, not of the design.
+Draw no arrow for a class or object that is only handed on as an argument. `load_bronze()` passes `CSVReader` and `BrnzRecordJournalEntries` to `BrnzLoader.load` and never touches them, so `__main__` gets no arrow to either. What matters there is the signature of `load`, which asks for an `ExternalReader` and a `RecordT`, and those arrows are drawn from the loader. Which concrete class is passed in is a detail of the call, not of the design.
 
-A caller that reaches a class through a `Protocol` points at the protocol only. `load_bronze()` holds `BrnzLoader` in a variable typed `type[Loader]` and calls `load` on it, so `load_journal_entries` has one arrow, to `Loader`. Any loader can be chosen there; which one is a detail of the implementation, and the concrete loaders are already connected by their dashed arrow from the protocol.
+A caller that reaches a class through a `Protocol` points at the protocol only. `load_bronze()` holds `BrnzLoader` in a variable typed `type[Loader]` and calls `load` on it, so `__main__` has one arrow, to `Loader`. Any loader can be chosen there; which one is a detail of the implementation, and the concrete loaders are already connected by their dashed arrow from the protocol.
 
 Check a `Protocol` by signature. `CSVReader` does not inherit from `ExternalReader`, but it has the same `read` method and is passed where an `ExternalReader` is expected, so it gets the dashed arrow.
 

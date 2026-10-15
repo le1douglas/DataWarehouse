@@ -9,7 +9,7 @@ title: datawarehouse
 classDiagram
     direction TB
 
-    class load_journal_entries {
+    class main["__main__"] {
         <<module>>
         + load_bronze()
         + load_corrections()
@@ -117,9 +117,9 @@ classDiagram
         + datetime meta_reviewed_date_time
     }
 
-    load_journal_entries ..> Loader : calls
-    load_journal_entries ..> PostgreSQLDatabase : creates
-    load_journal_entries ..> RecordSet : reads rows
+    main ..> Loader : calls
+    main ..> PostgreSQLDatabase : creates
+    main ..> RecordSet : reads rows
 
     Loader ..> ExternalReader : reads with
     Loader ..> RecordSet : creates

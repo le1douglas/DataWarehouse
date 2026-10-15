@@ -1,9 +1,12 @@
-from pathlib import Path
+"""Entry point of the package: run with `python -m datawarehouse bronze` or `python -m datawarehouse corrections`."""
+
+import argparse
 
 from datawarehouse.config import (
+    CORRECTIONS_SHEET,
+    CORRECTIONS_WORKBOOK,
     JOURNAL_ENTRIES_CSV,
     POSTGRES_CONFIG,
-    SHEET_CORRECTIONS,
     TBL_BRNZ_JOURNAL_ENTRIES,
     TBL_CORR_JOURNAL_ENTRIES,
 )
@@ -16,11 +19,9 @@ from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalE
 
 
 # csv -> dev_bronze
-def load_bronze():
-    filepath = JOURNAL_ENTRIES_CSV
-    df_csv = CSVReader.read(filepath)
+def load_bronze() -> None:
+    df_csv = CSVReader.read(JOURNAL_ENTRIES_CSV)
     record_set = Loader.load(df_csv, BrnzRecordJournalEntries)
-
     print(record_set.rows[0])
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
@@ -29,20 +30,35 @@ def load_bronze():
 
 
 # excel -> dev_corrections
-def load_corrections():
-    filepath = Path("C:\\Users\\TeeltQ-Farms\\OneDrive - Q-Farms\\Bureaublad\\journal_entries_corrections.xlsx")
-    df_excel = ExcelReader.read(filepath, sheet=SHEET_CORRECTIONS)
-    corr_record_set = Loader.load(df_excel, CorrRecordJournalEntries)
-    print(corr_record_set.rows[0])
+def load_corrections() -> None:
+    df_excel = ExcelReader.read(CORRECTIONS_WORKBOOK, sheet=CORRECTIONS_SHEET)
+    record_set = Loader.load(df_excel, CorrRecordJournalEntries)
+    print(record_set.rows[0])
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
     postgres.connect()
-    postgres.load_to_dev_corrections(TBL_CORR_JOURNAL_ENTRIES, corr_record_set)
+    postgres.load_to_dev_corrections(TBL_CORR_JOURNAL_ENTRIES, record_set)
 
 
-def main():
-    load_bronze()
-    # load_corrections()
+
+
+
+
+
+
+
+
+LOADS = {
+    "bronze": load_bronze,
+    "corrections": load_corrections,
+}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="python -m datawarehouse", description="Load one input of the warehouse.")
+    parser.add_argument("load", choices=LOADS, help="bronze: csv -> dev_bronze, corrections: excel -> dev_corrections")
+    args = parser.parse_args()
+    LOADS[args.load]()
 
 
 if __name__ == "__main__":
