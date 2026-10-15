@@ -88,7 +88,7 @@ A value, received or corrected, that cannot be converted to its type. Its journa
 A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.
 
 **Meta column**:
-Metadata kept on the journal entry itself, such as whether it was corrected or which data tests it failed. The inputs have none: their metadata is in their meta table.
+Metadata kept on the journal entry itself, such as which data tests it failed. Whether a journal entry was corrected is not one: it is read by joining `row_id` to the corrections. The inputs have none: their metadata is in their meta table.
 
 **Kind**:
 Which fact a piece of metadata records, such as the source or the reviewer.

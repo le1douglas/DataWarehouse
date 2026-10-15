@@ -18,10 +18,9 @@ with
         select
             s.row_id,
             {%- for col in correctable_columns %}
-                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }},
+                case when c.row_id is not null then c.{{ col }} else s.{{ col }} end as {{ col }}
+                {%- if not loop.last %},{% endif %}
             {%- endfor %}
-            -- tells the reviewer which rows already have a correction
-            c.row_id is not null as meta_is_corrected
         from staged as s
         left join corrections as c on s.row_id = c.row_id
     ),
@@ -104,11 +103,5 @@ with
     )
 
 select
-    row_id,
-    {%- for col in correctable_columns %} {{ col }}, {%- endfor %}
-    room,
-    room_index,
-    position_index,
-    "position",
-    meta_is_corrected
+    row_id, {%- for col in correctable_columns %} {{ col }}, {%- endfor %} room, room_index, position_index, "position"
 from assign_room
