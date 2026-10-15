@@ -12,7 +12,11 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Leftovers after a delete or rename:** dbt does not drop the relation of a deleted model or data test. After the 2026-10-14 rebuild the database is clean, but every later delete or rename leaves one behind.
 - **Duplicate keys inside one file** are not checked in `RecordSet`; the database index rejects them. The user accepted failing in SQL for now.
 - **Bronze re-load:** bronze has no unique index on the content of a row, so loading the same CSV twice silently duplicates every journal entry under new `row_id`s, and the corrections stay on the old ones. "Skip identical rows, abort on same content with different values" is not implemented.
-- **Correction history:** corrections and `meta_corrections` are upserted, so a later correction overwrites the earlier one and its reviewer. Snapshots on the two tables were proposed and postponed.
+- **Snapshots, added 2026-10-15:** corrections and `meta_corrections` stay upserted (latest value only), and history is kept by dbt snapshots `snap_corr_journal_entries`, `snap_meta_corrections` and `snap_slvr_journal_entries` in `dev_snapshots` (config in `dbt_project.yml`, one yml per snapshot in `DataWarehouseDbt/snapshots`). The rules are in `docs/CODING_STANDARDS.md`. Checked by hand with test corrections on 2026-10-15, then cleaned up: a build with failing tests snapshots corrections and skips the silver snapshot; an unchanged build adds no version; a changed correction adds one version in each snapshot and closes the old one; a deleted correction adds a version with `meta_is_deleted = 'True'`, which is the current version from then on, so a reader must filter it out. The scenarios run and not run are parts C and D of `.scratch/pipeline-test-suite/spec.md`.
+- **`meta_is_deleted` is text** (`'True'` / `'False'`), as dbt creates it, not boolean.
+- **Snapshot time zone:** dbt-postgres stamps `meta_valid_from` / `meta_valid_to` with `now()::timestamp without time zone`, ambiguous in the repeated hour in October. Overriding `postgres__snapshot_get_time` to keep `timestamptz` was postponed.
+- **Snapshots have no reader:** they are storage only. Views that join them (a correction with its reviewer, for example) are a later step.
+- **Snapshot schema changes follow dbt's defaults:** a key moved to a new or renamed column splits the history at that build (old versions are marked deleted), and a column whose type changes (mainly in silver's yml) is not migrated and is fixed by hand when it happens. Dropping the database loses all history; on dev that is accepted.
 - **Position test is weak:** it only checks `position_index > 4`. A check that every room group has each position exactly once was suggested, not agreed.
 - **Same room twice in a row:** with the new position logic two consecutive rounds in the same room merge into one group of 8, and a correction cannot split them.
 - **Corrections behaviour to revisit:** every flagged row is uploaded and marked `meta_is_corrected` even if untouched; an empty cell overwrites with null; there is no way to withdraw a correction except SQL.
@@ -74,7 +78,7 @@ The diagram of the pipeline is in `docs/DATA_FLOW_DIAGRAM.md`. Update it when an
 |---|---|
 | Hand-written DDL (`Database/03_create_schemas_and_tables.sql`) | `dev_bronze` and `dev_corrections` schemas and tables, their unique indexes |
 | Python (`src/datawarehouse`) | Reading CSV/Excel, validating rows, loading into those two tables |
-| dbt (`DataWarehouseDbt`) | `dev_staging`, `dev_candidate`, `dev_audit`, `dev_silver` and everything in them. These layers have no meta tables |
+| dbt (`DataWarehouseDbt`) | `dev_staging`, `dev_candidate`, `dev_audit`, `dev_silver`, `dev_snapshots` and everything in them. These layers have no meta tables |
 | The user, in Excel | The review workbook and its Power Query |
 
 Only a `dev` target exists in `%USERPROFILE%\.dbt\profiles.yml`. Database credentials for Python come from `.env` (`POSTGRESQL_*`), which is not in git.

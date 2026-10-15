@@ -15,6 +15,7 @@ How code in this repository is named and written. Domain terms are defined in `d
   | `dev_candidate` | `cand_` |
   | `dev_audit` | `aud_` |
   | `dev_silver` | `slvr_` |
+  | `dev_snapshots` | `snap_` |
 
 - A prefix never contains an underscore: the prefix ends at the first `_`, the detail starts at `__`. Prefixes do not need the same length.
 - Tables and dbt models: `<prefix>_<dataset>` (`dev_bronze.brnz_journal_entries`, `slvr_journal_entries`). The dbt file name is the relation name; no `alias` and no `generate_alias_name` or `generate_schema_name` override. The folder decides materialisation and schema in `dbt_project.yml`.
@@ -27,6 +28,7 @@ How code in this repository is named and written. Domain terms are defined in `d
 - From staging onwards the bronze column `tags` is called `room_raw`, the room as recorded (and as corrected). Candidate derives `room`, the room of the room group, which is what silver publishes. Names and comments use "room", "room group" and `room_index`.
 - Python: one class per file, file in snake case (`brnz_record_journal_entries.py`, `reader_csv.py`), classes `<Prefix>Record<Dataset>` (`BrnzRecordJournalEntries`), `<Format>Reader` (`CSVReader`). There is one `Loader`, the same for every layer and every reader. Test files are `test_<module>.py`, with a name that is unique across `tests/unit` and `tests/integration`.
 - Meta tables are the exception to the layer prefix: `meta_<layer>` with the full layer word (`dev_bronze.meta_bronze`), one per layer for every dataset of the layer. Their row model is `MetaRecord`, without a layer prefix or a dataset, because it is the same for every meta table. Bronze and corrections have no `meta_` columns: their metadata is in `meta_bronze` and `meta_corrections`, and every `kind` starts with `meta_` (`meta_source`, `meta_reviewed_by`), the name the fact would have as a column. Only these two inputs have a meta table; the layers built by dbt have none.
+- Snapshots are the other exception: `snap_<recorded table>`, the full name of the one table it records (`snap_corr_journal_entries`, `snap_meta_corrections`, `snap_slvr_journal_entries`). A snapshot mirrors that table exactly, with no join, filter or derived column; anything combined from several snapshots is a view on top of them. Its `unique_key` is the primary key of the recorded table, its strategy is `check` on all columns, `hard_deletes` is `new_record`. dbt's columns are renamed to `meta_valid_from`, `meta_valid_to` (null on the current version), `meta_version_id`, `meta_updated_at` and `meta_is_deleted`. A snapshot is kept only for a table whose rows can change, so bronze and `meta_bronze`, which are append-only, have none.
 - Unique key index: `uq_<table>_key` (`uq_brnz_journal_entries_key`).
 
 ## SQL style

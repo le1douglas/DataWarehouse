@@ -8,7 +8,10 @@ sources:
       - name: brnz_journal_entries
         description: csv data coming from the app "edenic" developed by bluelab.
   - name: dev_corrections
-    description: An input layer. The store of all corrections, as uploaded by reviewers from external tools (for example excel).
-                It has meaning only for journal entries already in the warehouse.
+    description: An input layer. The latest correction of each journal entry, as uploaded by reviewers from external tools
+                (for example excel). It has meaning only for journal entries already in the warehouse.
+                Earlier corrections are in dev_snapshots.
     tables:
       - name: corr_journal_entries
+      - name: meta_corrections
+        description: The reviewer and review date-time of the latest correction, one row per row_id and kind.

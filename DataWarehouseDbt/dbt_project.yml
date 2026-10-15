@@ -32,6 +32,21 @@ models:
       +materialized: table
       +schema: silver
 
+# every version of the rows of one table, see docs/CODING_STANDARDS.md. a snapshot mirrors its table exactly,
+# so every one is configured the same: key in its own yml, every column compared, a deleted row is a version too
+snapshots:
+  DataWarehouseDbt:
+    +schema: snapshots
+    +strategy: check
+    +check_cols: all
+    +hard_deletes: new_record
+    +snapshot_meta_column_names:
+      dbt_valid_from: meta_valid_from
+      dbt_valid_to: meta_valid_to
+      dbt_scd_id: meta_version_id
+      dbt_updated_at: meta_updated_at
+      dbt_is_deleted: meta_is_deleted
+
 # every data test fails the build, and its failing rows are stored in one table per data test
 data_tests:
   DataWarehouseDbt:

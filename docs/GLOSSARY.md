@@ -42,7 +42,7 @@ A layer filled from outside the warehouse, which the warehouse reads and never c
 The store of all raw data, exactly as received from the sources. An input that has meaning on its own.
 
 **Corrections**:
-The store of all corrections, as uploaded by reviewers. An input that has meaning only for journal entries already in the warehouse.
+The latest correction of each journal entry, as uploaded by a reviewer. An input that has meaning only for journal entries already in the warehouse. Earlier corrections are in its snapshot.
 
 **Staging**:
 Bronze with automatic fixes applied, in the same shape as a correction. The values stay text, so a value that cannot be converted can still be corrected.
@@ -52,6 +52,13 @@ The proposal for silver: staging with corrections applied and room groups and po
 
 **Audit**:
 The record of which journal entries failed which data tests.
+
+**Snapshot**:
+The record of every value the rows of one table have had, kept by the warehouse itself: one version per change, in the same shape as the table it records.
+_Avoid_: SCD, slowly changing dimension, history table
+
+**Version**:
+One state of a row in a snapshot, valid from the build that first saw it until the build that saw it change or disappear.
 
 **Silver**:
 The published result: the candidate with its values converted to their types. It changes only when the candidate passes every data test.

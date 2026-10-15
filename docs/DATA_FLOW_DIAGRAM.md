@@ -13,6 +13,8 @@ flowchart TD
     fail@{ shape: st-rect, label: "Audit, failure tables<br/><span style='color: #e6b800'>dev_audit</span>.aud_#lt;dataset#gt;__#lt;rule#gt;<br/>one table per data test" }
     aud("Audit, view<br/><span style='color: #e6b800'>dev_audit</span>.aud_#lt;dataset#gt;")
     slvr["Silver<br/><span style='color: #e6b800'>dev_silver</span>.slvr_#lt;dataset#gt;"]
+    snapcorr@{ shape: lin-cyl, label: "Snapshots of corrections<br/><span style='color: #e6b800'>dev_snapshots</span>.snap_corr_#lt;dataset#gt;<br/><span style='color: #e6b800'>dev_snapshots</span>.snap_meta_corrections" }
+    snapslvr@{ shape: lin-cyl, label: "Snapshot of silver<br/><span style='color: #e6b800'>dev_snapshots</span>.snap_slvr_#lt;dataset#gt;" }
 
     subgraph xlsx["Excel workbook"]
         qcols{{"Power Query<br/>staging's column names"}}
@@ -42,6 +44,8 @@ flowchart TD
     review --> qsel
     qsel --> corrected
     corrected -->|"python"| corr
+    corr -->|"dbt snapshot, on every build"| snapcorr
+    slvr -->|"dbt snapshot, only when silver is built"| snapslvr
 
     linkStyle 0,1,2,4,5 stroke:#2e9e44
 ```
@@ -56,6 +60,7 @@ flowchart TD
 | Rounded box | A view built by dbt |
 | Rectangle | A table built by dbt |
 | Stacked rectangle | Several tables of the same kind |
+| Lined cylinder | A snapshot built by dbt: every version of the rows of the table it records |
 | Diamond | The gate: silver is built only when every data test passes |
 | Frame | The Excel workbook, a file outside the database, and what is inside it |
 | Hexagon | A Power Query query inside the workbook |

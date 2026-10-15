@@ -1,0 +1,6 @@
+snapshots:
+  - name: snap_slvr_journal_entries
+    description: Every version of the published journal entries. It depends on silver, so it is skipped when silver is.
+    relation: ref("slvr_journal_entries")
+    config:
+      unique_key: row_id
