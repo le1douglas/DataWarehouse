@@ -1,1 +1,0 @@
-  select * from "DataWarehouse"."dev_dbt_test__audit"."journal_entries_position_index_max_4"
