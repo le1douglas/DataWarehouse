@@ -10,6 +10,8 @@
 -- the row_id every query reads: a setting of this connection only, it writes nothing. run a query on its own in a
 -- new connection and current_setting fails with "unrecognized configuration parameter"
 SET debug.row_id = '01a13f97-1c47-7d10-b2d3-ad66d8386cd7';
+-- the dataset the row belongs to: PIPELINE finds each layer's table as <prefix>_<dataset>
+SET debug.dataset = 'journal_entries';
 
 -------------------------------------------------------------------------------
 
@@ -72,46 +74,65 @@ ORDER BY n.sort_order;
 
 
 -- PIPELINE
--- the row in every layer, one below the other, all as text. a column a layer does not have is null in it.
-SELECT layer, row_id, date_time, subject, type, ml, ec, ph, temp, notes, room_raw, room, room_index, position_index,
-    "position", tags, ec_pore, ec_bulk, mc, device, media
-FROM (
-    SELECT
-        1 AS layer_order, 'brnz_journal_entries' AS layer, b.row_id, b.date_time::TEXT AS date_time,
-        b.subject::TEXT AS subject, b.type::TEXT AS type, NULL::TEXT AS ml, b.ec::TEXT AS ec, b.ph::TEXT AS ph,
-        b.temp::TEXT AS temp, b.notes::TEXT AS notes, NULL::TEXT AS room_raw, NULL::TEXT AS room,
-        NULL::TEXT AS room_index, NULL::TEXT AS position_index, NULL::TEXT AS "position", b.tags::TEXT AS tags,
-        b.ec_pore::TEXT AS ec_pore, b.ec_bulk::TEXT AS ec_bulk, b.mc::TEXT AS mc, b.device::TEXT AS device,
-        b.media::TEXT AS media
-    FROM dev_bronze.brnz_journal_entries AS b
-    WHERE b.row_id = current_setting('debug.row_id')::UUID
-    UNION ALL
-    SELECT
-        2, 'stg_journal_entries', s.row_id, s.date_time, s.subject, s.type, s.ml, s.ec, s.ph, s.temp, s.notes,
-        s.room_raw, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
-    FROM dev_staging.stg_journal_entries AS s
-    WHERE s.row_id = current_setting('debug.row_id')::UUID
-    UNION ALL
-    SELECT
-        3, 'corr_journal_entries', c.row_id, c.date_time, c.subject, c.type, c.ml, c.ec, c.ph, c.temp, c.notes,
-        c.room_raw, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
-    FROM dev_corrections.corr_journal_entries AS c
-    WHERE c.row_id = current_setting('debug.row_id')::UUID
-    UNION ALL
-    SELECT
-        4, 'cand_journal_entries', c.row_id, c.date_time, c.subject, c.type, c.ml, c.ec, c.ph, c.temp, c.notes,
-        c.room_raw, c.room, c.room_index::TEXT, c.position_index::TEXT, c."position", NULL, NULL, NULL, NULL, NULL,
-        NULL
-    FROM dev_candidate.cand_journal_entries AS c
-    WHERE c.row_id = current_setting('debug.row_id')::UUID
-    UNION ALL
-    SELECT
-        5, 'slvr_journal_entries', s.row_id, s.date_time::TEXT, s.subject, s.type, s.ml::TEXT, s.ec::TEXT, s.ph::TEXT,
-        s.temp::TEXT, s.notes, NULL, s.room, NULL, NULL, s."position", NULL, NULL, NULL, NULL, NULL, NULL
-    FROM dev_silver.slvr_journal_entries AS s
-    WHERE s.row_id = current_setting('debug.row_id')::UUID
-) AS layers
-ORDER BY layer_order;
+-- the row in every layer, one row per column and one column per layer, so it works for any dataset without naming
+-- its columns. a column a layer does not have is null in it. a layer with no table for the dataset is left out.
+-- every column is cast to text before query_to_xml sees it, so a value shows as ::TEXT shows it (a timestamptz in
+-- the session's TimeZone), not in xml's format.
+WITH layers AS (
+    SELECT t.table_schema, t.table_name, l.layer_order, l.layer
+    FROM (
+        VALUES
+            (1, 'bronze', 'dev_bronze', 'brnz'),
+            (2, 'staging', 'dev_staging', 'stg'),
+            (3, 'corrections', 'dev_corrections', 'corr'),
+            (4, 'candidate', 'dev_candidate', 'cand'),
+            (5, 'silver', 'dev_silver', 'slvr')
+    ) AS l (layer_order, layer, schema_name, prefix)
+    JOIN information_schema.tables AS t
+        ON t.table_schema = l.schema_name AND t.table_name = l.prefix || '_' || current_setting('debug.dataset')
+),
+
+-- every layer's row as (column, value) pairs, in the layer's own column order. query_to_xml runs a query built as
+-- text, which is the only way to read a table whose name is in a variable without creating a function. the query
+-- selects every column of the table cast to text, its list read from information_schema
+cells AS (
+    SELECT l.layer_order, l.layer, x.column_order, x.column_name, x.value, x.is_null
+    FROM layers AS l
+    CROSS JOIN LATERAL xmltable(
+        '/row/*'
+        PASSING query_to_xml(
+            format(
+                'SELECT %s FROM %I.%I WHERE row_id = %L::UUID',
+                (
+                    SELECT string_agg(
+                        format('%I::TEXT AS %I', c.column_name, c.column_name), ', ' ORDER BY c.ordinal_position
+                    )
+                    FROM information_schema.columns AS c
+                    WHERE c.table_schema = l.table_schema AND c.table_name = l.table_name
+                ),
+                l.table_schema, l.table_name, current_setting('debug.row_id')
+            ),
+            TRUE, TRUE, ''
+        )
+        COLUMNS
+            column_order FOR ORDINALITY,
+            column_name TEXT PATH 'local-name()',
+            value TEXT PATH '.',
+            is_null BOOLEAN PATH 'boolean(@*[local-name() = "nil"])'
+    ) AS x
+)
+
+-- bronze's columns first in bronze's order, then each column a later layer adds, in that layer's order
+SELECT
+    column_name,
+    MAX(CASE WHEN NOT is_null THEN value END) FILTER (WHERE layer = 'bronze') AS bronze,
+    MAX(CASE WHEN NOT is_null THEN value END) FILTER (WHERE layer = 'staging') AS staging,
+    MAX(CASE WHEN NOT is_null THEN value END) FILTER (WHERE layer = 'corrections') AS corrections,
+    MAX(CASE WHEN NOT is_null THEN value END) FILTER (WHERE layer = 'candidate') AS candidate,
+    MAX(CASE WHEN NOT is_null THEN value END) FILTER (WHERE layer = 'silver') AS silver
+FROM cells
+GROUP BY column_name
+ORDER BY MIN(layer_order * 1000 + column_order);
 
 
 
