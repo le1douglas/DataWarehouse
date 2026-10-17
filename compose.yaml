@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:18
+    command: postgres -c timezone=Europe/Amsterdam -c log_timezone=Europe/Amsterdam #all timestamp without timezone are assumed to be amsterdam. so we set it as a delfault here as well.
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
+    restart: unless-stopped
+
+volumes:
+  pgdata:

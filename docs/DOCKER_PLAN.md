@@ -4,6 +4,30 @@ How the project moves from programs installed on Windows to Docker containers, w
 in a minute and, later, a prod environment and OpenMetadata. This is the target architecture, not the current state:
 nothing here is implemented yet.
 
+## How this plan is implemented
+
+The user implements it by hand, with Docker Desktop, as a learning exercise. An agent guiding them follows these rules,
+in every session:
+
+- **One atomic step per response.** If a step is long, it is split into smaller sub-steps, one per response. Each
+  response opens with a short progress marker (where we are in the phase and its steps), explains that one step, says
+  what to report back, and stops. Later steps are never printed ahead of time.
+- **Self-contained responses.** Every response carries everything needed for its step (commands, file contents, why),
+  so the user never has to scroll back to an older message.
+- **Move on only when told.** The next step starts only when the user says so. Questions about the current step are
+  answered within that step.
+- **Docker Desktop's UI first.** Every action that can be done in the Docker Desktop app is explained there; the
+  command line is used only when the UI cannot do it (for example `docker compose` with its flags), and the response
+  says so. The equivalent command can be mentioned for reference.
+- **The user does the work.** The agent explains and writes files when asked, but does not run Docker or anything that
+  writes to the database on the user's behalf.
+- **Keep `docs/DOCKER_IMPLEMENTATION.md` up to date.** It is the installation guide for a new user setting the project
+  up for the first time, on a PC with nothing installed. After each step is done, write there only what that user
+  needs: the exact actions, commands and files, what they should see, and known problems with their fix. It does not
+  explain why; the explanations stay in the conversation. It does not record decisions and their alternatives (they belong in this plan), anything specific to the
+  user's own PC (such as stopping a PostgreSQL already installed on Windows), or detours and learning exercises. A new
+  session reads it first to know where to resume.
+
 ## Scope
 
 | Phase | What | Status |
@@ -79,6 +103,14 @@ docker compose -p dw-prod --env-file .env.prod up -d
 A job runs with `docker compose run`, for example `docker compose -p dw-dev run dbt build`, and stops when it is done.
 The two images replace the `.venv`.
 
+The stack is defined only in the compose file, never with Docker Desktop's Run dialog: settings typed in the dialog live
+only in that one container, are lost on a reset and are not in git. Docker Desktop cannot create a compose stack, so
+`docker compose up` is run from the command line; once running, the stack is managed in Docker Desktop (Containers tab,
+grouped under the project name).
+
+Postgres uses the tag `postgres:18` (the latest 18.x), never `latest`, which would move to the next major version on
+its own (see [Postgres major version](#postgres-major-version)).
+
 ### Why the loader and dbt are two images
 
 The loader and dbt never talk to each other: the loader writes `bronze` and `corrections`, dbt reads them. Their only
@@ -126,10 +158,15 @@ images, forwards or back.
 ### Schema and DDL
 
 The official postgres image creates the database from `POSTGRES_DB` and, the first time it starts on an empty volume,
-runs every `.sql` file in `/docker-entrypoint-initdb.d`. `Database/03_create_schemas_and_tables.sql` is mounted there.
-The `01_` and `02_` scripts, which create the database, are no longer needed.
+runs every `.sql` file in `/docker-entrypoint-initdb.d`, in alphabetical order. `Database/01_create_schemas_and_tables.sql`
+is mounted there. The scripts that dropped and created the database were deleted; the scripts keep a number prefix for
+the order (the roles come after the DDL).
 
-The init scripts run **only on an empty volume**. On an existing volume a changed `03_` script does nothing; see
+The server's time zone is `Europe/Amsterdam`, set in `compose.yaml` with `-c timezone=... -c log_timezone=...` on the
+`postgres` command, so it applies to any volume, new or existing. The image's default is `Etc/UTC`, which would stamp
+the snapshots' `meta_valid_from` / `meta_valid_to` (`now()::timestamp`) in UTC.
+
+The init scripts run **only on an empty volume**. On an existing volume a changed `01_` script does nothing; see
 [Migrations](#migrations).
 
 ### Roles
@@ -239,7 +276,7 @@ The tables of bronze and corrections hold data, so in prod a table change is an 
 every build and handles the snapshots by its own rules, so migrations only concern the hand-written DDL.
 
 - Numbered scripts in `Database/migrations/` (`001_add_column_x.sql`, ...), part of the release that needs them.
-- `03_` is kept up to date as well, so a fresh dev database equals prod after all migrations.
+- `01_` is kept up to date as well, so a fresh dev database equals prod after all migrations.
 - Upgrade: `pg_dump`, `down`, run the new migrations with `psql -f`, change `RELEASE`, `up`, `dbt build`.
 - Later, the migrations can become a small third job image with the same `${RELEASE}`.
 

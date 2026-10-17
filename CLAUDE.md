@@ -76,7 +76,7 @@ The diagram of the pipeline is in `docs/DATA_FLOW_DIAGRAM.md`. Update it when an
 
 | Owner | Objects |
 |---|---|
-| Hand-written DDL (`Database/03_create_schemas_and_tables.sql`) | `dev_bronze` and `dev_corrections` schemas and tables, their constraints |
+| Hand-written DDL (`Database/01_create_schemas_and_tables.sql`) | `dev_bronze` and `dev_corrections` schemas and tables, their constraints |
 | Python (`src/datawarehouse`) | Reading CSV/Excel, validating rows, loading into those two tables |
 | dbt (`DataWarehouseDbt`) | `dev_staging`, `dev_candidate`, `dev_audit`, `dev_silver`, `dev_snapshots` and everything in them. These layers have no meta tables |
 | The user, in Excel | The review workbook and its Power Query |
@@ -99,12 +99,12 @@ python -m pytest tests/unit/test_record.py::test_empty_string_to_null_nan
 dbt build --project-dir DataWarehouseDbt
 dbt build --select stg_journal_entries --project-dir DataWarehouseDbt
 
-# rebuild everything from nothing: drop and create the database, run the 03_ DDL, python -m datawarehouse, dbt build
+# rebuild everything from nothing: drop and create the database, run the 01_ DDL, python -m datawarehouse, dbt build
 # (asks for the postgres password as a guard against running it by accident; server, port and user come from .env)
 .\.scripts\rebuild.ps1   (local, not in git)
 
-# or only the database: 01_ and 02_ while connected to the postgres database, then
-psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\03_create_schemas_and_tables.sql
+# or only the DDL, on an existing empty DataWarehouse database
+psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\01_create_schemas_and_tables.sql
 
 # loads, through the package entry point src\datawarehouse\__main__.py
 python -m datawarehouse bronze        # csv -> dev_bronze (append)
@@ -112,11 +112,11 @@ python -m datawarehouse corrections   # excel -> dev_corrections (upsert)
 .\.scripts\load_corrections.ps1       # the same load, then a full dbt build (local, not in git)
 ```
 
-The `03_` script prints two transaction warnings because `-1` and the file's own `BEGIN`/`COMMIT` overlap; they are harmless. Dropping the database uses `WITH (FORCE)`, which disconnects every session on it, including open VS Code SQL tabs.
+The `01_` script prints two transaction warnings because `-1` and the file's own `BEGIN`/`COMMIT` overlap; they are harmless. Dropping the database uses `WITH (FORCE)`, which disconnects every session on it, including open VS Code SQL tabs.
 
 In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` or `"position"` arrive unquoted and fail or hit the wrong object. Put such statements in a `.sql` file and run it with `-f`.
 
-Editing a table definition in the `03_` script does not change an existing table. To apply it: check the table is empty, `DROP TABLE ... CASCADE` (this also drops the dbt views on top of it), re-run the `03_` script, then `dbt build` to recreate the views.
+Editing a table definition in the `01_` script does not change an existing table. To apply it: check the table is empty, `DROP TABLE ... CASCADE` (this also drops the dbt views on top of it), re-run the `01_` script, then `dbt build` to recreate the views.
 
 dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone drops every view on top of it without a warning: `dbt run --select stg_journal_entries` drops `cand_journal_entries`, and the tests then error with "relation does not exist". Select the views downstream too (`--select stg_journal_entries+`, but that also builds silver without its tests, so prefer `dbt build`), or recreate them after with `dbt run --select cand_journal_entries`. Silver is a table and is not affected.
 
