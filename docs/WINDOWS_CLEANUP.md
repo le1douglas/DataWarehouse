@@ -64,7 +64,7 @@ The tools get their new home before anything is deleted, so ruff, sqlfmt and pyt
 | c | Check the workflow above: both containers, both extensions, Claude's commands | each PC | Done on this PC |
 | 1 | Delete the tracked files that are no longer needed | git, this PC | Done |
 | 2 | Delete the untracked files that are no longer needed | each PC | Done on this PC |
-| 3 | Uninstall from Windows what is no longer needed | each PC | Not started |
+| 3 | Uninstall from Windows what is no longer needed | each PC | In progress on this PC |
 
 Steps a, b and 1 arrive on the other PC with `git pull`. Steps c, 2 and 3 are repeated there by hand, with the
 sections below.
@@ -145,4 +145,22 @@ On the other PC, after `git pull`:
 
 ## Step 3: uninstall from Windows
 
-To be written when step 3 is done.
+In progress on this PC (2026-10-18). Done so far, to repeat on the other PC:
+
+1. **VS Code extensions on the Windows side:** uninstall dbt Power User, Altimate MCP Server (its companion), Python,
+   Pylance, Python Debugger, Python Environments and Better Jinja (`samuelcolvin.jinjahtml`). The containers install
+   their own copies from their `devcontainer.json`; jinjahtml is now in the dbt one. Keep Claude Code, Container Tools,
+   Dev Containers, PostgreSQL (`ms-ossdata.vscode-pgsql`), Markdown Mermaid and Rainbow CSV.
+2. **`%USERPROFILE%\.dbt`:** delete it. `profiles.yml` lives in the repo since the Docker move, so only an old
+   `.user.yml` was left.
+3. **Check in the dbt container:** a model shows its jinja in colour, the status bar shows dbt with a check mark, and the
+   Lineage tab draws the graph. The window installs a missing extension when it opens; no rebuild needed.
+
+**Opening a container:** Remote Explorer's "Open in New Window" on a container fails with "Dev container config
+(...\.devcontainer\devcontainer.json) not found", because the repo has two configs and no default one. Use File → New
+Window, then Dev Containers: Open Folder in Container..., the repo folder, and pick the configuration. After that the
+container's `/usr/app` entry in Remote Explorer opens it directly.
+
+Not done yet, kept for now on purpose: Python 3.14 and the Python Install Manager, PostgreSQL 18 (service stopped and
+disabled, its old pre-Docker data folder still there), psqlODBC 13.02 (Excel's driver, to keep, but it sits inside
+`C:\Program Files\PostgreSQL`).

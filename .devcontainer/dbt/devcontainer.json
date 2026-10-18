@@ -14,8 +14,8 @@
   "shutdownAction": "none",
   "customizations": {
     "vscode": {
-      // dbt Power User needs the python extension to find the python that has dbt
-      "extensions": ["ms-python.python", "innoverio.vscode-dbt-power-user"],
+      // dbt Power User needs the python extension to find the python that has dbt. jinjahtml colours the jinja in the sql
+      "extensions": ["ms-python.python", "innoverio.vscode-dbt-power-user", "samuelcolvin.jinjahtml"],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "dbt.perspectiveTheme": "Vintage",
