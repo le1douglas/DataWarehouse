@@ -62,8 +62,8 @@ The tools get their new home before anything is deleted, so ruff, sqlfmt and pyt
 | a | `dev` stage in `docker/loader/Dockerfile` and `docker/dbt/Dockerfile` | git, this PC | Done |
 | b | The two `devcontainer.json` files, and a mount of the whole repo | git, this PC | Done |
 | c | Check the workflow above: both containers, both extensions, Claude's commands | each PC | Done on this PC |
-| 1 | Delete the tracked files that are no longer needed | git, this PC | Not started |
-| 2 | Delete the untracked files that are no longer needed | each PC | Not started |
+| 1 | Delete the tracked files that are no longer needed | git, this PC | Done |
+| 2 | Delete the untracked files that are no longer needed | each PC | Done on this PC |
 | 3 | Uninstall from Windows what is no longer needed | each PC | Not started |
 
 Steps a, b and 1 arrive on the other PC with `git pull`. Steps c, 2 and 3 are repeated there by hand, with the
@@ -76,7 +76,8 @@ sections below.
   `CLAUDE.md` refers to, and `.scripts/rebuild.ps1`, are not here. Look for them on the other PC and keep them.
 - Dev Containers cannot pass `--env-file`, so compose reads the root `.env`. Before step c, append the lines of
   `.env.dev` to the root `.env`, under its `POSTGRESQL_*` lines. In step 2 the `POSTGRESQL_*` lines go and `.env.dev` is
-  deleted, so the root `.env` is the dev env file from then on.
+  deleted, so the root `.env` is the dev env file from then on. The commands in this file and in
+  [DOCKER_IMPLEMENTATION.md](DOCKER_IMPLEMENTATION.md) already have no `--env-file .env.dev`.
 - Dev Containers build their own Dockerfile from `%TEMP%` on top of the `dev` stage, and Compose v5's bake refuses to
   read a file outside the project folder ("additional privileges requested: pass --allow=fs.read=..."). Before step c,
   set the Windows user environment variable `BUILDX_BAKE_ENTITLEMENTS_FS=0`, then quit every VS Code window so the new
@@ -110,16 +111,37 @@ tabs) drop for a few seconds.
 
 ## Step 2: untracked files
 
-To be written when step 2 is done. Parked on 2026-10-18, to do as part of it:
+Done on this PC on 2026-10-18. What arrived in git with it: `load_dotenv()`, `python-dotenv` and the defaults of every
+setting are gone from the loader (a variable missing from `.env.loader` stops it with a `KeyError` naming it), and the
+docs and comments name `.env` instead of `.env.dev`.
 
-- **The root `.env` becomes the dev env file:** remove its `POSTGRESQL_*` lines, delete `.env.dev`, and drop
-  `--env-file .env.dev` from every command that has it (`docs/DOCKER_IMPLEMENTATION.md`, this file, Claude's memory).
-  Compose then reads the root `.env` itself.
-- **`load_dotenv()` in `src/datawarehouse/config.py` goes:** it only serves the Windows `.venv`. Since the whole repo
-  is mounted, it also finds the root `.env` inside the loader container. It never overrides what `.env.loader` sets,
-  but a variable missing from `.env.loader` would silently be taken from the root `.env` instead of failing.
-- **Comments that point to `requirements.txt`:** both Dockerfiles say their pins match it. If step 1 deletes it, the
-  comments need a new reference or none.
+On the other PC, after `git pull`:
+
+1. **Rebuild both containers:** Dev Containers: Rebuild Container, in the loader window and in the dbt window. The
+   images lose `python-dotenv`, and the dbt container loses its separate `dbt_packages` volume. If Docker Desktop →
+   **Volumes** then lists an anonymous volume (a long hash) that no container uses, delete it; never `dw-dev_pgdata`.
+2. **The env files:** in the root `.env`, check that the lines under the `POSTGRESQL_*` block match `.env.dev`, then
+   delete the `POSTGRESQL_*` lines and the two "temporary duplicate" comment lines, and put this first line:
+   `# the dev compose env file. not in git. compose reads it by itself (and so do the Dev Containers), no --env-file needed`.
+   Delete `.env.dev`. In `.env.loader` and `.env.transformer`, the comment "not POSTGRES_PORT from .env.dev" becomes
+   "from .env". Check from PowerShell, in the repo root: `docker compose -f compose.yaml -f compose.dev.yaml --profile '*'
+   config` shows `name: dw-dev` and no warning about a missing variable.
+3. **Release the `.venv`:** in the Windows window, Extensions → dbt Power User → **Disable**. Its Python runs from
+   `.venv\Scripts\pythonw.exe` and locks the folder. Task Manager must show no `pythonw.exe` from the repo.
+4. **Delete**, in the repo:
+
+   | Path | What it was |
+   |---|---|
+   | `.venv/` | the Windows Python, with dbt, ruff, pytest and sqlfmt |
+   | `src/datawarehouse.egg-info/` | left by `pip install -e .` into the `.venv` |
+   | every `__pycache__/` in `src` and `tests` | written by the Windows Python; the containers do not write them |
+   | `.coverage`, `htmlcov/` | an old coverage report |
+   | `logs/` in the repo root | dbt run from the repo root on Windows; the container logs to `DataWarehouseDbt/logs` |
+   | `.pytest_cache/`, `.ruff_cache/` | caches; the loader container rebuilds them |
+   | `.vs/` | Visual Studio's state, from the SSMS days |
+
+5. **Keep:** `.env`, `.env.loader`, `.env.transformer`, `.scratch/`, `.scripts/`, and in `DataWarehouseDbt`:
+   `dbt_packages/` (the dbt container uses it since the separate volume is gone), `target/`, `logs/`, `.user.yml`.
 
 ## Step 3: uninstall from Windows
 

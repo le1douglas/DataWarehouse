@@ -1,17 +1,14 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
+# every setting comes from .env.loader, which compose passes to the loader container. no defaults: a missing variable
+# stops the loader with a KeyError naming it, instead of silently connecting or reading somewhere else
 POSTGRES_CONFIG = {
-    "db_server": os.getenv("POSTGRESQL_SERVER", "localhost"),
-    "db_name": os.getenv("POSTGRESQL_DB", "DataWarehouse"),
-    "db_user": os.getenv("POSTGRESQL_USER", "postgres"),
-    "db_password": os.getenv("POSTGRESQL_PASSWORD"),
-    "db_port": int(os.getenv("POSTGRESQL_PORT", "5432")),
+    "db_server": os.environ["POSTGRESQL_SERVER"],
+    "db_name": os.environ["POSTGRESQL_DB"],
+    "db_user": os.environ["POSTGRESQL_USER"],
+    "db_password": os.environ["POSTGRESQL_PASSWORD"],
+    "db_port": int(os.environ["POSTGRESQL_PORT"]),
 }
 
 # the schemas that python loads into, everything else is created by dbt
@@ -33,8 +30,8 @@ CORRECTIONS_SHEET = "corrected"
 INBOX_EXPORTS = Path("/inbox/exports")
 INBOX_CORRECTIONS = Path("/inbox/corrections")
 
-JOURNAL_ENTRIES_CSV = INBOX_EXPORTS / os.getenv("JOURNAL_ENTRIES_CSV", "")
-CORRECTIONS_WORKBOOK = INBOX_CORRECTIONS / os.getenv("CORRECTIONS_WORKBOOK", "")
+JOURNAL_ENTRIES_CSV = INBOX_EXPORTS / os.environ["JOURNAL_ENTRIES_CSV"]
+CORRECTIONS_WORKBOOK = INBOX_CORRECTIONS / os.environ["CORRECTIONS_WORKBOOK"]
 
 
 # the name of a dataset, as used in table names (brnz_journal_entries)

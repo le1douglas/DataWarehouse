@@ -69,9 +69,9 @@ Extensions view (`Ctrl + Shift + X`) → **Container Tools**, publisher **Micros
 
 ## 2. Postgres in a container
 
-### 2.1 Create `.env.dev`
+### 2.1 Create `.env`
 
-In the repo root, a file named `.env.dev` (ignored by git):
+In the repo root, a file named `.env` (ignored by git):
 
 ```
 POSTGRES_DB=DataWarehouse
@@ -81,22 +81,23 @@ POSTGRES_PORT=5432
 RELEASE=dev
 ```
 
-No spaces around `=`, no quotes, no `$` or `#` in the password.
+No spaces around `=`, no quotes, no `$` or `#` in the password. Compose reads `.env` from the repo root by itself, so no
+command passes `--env-file`, and the Dev Containers read it too. It is the dev env file; prod will get its own.
 
 Check:
 
 ```powershell
-git status --short --ignored .env.dev
+git status --short --ignored .env
 ```
 
-Expected: `!! .env.dev`.
+Expected: `!! .env`.
 
 ### 2.2 Check `compose.yaml`
 
-`compose.yaml` is in the repo root. Check that it reads `.env.dev`:
+`compose.yaml` is in the repo root. Check that it reads `.env`:
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev config
+docker compose -p dw-dev config
 ```
 
 Expected: the file with the values filled in (`POSTGRES_DB: DataWarehouse`, `published: "5432"`), and the volume named
@@ -107,7 +108,7 @@ Expected: the file with the values filled in (`POSTGRES_DB: DataWarehouse`, `pub
 From the repo root:
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev up -d
+docker compose -p dw-dev up -d
 ```
 
 In Docker Desktop, **Containers** → group **dw-dev** → `dw-dev-postgres-1` → **Logs**. Expected, in this order:
@@ -143,13 +144,13 @@ Expected: `Europe/Amsterdam`, a `now()` with the Amsterdam offset (`+02` in summ
 `dev_bronze.brnz_journal_entries`, `dev_bronze.meta_bronze`, `dev_corrections.corr_journal_entries`,
 `dev_corrections.meta_corrections`.
 
-After changing `compose.yaml` or `.env.dev`, apply it with `up -d` (it recreates the container and keeps the volume); a
+After changing `compose.yaml` or `.env`, apply it with `up -d` (it recreates the container and keeps the volume); a
 restart keeps the old settings.
 
 ### 2.5 Connect from VS Code
 
 PostgreSQL sidebar (Microsoft's PostgreSQL extension) → add connection: host `localhost`, port `5432`, database
-`DataWarehouse`, user `postgres`, the password from `.env.dev`. Right-click the database → **New Query**:
+`DataWarehouse`, user `postgres`, the password from `.env`. Right-click the database → **New Query**:
 
 ```sql
 SELECT version();
@@ -173,7 +174,7 @@ Start → **ODBC Data Sources (64-bit)**:
    - **User Name:** `postgres`
    - **SSL Mode:** `disable`
    - **Port:** `5432`
-   - **Password:** the one in `.env.dev`
+   - **Password:** the one in `.env`
 3. **Test**. Expected: **Connection successful**. Then **Save**.
 
 ## 4. The `dbt` image
@@ -190,12 +191,12 @@ In the repo root, a file named `.env.transformer` (ignored by git):
 # host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
 DBT_HOST=postgres
 # the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env.dev, which is the port published to Windows and changes per environment
+# not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
 DBT_PORT=5432
 DBT_DBNAME=DataWarehouse
 # postgres until the roles exist (step 3, postponed), then the transformer role
 DBT_USER=postgres
-DBT_ENV_SECRET_PASSWORD=the POSTGRES_PASSWORD from .env.dev
+DBT_ENV_SECRET_PASSWORD=the POSTGRES_PASSWORD from .env
 # time zone of the container (its clock and date). dbt itself always logs in UTC, whatever this says
 TZ=Europe/Amsterdam
 ```
@@ -211,7 +212,7 @@ Expected: `!! .env.transformer`.
 ### 4.2 Check the `dbt` service
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev --profile job config
+docker compose -p dw-dev --profile job config
 ```
 
 Expected: a `dbt:` service next to `postgres:`, with `image: dbt:dev`, `profiles: [job]`, `build:` with
@@ -223,7 +224,7 @@ Expected: a `dbt:` service next to `postgres:`, with `image: dbt:dev`, `profiles
 With Docker Desktop's engine running, from the repo root:
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev build dbt
+docker compose -p dw-dev build dbt
 ```
 
 The first build takes one to two minutes. Expected: `transferring context:` a few tens of kB, steps `[1/6]` to `[6/6]`,
@@ -242,7 +243,7 @@ Expected: `.gitignore`, `.user.yml`, `analyses`, `dbt_packages`, `dbt_project.ym
 ### 4.4 Check the connection
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev run --rm dbt debug
+docker compose -p dw-dev run --rm dbt debug
 ```
 
 Expected: `profiles.yml file [OK found and valid]`, `dbt_project.yml file [OK found and valid]`, `- git [OK found]`,
@@ -254,7 +255,7 @@ In dev, `compose.dev.yaml` mounts `DataWarehouseDbt` from the repo into the cont
 both compose files, in this order:
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt debug
+docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt debug
 ```
 
 Expected: `All checks passed!`, as in 4.4, and on Windows the files `DataWarehouseDbt\logs\dbt.log` and
@@ -262,8 +263,18 @@ Expected: `All checks passed!`, as in 4.4, and on Windows the files `DataWarehou
 
 ### 4.6 First `dbt build`
 
+The mount also hides the `dbt_packages` installed in the image, so in dev the packages live in the repo folder
+(`DataWarehouseDbt\dbt_packages`, not in git). Install them once; dbt Power User does it too, every time a window opens
+in the dbt container:
+
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt build
+docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt deps
+```
+
+Expected: `Installing dbt-labs/dbt_utils` and `Installed from version`.
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt build
 ```
 
 On an empty bronze, expected: `Found 3 models, 2 data tests, 1 operation, 3 snapshots, 3 sources`, every line `OK` or
@@ -290,12 +301,12 @@ In the repo root, a file named `.env.loader` (ignored by git):
 # host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
 POSTGRESQL_SERVER=postgres
 # the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env.dev, which is the port published to Windows and changes per environment
+# not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
 POSTGRESQL_PORT=5432
 POSTGRESQL_DB=DataWarehouse
 # postgres until the roles exist (step 3, postponed), then the loader role
 POSTGRESQL_USER=postgres
-POSTGRESQL_PASSWORD=the POSTGRES_PASSWORD from .env.dev
+POSTGRESQL_PASSWORD=the POSTGRES_PASSWORD from .env
 # each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR) and /inbox/corrections (CORRECTIONS_DIR)
 JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
 CORRECTIONS_WORKBOOK=journal_entries_corrections.xlsx
@@ -311,9 +322,9 @@ git status --short --ignored .env.loader
 
 Expected: `!! .env.loader`.
 
-### 5.2 Input folders in `.env.dev`
+### 5.2 Input folders in `.env`
 
-Add to `.env.dev`, with the Windows folders of the CSV exports and of the corrections workbook (both must exist, even
+Add to `.env`, with the Windows folders of the CSV exports and of the corrections workbook (both must exist, even
 when the folder has no workbook yet):
 
 ```
@@ -329,18 +340,18 @@ Relative paths start at the repo root. Use forward slashes.
 ### 5.3 Check the `loader` service
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml --profile job config
+docker compose -f compose.yaml -f compose.dev.yaml --profile job config
 ```
 
 Expected, under `loader:`: `image: loader:dev`, `profiles: [job]`, the eight variables of `.env.loader` under
 `environment:`, and three `type: bind` volumes: `EXPORTS_DIR` on `/inbox/exports` and `CORRECTIONS_DIR` on
 `/inbox/corrections`, both `read_only: true`, and the repo's `src` on `/usr/app/src`. If `EXPORTS_DIR` or
-`CORRECTIONS_DIR` is missing from `.env.dev`, compose stops with `set EXPORTS_DIR in the env file`.
+`CORRECTIONS_DIR` is missing from `.env`, compose stops with `set EXPORTS_DIR in the env file`.
 
 ### 5.4 Build the image and load bronze
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml build loader
+docker compose -f compose.yaml -f compose.dev.yaml build loader
 ```
 
 Expected: `transferring context:` a few tens of kB, steps `[1/4]` to `[4/4]`, `Image loader:dev Built`.
@@ -348,7 +359,7 @@ Expected: `transferring context:` a few tens of kB, steps `[1/4]` to `[4/4]`, `I
 The bronze load appends: on a bronze that already holds the same CSV it duplicates every row. Load once:
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm loader bronze
+docker compose -f compose.yaml -f compose.dev.yaml run --rm loader bronze
 ```
 
 Expected: `Loading CSV file: /inbox/exports/drip_drain_csv/journal-entries.csv`, `Connection successful`,
@@ -358,7 +369,7 @@ the printed first row a `meta_extract_date_time` in local time (Amsterdam), not 
 ### 5.5 `dbt build` on the loaded data
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt build
+docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt build
 ```
 
 Before any corrections, the data tests flag rows and silver is skipped: this is the first half of the loop, not a
@@ -374,8 +385,8 @@ With the reviewed workbook saved as `CORRECTIONS_WORKBOOK` in `CORRECTIONS_DIR`,
 workbook cannot be read):
 
 ```powershell
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm loader corrections
-docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt build
+docker compose -f compose.yaml -f compose.dev.yaml run --rm loader corrections
+docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt build
 ```
 
 Expected from the load: `Loading Excel file: /inbox/corrections/<workbook>`, `Connection successful`,

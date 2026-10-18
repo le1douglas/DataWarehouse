@@ -94,11 +94,6 @@ start htmlcov/index.html
 
 
 
-sync or think about .toml instead of requirements.txt
-pip install -e ".[dev]"
-pip freeze --exclude-editable > requirements.txt
-
-
 
 
 ## Regual DB maintenance

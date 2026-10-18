@@ -9,10 +9,9 @@ services:
       target: dev # runtime plus sqlfmt
     volumes:
       # the whole repo, live: edits apply without a rebuild, and sqlfmt finds pyproject.toml at /usr/app.
-      # hides the project copied at build time, at the same path, so the working directory stays /usr/app/DataWarehouseDbt
+      # hides the project copied at build time, at the same path, so the working directory stays /usr/app/DataWarehouseDbt.
+      # dbt_packages too: dbt deps installs it into the repo folder (gitignored), and dbt Power User runs dbt deps on open
       - .:/usr/app
-      # except dbt_packages: keeps the one installed in the image by dbt deps, not the one dbt on Windows left behind
-      - /usr/app/DataWarehouseDbt/dbt_packages
 
   loader:
     build:

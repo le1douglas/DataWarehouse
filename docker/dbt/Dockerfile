@@ -9,7 +9,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-# the same versions as requirements.txt
 RUN pip install --no-cache-dir dbt-core==1.12.5 dbt-postgres==1.11.0
 
 WORKDIR /usr/app/DataWarehouseDbt
@@ -26,7 +25,7 @@ RUN dbt deps
 ENTRYPOINT ["dbt"]
 CMD ["build"]
 
-# dev only (target: dev in compose.dev.yaml): runtime plus sqlfmt, at the same versions as requirements.txt.
+# dev only (target: dev in compose.dev.yaml): runtime plus sqlfmt.
 # jinjafmt formats the jinja inside the sql with black. the config is in pyproject.toml at the repo root
 FROM runtime AS dev
 

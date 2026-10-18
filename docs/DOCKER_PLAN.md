@@ -91,7 +91,7 @@ One compose file, `compose.yaml`, defines the warehouse. Dev and prod are two ru
 and env files, so prod runs exactly what was tested in dev:
 
 ```
-docker compose -p dw-dev  --env-file .env.dev  up -d
+docker compose -f compose.yaml -f compose.dev.yaml up -d   # dev: reads .env, the name dw-dev is in compose.dev.yaml
 docker compose -p dw-prod --env-file .env.prod up -d
 ```
 
@@ -209,7 +209,7 @@ history, which cannot be rebuilt: never `down -v` on prod.
 | What | Written by | Read by | How |
 |---|---|---|---|
 | Repo code | You, in VS Code | dev's `loader` and `dbt` | Folder mounted into the container (dev only) |
-| `.env.dev`, `.env.prod`, `.env.loader`, `.env.transformer` | You | compose | On Windows, not in git, like `.env` today |
+| `.env` (dev), `.env.prod`, `.env.loader`, `.env.transformer` | You | compose | On Windows, not in git |
 | `profiles.yml` | You | dbt | Moves into the repo and reads host, user and password with `env_var()`, instead of living in `%USERPROFILE%\.dbt` |
 | Corrections workbook, CSV exports | Excel, the Bluelab app | `loader` | Two folders, each mounted **read only** (so the workbook is never written): the exports at `/inbox/exports`, the corrections at `/inbox/corrections`. See [Input folders](#input-folders) |
 | dbt artifacts (`target/`) | `dbt` | OpenMetadata ingestion (phase 3) | A shared folder |
@@ -222,7 +222,7 @@ location is a setting, never part of the code or the image:
 
 | Setting | In | Meaning |
 |---|---|---|
-| `EXPORTS_DIR` | the environment's env file (`.env.dev`) | Windows folder mounted at `/inbox/exports`: the root of every dataset's CSV exports |
+| `EXPORTS_DIR` | the environment's env file (`.env` in dev) | Windows folder mounted at `/inbox/exports`: the root of every dataset's CSV exports |
 | `CORRECTIONS_DIR` | the environment's env file | Windows folder mounted at `/inbox/corrections`: where the corrections workbook is |
 | `JOURNAL_ENTRIES_CSV` | `.env.loader` | the CSV of the dataset, relative to `/inbox/exports` (`drip_drain_csv/journal-entries.csv`) |
 | `CORRECTIONS_WORKBOOK` | `.env.loader` | the workbook, relative to `/inbox/corrections`. Probably one for every dataset |
@@ -249,7 +249,7 @@ DataWarehouse/
   tools/openmetadata/      # phase 3: their compose file, lightly edited
   Database/                # DDL, roles, migrations/ (phase 2)
   src/  DataWarehouseDbt/  # as now
-  .env.*                   # not in git
+  .env  .env.*             # not in git
 ```
 
 ## Phase 1: the dev compose

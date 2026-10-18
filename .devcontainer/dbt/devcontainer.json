@@ -17,7 +17,9 @@
       // dbt Power User needs the python extension to find the python that has dbt
       "extensions": ["ms-python.python", "innoverio.vscode-dbt-power-user"],
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python"
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "dbt.perspectiveTheme": "Vintage",
+        "dbt.lineage.defaultExpansion": 13
       }
     }
   }
