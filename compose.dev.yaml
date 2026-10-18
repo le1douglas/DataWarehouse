@@ -1,13 +1,23 @@
 # dev only, on top of compose.yaml: "docker compose -f compose.yaml -f compose.dev.yaml ...". prod never loads it
+
+# the project name, so "docker compose run" and the Dev Containers use the same postgres container and volume
+name: dw-dev
+
 services:
   dbt:
+    build:
+      target: dev # runtime plus sqlfmt
     volumes:
-      # the project from the repo, live: edits apply without a rebuild. hides the copy made at build time
-      - ./DataWarehouseDbt:/usr/app/DataWarehouseDbt
+      # the whole repo, live: edits apply without a rebuild, and sqlfmt finds pyproject.toml at /usr/app.
+      # hides the project copied at build time, at the same path, so the working directory stays /usr/app/DataWarehouseDbt
+      - .:/usr/app
       # except dbt_packages: keeps the one installed in the image by dbt deps, not the one dbt on Windows left behind
       - /usr/app/DataWarehouseDbt/dbt_packages
 
   loader:
+    build:
+      target: dev # runtime plus pytest, pytest-cov and ruff
     volumes:
-      # the package from the repo, live: edits apply without a rebuild. hides the copy made at build time
-      - ./src:/usr/app/src
+      # the whole repo, live: edits apply without a rebuild, and pytest and ruff find tests and pyproject.toml at
+      # /usr/app. hides the package copied at build time, at the same path, so PYTHONPATH stays /usr/app/src
+      - .:/usr/app

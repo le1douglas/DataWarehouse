@@ -1,0 +1,24 @@
+// the dbt dev container: the dev stage of docker/dbt/Dockerfile, with the whole repo at /usr/app.
+// open with "Dev Containers: Reopen in Container" (or "Switch Container") and pick dbt
+{
+  "name": "dbt",
+  // paths are relative to this file. compose.dev.yaml sets the project name (dw-dev), the dev target and the mount
+  "dockerComposeFile": ["../../compose.yaml", "../../compose.dev.yaml"],
+  "service": "dbt",
+  // only this service, and postgres through depends_on
+  "runServices": ["dbt"],
+  "workspaceFolder": "/usr/app",
+  // the image runs one dbt command and exits: keep the container running instead, for as long as the window is open
+  "overrideCommand": true,
+  // closing the window leaves the containers running: postgres is shared with Excel and the other container
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      // dbt Power User needs the python extension to find the python that has dbt
+      "extensions": ["ms-python.python", "innoverio.vscode-dbt-power-user"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      }
+    }
+  }
+}

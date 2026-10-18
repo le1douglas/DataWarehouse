@@ -18,6 +18,7 @@ services:
     build:
       context: . # the repo root. docker/dbt/Dockerfile.dockerignore keeps only DataWarehouseDbt
       dockerfile: docker/dbt/Dockerfile
+      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: dbt:${RELEASE}
     env_file: .env.transformer
     depends_on:
@@ -29,6 +30,7 @@ services:
     build:
       context: . # the repo root. docker/loader/Dockerfile.dockerignore keeps only src
       dockerfile: docker/loader/Dockerfile
+      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: loader:${RELEASE}
     env_file: .env.loader
     volumes:
