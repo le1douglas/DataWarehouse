@@ -24,7 +24,11 @@ in every session:
 - **Keep `docs/DOCKER_IMPLEMENTATION.md` up to date.** It is the installation guide for a new user setting the project
   up for the first time, on a PC with nothing installed. After each step is done, write there only what that user
   needs: the exact actions, commands and files, what they should see, and known problems with their fix. It does not
-  explain why; the explanations stay in the conversation. It does not record decisions and their alternatives (they belong in this plan), anything specific to the
+  explain why; the explanations stay in the conversation.
+- **Local time, not UTC.** Wherever a container, image or tool shows or stamps a datetime in UTC by default (logs,
+  timestamps, schedules), set it to `Europe/Amsterdam`: `TZ=Europe/Amsterdam` in the service's env file, or the
+  program's own time zone setting (such as postgres's `-c timezone=`). Check it after the change, for example with
+  `date` in the container. Some programs ignore it: dbt stamps its log lines in UTC whatever `TZ` says. It does not record decisions and their alternatives (they belong in this plan), anything specific to the
   user's own PC (such as stopping a PostgreSQL already installed on Windows), or detours and learning exercises. A new
   session reads it first to know where to resume.
 
@@ -183,6 +187,11 @@ One role per responsibility, created by an init script next to the DDL:
 This replaces the `postgres` superuser used everywhere today, and closes the TODOs in `INSTALLATION_GUIDE.md` about a
 read-only user for the ODBC DSN.
 
+The roles are postponed in phase 1: dbt, the loader, Grafana and Excel connect as `postgres` until they exist, with
+user and password read from their env files, so adding the roles changes only those files. On dev a reset then
+recreates dbt's objects under `transformer`. The roles must exist before prod starts (phase 2), and `reader` before
+OpenMetadata (phase 3).
+
 ### Schema names
 
 With one database per environment, the environment comes from the connection, and schemas no longer need the `dev_`
@@ -202,9 +211,27 @@ history, which cannot be rebuilt: never `down -v` on prod.
 | Repo code | You, in VS Code | dev's `loader` and `dbt` | Folder mounted into the container (dev only) |
 | `.env.dev`, `.env.prod`, `.env.loader`, `.env.transformer` | You | compose | On Windows, not in git, like `.env` today |
 | `profiles.yml` | You | dbt | Moves into the repo and reads host, user and password with `env_var()`, instead of living in `%USERPROFILE%\.dbt` |
-| Corrections workbook, CSV exports | Excel, the Bluelab app | `loader` | One folder per environment (`inbox\dev`, `inbox\prod`), mounted **read only**, so the workbook is never written |
+| Corrections workbook, CSV exports | Excel, the Bluelab app | `loader` | Two folders, each mounted **read only** (so the workbook is never written): the exports at `/inbox/exports`, the corrections at `/inbox/corrections`. See [Input folders](#input-folders) |
 | dbt artifacts (`target/`) | `dbt` | OpenMetadata ingestion (phase 3) | A shared folder |
 | Grafana data sources and dashboards | You, in the Grafana UI, then exported | `grafana` | JSON/YAML in the repo (provisioning), so a reset keeps them and prod gets the ones tested in dev |
+
+### Input folders
+
+Where the exports and the workbook live day to day is not decided, and they are in different folders. So the
+location is a setting, never part of the code or the image:
+
+| Setting | In | Meaning |
+|---|---|---|
+| `EXPORTS_DIR` | the environment's env file (`.env.dev`) | Windows folder mounted at `/inbox/exports`: the root of every dataset's CSV exports |
+| `CORRECTIONS_DIR` | the environment's env file | Windows folder mounted at `/inbox/corrections`: where the corrections workbook is |
+| `JOURNAL_ENTRIES_CSV` | `.env.loader` | the CSV of the dataset, relative to `/inbox/exports` (`drip_drain_csv/journal-entries.csv`) |
+| `CORRECTIONS_WORKBOOK` | `.env.loader` | the workbook, relative to `/inbox/corrections`. Probably one for every dataset |
+
+Moving a folder is one line in the env file, without a rebuild (mounts are set when a container starts). The two
+folders can be unrelated or subfolders of one parent. A new dataset adds its own `<DATASET>_CSV` line, not a mount.
+A loader command per dataset (`bronze journal_entries`) is a Python change for when a second dataset comes, not
+part of the move. Until the location is decided, `EXPORTS_DIR` points to `SampleData` in the repo. A folder in
+OneDrive needs its files set to "Always keep on this device": a cloud-only file has no content for the container.
 
 The paths that are hardcoded in `src/datawarehouse/config.py` today (`CORRECTIONS_WORKBOOK`, `JOURNAL_ENTRIES_CSV`) and
 the connection settings become environment variables, because inside a container the host is `postgres` and the files

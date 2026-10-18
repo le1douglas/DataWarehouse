@@ -27,7 +27,14 @@ TBL_META_CORRECTIONS = "meta_corrections"
 
 # the sheet of the corrections workbook that is uploaded: the corrections, then their metadata in the last two columns
 CORRECTIONS_SHEET = "corrected"
-CORRECTIONS_WORKBOOK = Path(r"C:\Users\TeeltQ-Farms\OneDrive - Q-Farms\Bureaublad\journal_entries_corrections.xlsx")
+
+# the inputs. compose mounts two windows folders read only at these paths in the loader container (EXPORTS_DIR and
+# CORRECTIONS_DIR in the environment's env file), and .env.loader names each file relative to its folder
+INBOX_EXPORTS = Path("/inbox/exports")
+INBOX_CORRECTIONS = Path("/inbox/corrections")
+
+JOURNAL_ENTRIES_CSV = INBOX_EXPORTS / os.getenv("JOURNAL_ENTRIES_CSV", "")
+CORRECTIONS_WORKBOOK = INBOX_CORRECTIONS / os.getenv("CORRECTIONS_WORKBOOK", "")
 
 
 # the name of a dataset, as used in table names (brnz_journal_entries)
@@ -40,5 +47,4 @@ KEY_JOURNAL_ENTRIES = ["row_id"]
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # --- File paths ---
-JOURNAL_ENTRIES_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "journal-entries.csv"
 JOURNAL_ENTRIES_MALFORMED_CSV = BASE_DIR / "SampleData" / "drip_drain_csv" / "malformed_csv" / "valid.csv"

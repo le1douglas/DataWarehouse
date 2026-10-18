@@ -9,12 +9,13 @@ installed. The design is in [DOCKER_PLAN.md](DOCKER_PLAN.md).
 |---|---|---|
 | 1 | 1. Install Docker Desktop | Done (2026-10-17) |
 | 1 | 2. Postgres in a container | Done (2026-10-17) |
-| 1 | 3. The database roles | Not started |
-| 1 | 4. The `dbt` image | Not started |
+| 1 | 3. The database roles | Postponed (everything connects as `postgres` until then) |
+| 1 | 4. The `dbt` image | Done (2026-10-18) |
 | 1 | 5. The `loader` image | Not started |
 | 1 | 6. Grafana | Not started |
 
-**Resume at:** phase 1, step 3, the database roles. Excel itself is checked once dbt has built candidate (step 4).
+**Resume at:** phase 1, step 5, the `loader` image. Excel itself is checked once the loader has put data in bronze
+and dbt has built candidate on it (end of step 5).
 
 ## 1. Install Docker Desktop
 
@@ -47,6 +48,10 @@ Expected: a list of versions, starting with `WSL version: 3.0.1.0` or later.
 Open Docker Desktop: accept the agreement, skip the sign-in, skip the survey. Expected: the bottom-left corner shows the
 engine running.
 
+**Settings** → **General** → check **Start Docker Desktop when you sign in to your computer** → **Apply**. Without it,
+the engine is stopped after every restart of the PC, and every `docker` command fails with
+`Docker Desktop is unable to start` until Docker Desktop is opened.
+
 ### 1.5 Check from PowerShell
 
 In a new PowerShell window:
@@ -57,6 +62,11 @@ docker version
 
 Expected: a `Client:` block with `OS/Arch: windows/amd64` and a `Server: Docker Desktop ...` block with
 `OS/Arch: linux/amd64`.
+
+### 1.6 VS Code extension (recommended)
+
+Extensions view (`Ctrl + Shift + X`) → **Container Tools**, publisher **Microsoft** (`ms-azuretools.vscode-containers`)
+→ **Install**. Expected: a **Containers** icon in the sidebar, listing the containers and images of Docker Desktop.
 
 ## 2. Postgres in a container
 
@@ -69,6 +79,7 @@ POSTGRES_DB=DataWarehouse
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=choose-a-password
 POSTGRES_PORT=5432
+RELEASE=dev
 ```
 
 No spaces around `=`, no quotes, no `$` or `#` in the password.
@@ -165,3 +176,106 @@ Start → **ODBC Data Sources (64-bit)**:
    - **Port:** `5432`
    - **Password:** the one in `.env.dev`
 3. **Test**. Expected: **Connection successful**. Then **Save**.
+
+## 4. The `dbt` image
+
+dbt reads its connection from `DataWarehouseDbt/profiles.yml` (in git), which takes every value from environment
+variables.
+
+### 4.1 Create `.env.transformer`
+
+In the repo root, a file named `.env.transformer` (ignored by git):
+
+```
+# connection for the dbt container, read by DataWarehouseDbt/profiles.yml. not in git
+# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
+DBT_HOST=postgres
+# the port inside the docker network, where the postgres container always listens (5432).
+# not POSTGRES_PORT from .env.dev, which is the port published to Windows and changes per environment
+DBT_PORT=5432
+DBT_DBNAME=DataWarehouse
+# postgres until the roles exist (step 3, postponed), then the transformer role
+DBT_USER=postgres
+DBT_ENV_SECRET_PASSWORD=the POSTGRES_PASSWORD from .env.dev
+# time zone of the container (its clock and date). dbt itself always logs in UTC, whatever this says
+TZ=Europe/Amsterdam
+```
+
+Check:
+
+```powershell
+git status --short --ignored .env.transformer
+```
+
+Expected: `!! .env.transformer`.
+
+### 4.2 Check the `dbt` service
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev --profile job config
+```
+
+Expected: a `dbt:` service next to `postgres:`, with `image: dbt:dev`, `profiles: [job]`, `build:` with
+`dockerfile: docker/dbt/Dockerfile`, and `environment:` with the five `DBT_*` variables. Without `--profile job` the
+`dbt` service is not shown. The output shows the passwords in plain text.
+
+### 4.3 Build the image
+
+With Docker Desktop's engine running, from the repo root:
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev build dbt
+```
+
+The first build takes one to two minutes. Expected: `transferring context:` a few tens of kB, steps `[1/6]` to `[6/6]`,
+and at the end `naming to docker.io/library/dbt:dev` and `Image dbt:dev Built`. Docker Desktop → **Images** shows `dbt`
+with tag `dev`.
+
+Check what went into the image:
+
+```powershell
+docker run --rm --entrypoint ls dbt:dev -a
+```
+
+Expected: `.gitignore`, `.user.yml`, `analyses`, `dbt_packages`, `dbt_project.yml`, `logs`, `macros`, `models`,
+`package-lock.yml`, `packages.yml`, `profiles.yml`, `seeds`, `snapshots`, `tests`. No `target`.
+
+### 4.4 Check the connection
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev run --rm dbt debug
+```
+
+Expected: `profiles.yml file [OK found and valid]`, `dbt_project.yml file [OK found and valid]`, `- git [OK found]`,
+`host: postgres`, `port: 5432`, `Connection test: [OK connection ok]`, and at the end `All checks passed!`.
+
+### 4.5 Check the dev mount
+
+In dev, `compose.dev.yaml` mounts `DataWarehouseDbt` from the repo into the container, so every dev command passes
+both compose files, in this order:
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt debug
+```
+
+Expected: `All checks passed!`, as in 4.4, and on Windows the files `DataWarehouseDbt\logs\dbt.log` and
+`DataWarehouseDbt\.user.yml`, written by dbt in the container. `git status` does not list them.
+
+### 4.6 First `dbt build`
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt build
+```
+
+On an empty bronze, expected: `Found 3 models, 2 data tests, 1 operation, 3 snapshots, 3 sources`, every line `OK` or
+`PASS`, and at the end `Completed successfully` and `Done. PASS=9 WARN=0 ERROR=0 SKIP=0`. Also expected, and harmless:
+`Unable to do partial parsing because profile has changed` (once, when `target` was written by another dbt) and
+`[WARNING]: Detected columns with numeric type and unspecified precision/scale ... ['ml', 'ec', 'ph', 'temp']`.
+
+Then, in VS Code on the `localhost:5432` connection:
+
+```sql
+SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'dev_%' ORDER BY 1;
+```
+
+Expected: `dev_audit`, `dev_bronze`, `dev_candidate`, `dev_corrections`, `dev_silver`, `dev_snapshots`, `dev_staging`.

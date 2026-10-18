@@ -1,0 +1,13 @@
+# connection for dbt. every value comes from an environment variable, set by compose from .env.transformer
+DataWarehouseDbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST') }}"
+      port: "{{ env_var('DBT_PORT') | as_number }}"
+      dbname: "{{ env_var('DBT_DBNAME') }}"
+      user: "{{ env_var('DBT_USER') }}"
+      password: "{{ env_var('DBT_ENV_SECRET_PASSWORD') }}"
+      schema: dev # -> dev_staging, dev_candidate, dev_audit, dev_silver, dev_snapshots
+      threads: 1

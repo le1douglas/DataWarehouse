@@ -1,7 +1,7 @@
 name: 'DataWarehouseDbt'
 version: '1.0.0'
 
-# the profile in %USERPROFILE%\.dbt\profiles.yml, which has only a dev target
+# the profile in profiles.yml next to this file, which has only a dev target and reads the connection from env vars
 profile: 'DataWarehouseDbt'
 
 vars:

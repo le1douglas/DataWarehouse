@@ -1,0 +1,8 @@
+# dev only, on top of compose.yaml: "docker compose -f compose.yaml -f compose.dev.yaml ...". prod never loads it
+services:
+  dbt:
+    volumes:
+      # the project from the repo, live: edits apply without a rebuild. hides the copy made at build time
+      - ./DataWarehouseDbt:/usr/app/DataWarehouseDbt
+      # except dbt_packages: keeps the one installed in the image by dbt deps, not the one dbt on Windows left behind
+      - /usr/app/DataWarehouseDbt/dbt_packages
