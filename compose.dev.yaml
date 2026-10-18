@@ -6,3 +6,8 @@ services:
       - ./DataWarehouseDbt:/usr/app/DataWarehouseDbt
       # except dbt_packages: keeps the one installed in the image by dbt deps, not the one dbt on Windows left behind
       - /usr/app/DataWarehouseDbt/dbt_packages
+
+  loader:
+    volumes:
+      # the package from the repo, live: edits apply without a rebuild. hides the copy made at build time
+      - ./src:/usr/app/src

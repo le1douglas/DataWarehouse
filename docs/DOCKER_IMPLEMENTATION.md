@@ -11,11 +11,10 @@ installed. The design is in [DOCKER_PLAN.md](DOCKER_PLAN.md).
 | 1 | 2. Postgres in a container | Done (2026-10-17) |
 | 1 | 3. The database roles | Postponed (everything connects as `postgres` until then) |
 | 1 | 4. The `dbt` image | Done (2026-10-18) |
-| 1 | 5. The `loader` image | Not started |
+| 1 | 5. The `loader` image | Done (2026-10-18) |
 | 1 | 6. Grafana | Not started |
 
-**Resume at:** phase 1, step 5, the `loader` image. Excel itself is checked once the loader has put data in bronze
-and dbt has built candidate on it (end of step 5).
+**Resume at:** phase 1, step 6, Grafana.
 
 ## 1. Install Docker Desktop
 
@@ -279,3 +278,119 @@ SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'dev_
 ```
 
 Expected: `dev_audit`, `dev_bronze`, `dev_candidate`, `dev_corrections`, `dev_silver`, `dev_snapshots`, `dev_staging`.
+
+## 5. The `loader` image
+
+### 5.1 Create `.env.loader`
+
+In the repo root, a file named `.env.loader` (ignored by git):
+
+```
+# connection and inputs for the loader container, read by src/datawarehouse/config.py. not in git
+# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
+POSTGRESQL_SERVER=postgres
+# the port inside the docker network, where the postgres container always listens (5432).
+# not POSTGRES_PORT from .env.dev, which is the port published to Windows and changes per environment
+POSTGRESQL_PORT=5432
+POSTGRESQL_DB=DataWarehouse
+# postgres until the roles exist (step 3, postponed), then the loader role
+POSTGRESQL_USER=postgres
+POSTGRESQL_PASSWORD=the POSTGRES_PASSWORD from .env.dev
+# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR) and /inbox/corrections (CORRECTIONS_DIR)
+JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
+CORRECTIONS_WORKBOOK=journal_entries_corrections.xlsx
+# time zone of the container: CSVReader stamps meta_extract_date_time with the container's local time
+TZ=Europe/Amsterdam
+```
+
+Check:
+
+```powershell
+git status --short --ignored .env.loader
+```
+
+Expected: `!! .env.loader`.
+
+### 5.2 Input folders in `.env.dev`
+
+Add to `.env.dev`, with the Windows folders of the CSV exports and of the corrections workbook (both must exist, even
+when the folder has no workbook yet):
+
+```
+# windows folders mounted read only into the loader container. each can move: change the line, no rebuild needed
+# the root of the csv exports, mounted at /inbox/exports
+EXPORTS_DIR=./SampleData
+# the folder of the corrections workbook, mounted at /inbox/corrections
+CORRECTIONS_DIR=C:/Users/<you>/Desktop
+```
+
+Relative paths start at the repo root. Use forward slashes.
+
+### 5.3 Check the `loader` service
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml --profile job config
+```
+
+Expected, under `loader:`: `image: loader:dev`, `profiles: [job]`, the eight variables of `.env.loader` under
+`environment:`, and three `type: bind` volumes: `EXPORTS_DIR` on `/inbox/exports` and `CORRECTIONS_DIR` on
+`/inbox/corrections`, both `read_only: true`, and the repo's `src` on `/usr/app/src`. If `EXPORTS_DIR` or
+`CORRECTIONS_DIR` is missing from `.env.dev`, compose stops with `set EXPORTS_DIR in the env file`.
+
+### 5.4 Build the image and load bronze
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml build loader
+```
+
+Expected: `transferring context:` a few tens of kB, steps `[1/4]` to `[4/4]`, `Image loader:dev Built`.
+
+The bronze load appends: on a bronze that already holds the same CSV it duplicates every row. Load once:
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm loader bronze
+```
+
+Expected: `Loading CSV file: /inbox/exports/drip_drain_csv/journal-entries.csv`, `Connection successful`,
+`Loaded <n> rows into dev_bronze.brnz_journal_entries` and `Loaded <2n> rows into dev_bronze.meta_bronze`, and in
+the printed first row a `meta_extract_date_time` in local time (Amsterdam), not UTC.
+
+### 5.5 `dbt build` on the loaded data
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt build
+```
+
+Before any corrections, the data tests flag rows and silver is skipped: this is the first half of the loop, not a
+problem with the setup. With the sample CSV, expected: `FAIL 1 aud_journal_entries__castable`,
+`FAIL 8 aud_journal_entries__position_index_max_4`, `SKIP` for `dev_silver.slvr_journal_entries` and
+`dev_snapshots.snap_slvr_journal_entries`, the `on-run-end` hook `OK`, and
+`Done. PASS=5 WARN=0 ERROR=2 SKIP=2`. The command exits with an error, so Docker prints its "What's next" lines.
+The flagged rows are in `dev_audit.aud_journal_entries` (9 rows), candidate has every row of bronze.
+
+### 5.6 Load corrections and build silver
+
+With the reviewed workbook saved as `CORRECTIONS_WORKBOOK` in `CORRECTIONS_DIR`, and closed in Excel (an open
+workbook cannot be read):
+
+```powershell
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm loader corrections
+docker compose -p dw-dev --env-file .env.dev -f compose.yaml -f compose.dev.yaml run --rm dbt build
+```
+
+Expected from the load: `Loading Excel file: /inbox/corrections/<workbook>`, `Connection successful`,
+`Loaded <n> rows into dev_corrections.corr_journal_entries`, `Loaded <2n> rows into dev_corrections.meta_corrections`.
+When the corrections fix every flagged row, expected from the build: both tests `PASS`,
+`OK created sql table model dev_silver.slvr_journal_entries`, `Done. PASS=9 WARN=0 ERROR=0 SKIP=0`, and
+`dev_audit.aud_journal_entries` empty.
+
+### 5.7 Check Excel
+
+New blank workbook → **Data** → **Get Data** → **From Other Sources** → **From ODBC** → DSN `PostgreSQL_DataWarehouse`
+→ **OK** (if asked for credentials: **Default or Custom** → **Connect**). In the **Navigator**, check **Select multiple
+items**, select `dev_candidate.cand_journal_entries`, `dev_audit.aud_journal_entries` and
+`dev_silver.slvr_journal_entries`, then **Load**.
+
+Expected in **Queries & Connections**: candidate and silver with every row of bronze, silver's `date_time` as a date
+and time. The audit table has only its headers (`row_id`, `kind`, `description`) when the last build flagged nothing,
+and one row per flagged row and failed test otherwise.

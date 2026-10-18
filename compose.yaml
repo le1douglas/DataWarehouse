@@ -24,5 +24,20 @@ services:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
 
+  # a job: "docker compose run --rm loader bronze" (or corrections) runs one load, then the container exits
+  loader:
+    build:
+      context: . # the repo root. docker/loader/Dockerfile.dockerignore keeps only src
+      dockerfile: docker/loader/Dockerfile
+    image: loader:${RELEASE}
+    env_file: .env.loader
+    volumes:
+      # the inputs, read only (:ro), so the loader can never change an export or the workbook
+      - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
+      - ${CORRECTIONS_DIR:?set CORRECTIONS_DIR in the env file}:/inbox/corrections:ro
+    depends_on:
+      - postgres
+    profiles: ["job"] # not started by "up", only by "run"
+
 volumes:
   pgdata:
