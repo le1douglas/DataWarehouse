@@ -1,5 +1,6 @@
--- DO NOT RUN THIS DIRECTLY, instead from terminal run
--- psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\03_create_schemas_and_tables.sql
+-- Run by the postgres container on its first start on an empty volume (mounted into /docker-entrypoint-initdb.d).
+-- DO NOT RUN THIS DIRECTLY. To run it by hand on an existing database, from terminal run
+-- psql -U postgres -h localhost -d DataWarehouse -1 -v ON_ERROR_STOP=1 -f Database\01_create_schemas_and_tables.sql
 -- if you run from here you must also
 -- ROLLBACK
 -- after

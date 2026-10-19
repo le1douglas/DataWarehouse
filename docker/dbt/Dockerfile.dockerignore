@@ -1,0 +1,9 @@
+# build context of the dbt image (the repo root): only the dbt project goes in, without what dbt generates.
+# paths are relative to the repo root, not to this file
+*
+!DataWarehouseDbt
+
+# written by dbt on Windows. the image runs dbt deps itself, and target/ and logs/ are written at run time
+DataWarehouseDbt/target
+DataWarehouseDbt/logs
+DataWarehouseDbt/dbt_packages

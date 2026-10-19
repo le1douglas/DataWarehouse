@@ -1,0 +1,29 @@
+// the loader's dev container: the dev stage of docker/loader/Dockerfile, with the whole repo at /usr/app.
+// open with "Dev Containers: Reopen in Container" (or "Switch Container") and pick loader
+{
+  "name": "loader",
+  // paths are relative to this file. compose.dev.yaml sets the project name (dw-dev), the dev target and the mount
+  "dockerComposeFile": ["../../compose.yaml", "../../compose.dev.yaml"],
+  "service": "loader",
+  // only this service, and postgres through depends_on
+  "runServices": ["loader"],
+  "workspaceFolder": "/usr/app",
+  // the image runs one load and exits: keep the container running instead, for as long as the window is open
+  "overrideCommand": true,
+  // closing the window leaves the containers running: postgres is shared with Excel and the other container
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": ["tests"],
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  }
+}

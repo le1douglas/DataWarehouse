@@ -1,6 +1,10 @@
 
 # DataWarehouse
 
+
+test from inside
+
+
 Data warehouse, medallion architecture (raw bronze, cleaned silver, business ready gold)
 
 The design goal is that bad data never reaches silver, and that a non technical user can fix it without touching the source file or the database directly.
@@ -92,11 +96,6 @@ TODO for deployment  check
 pytest --cov=. --cov-report=html
 start htmlcov/index.html
 
-
-
-sync or think about .toml instead of requirements.txt
-pip install -e ".[dev]"
-pip freeze --exclude-editable > requirements.txt
 
 
 

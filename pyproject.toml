@@ -13,7 +13,6 @@ dependencies = [
     "pydantic",
     "SQLAlchemy",
     "psycopg[binary]", # the postgres driver used by SQLAlchemy
-    "python-dotenv",
     "dbt-core",
     "dbt-postgres",
 ]
