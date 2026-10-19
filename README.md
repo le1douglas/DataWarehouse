@@ -1,6 +1,7 @@
 
 # DataWarehouse
 
+
 Data warehouse, medallion architecture (raw bronze, cleaned silver, business ready gold)
 
 The design goal is that bad data never reaches silver, and that a non technical user can fix it without touching the source file or the database directly.
