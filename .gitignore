@@ -490,3 +490,6 @@ $RECYCLE.BIN/
 
 # local helper scripts (rebuild, load corrections)
 .scripts/
+
+# dbt per-user id file
+.user.yml
