@@ -25,12 +25,12 @@ a journal entries export, and the next room starts. A room that is not complete 
 is not written. The room continues from the last row of the csv, so rows can be deleted by hand
 between rooms.
 
-It runs in the loader container, in an interactive terminal (no -T), or no key can be read, next
-to the bridge (onepen_bridge.py) on Windows. OnePen.cmd on the desktop starts both, with the daily
-folder mounted at --daily-dir. By hand, from the repo root:
+It runs in its own container (the datastreamer service, docker/datastreamer/Dockerfile), in an
+interactive terminal (no -T), or no key can be read, next to the bridge (onepen_bridge.py) on
+Windows. OnePen.cmd, next to this file, starts both. Compose mounts the daily folder at --daily-dir. By
+hand, from the repo root:
 
-    docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps --entrypoint python loader \\
-        src/bluelab_datastreamer/drip_drain_cli.py
+    docker compose -f compose.yaml -f compose.dev.yaml run --rm datastreamer
 
 This file only draws and reads keys: the pen is in onepen.py, the rooms and the csv in
 drip_drain.py, the terminal in cli_terminal.py. Only the standard library is used.

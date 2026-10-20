@@ -493,3 +493,6 @@ $RECYCLE.BIN/
 
 # dbt per-user id file
 .user.yml
+
+# the readings of the OnePen in progress, written by drip_drain_cli.py. the finished ones go to the daily folder
+src/bluelab_datastreamer/drip_drain.csv

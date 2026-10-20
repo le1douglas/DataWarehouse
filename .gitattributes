@@ -1,0 +1,2 @@
+# cmd needs windows line endings: with LF only, "call :label" can miss its label
+*.cmd text eol=crlf

@@ -6,3 +6,6 @@
 # written by python and pip on Windows
 **/__pycache__
 src/*.egg-info
+
+# the datastreamer has its own image (docker/datastreamer)
+src/bluelab_datastreamer

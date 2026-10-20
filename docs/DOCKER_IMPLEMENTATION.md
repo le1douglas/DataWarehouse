@@ -13,6 +13,7 @@ installed. The design is in [DOCKER_PLAN.md](DOCKER_PLAN.md).
 | 1 | 4. The `dbt` image | Done (2026-10-18) |
 | 1 | 5. The `loader` image | Done (2026-10-18) |
 | 1 | 6. Grafana | Not started |
+| 1 | 7. The `datastreamer` image | Done (2026-10-20) |
 
 **Resume at:** phase 1, step 6, Grafana.
 
@@ -405,3 +406,53 @@ items**, select `dev_candidate.cand_journal_entries`, `dev_audit.aud_journal_ent
 Expected in **Queries & Connections**: candidate and silver with every row of bronze, silver's `date_time` as a date
 and time. The audit table has only its headers (`row_id`, `kind`, `description`) when the last build flagged nothing,
 and one row per flagged row and failed test otherwise.
+
+## 7. The `datastreamer` image
+
+The drip and drain readings of the OnePen (`src/bluelab_datastreamer`), taken on the terminal. The image has only
+the standard library: the bridge to the pen (`onepen_bridge.py`) needs Bluetooth, so it runs on Windows with `uv`,
+and the container reaches it at `host.docker.internal:8765`. No database and no env file.
+
+### 7.1 Daily folder in `.env`
+
+Add to `.env` the Windows folder where the csv of a part of the day is saved once every room is done:
+
+```
+# windows folder mounted into the datastreamer container, at /daily_raw_csv: where the csv of a part of the day is saved
+DAILY_RAW_CSV_DIR=C:/Users/<you>/OneDrive - Q-Farms/Bureaublad/Leone/Drip and Drain/daily_raw_csv
+```
+
+Compose reads it for every service, so without it every `docker compose` command stops with
+`set DAILY_RAW_CSV_DIR in the env file`.
+
+### 7.2 Build the image
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml build datastreamer
+```
+
+Expected: `Image datastreamer:dev Built`. Then:
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -T datastreamer --help
+```
+
+Expected: the help of `drip_drain_cli.py`, ending with `--daily-dir DAILY_DIR` and `(default /daily_raw_csv)`.
+
+### 7.3 Take readings
+
+`src/bluelab_datastreamer/OnePen.cmd` starts the bridge in the background of its window and the readings in a
+`datastreamer` container named `onepen-drip-drain`, and ends both on `q` or when the window is closed. By hand, the
+bridge in one terminal and the readings in another, both from the repo root:
+
+```powershell
+uv run src\bluelab_datastreamer\onepen_bridge.py
+docker compose -f compose.yaml -f compose.dev.yaml run --rm datastreamer
+```
+
+Expected: the list of the OnePens in range, then morning or afternoon, then the first room. The csv of the readings
+is `src/bluelab_datastreamer/drip_drain.csv`, in the repo folder through the dev mount. The runtime image has no
+such mount, so there it would be lost with the container.
+
+The Dev Container is `.devcontainer/datastreamer` ("Dev Containers: Reopen in Container", pick datastreamer), with
+the same extensions as the loader's.

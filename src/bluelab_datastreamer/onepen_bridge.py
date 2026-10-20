@@ -7,7 +7,7 @@
 
 The only part that runs on Windows, where the Bluetooth adapter is (a container cannot reach it),
 so it is kept as thin as it can be: it draws nothing and reads no key, and needs no other file of
-this folder. OnePen.cmd on the desktop starts it, or by hand:
+this folder. OnePen.cmd, next to this file, starts it, or by hand:
 
     uv run src\\bluelab_datastreamer\\onepen_bridge.py
 

@@ -20,3 +20,11 @@ services:
       # the whole repo, live: edits apply without a rebuild, and pytest and ruff find tests and pyproject.toml at
       # /usr/app. hides the package copied at build time, at the same path, so PYTHONPATH stays /usr/app/src
       - .:/usr/app
+
+  datastreamer:
+    build:
+      target: dev # runtime plus ruff
+    volumes:
+      # the whole repo, live: edits apply without a rebuild, ruff finds pyproject.toml at /usr/app, and the csv of
+      # the readings is written into the repo folder on windows. hides the code copied at build time, at the same path
+      - .:/usr/app

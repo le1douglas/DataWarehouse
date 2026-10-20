@@ -41,5 +41,19 @@ services:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
 
+  # interactive: "docker compose run --rm datastreamer" takes the drip and drain readings of the OnePen until q.
+  # src/bluelab_datastreamer/OnePen.cmd starts it with the bridge (onepen_bridge.py) on windows, at host.docker.internal:8765.
+  # no database and no env file: it writes a csv only
+  datastreamer:
+    build:
+      context: . # the repo root. docker/datastreamer/Dockerfile.dockerignore keeps only src/bluelab_datastreamer
+      dockerfile: docker/datastreamer/Dockerfile
+      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+    image: datastreamer:${RELEASE}
+    volumes:
+      # where the csv of a part of the day is saved once every room is done
+      - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
+    profiles: ["job"] # not started by "up", only by "run"
+
 volumes:
   pgdata:

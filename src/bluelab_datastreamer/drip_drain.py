@@ -33,7 +33,7 @@ ROOMS = {
 }
 # once every room of the part of the day is done, the csv is moved to this folder, named by the
 # date and the number of the part of the day, such as 261020-1.csv. the path in the container, where
-# OnePen.cmd mounts C:\Users\TeeltQ-Farms\OneDrive - Q-Farms\Bureaublad\Leone\Drip and Drain\daily_raw_csv
+# compose mounts the windows folder DAILY_RAW_CSV_DIR of .env
 DEFAULT_DAILY_DIR = Path("/daily_raw_csv")
 PART_NUMBERS = {"morning": 1, "afternoon": 2}
 READINGS_PER_ROOM = 4

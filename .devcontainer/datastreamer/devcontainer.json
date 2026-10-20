@@ -1,0 +1,27 @@
+// the datastreamer's dev container: the dev stage of docker/datastreamer/Dockerfile, with the whole repo at /usr/app.
+// open with "Dev Containers: Reopen in Container" (or "Switch Container") and pick datastreamer
+{
+  "name": "datastreamer",
+  // paths are relative to this file. compose.dev.yaml sets the project name (dw-dev), the dev target and the mount
+  "dockerComposeFile": ["../../compose.yaml", "../../compose.dev.yaml"],
+  "service": "datastreamer",
+  // only this service: it needs no database
+  "runServices": ["datastreamer"],
+  "workspaceFolder": "/usr/app",
+  // the image takes the readings until q: keep the container running instead, for as long as the window is open
+  "overrideCommand": true,
+  // closing the window leaves the containers running, as for the other dev containers
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      // the same as the loader's
+      "extensions": ["ms-python.python", "charliermarsh.ruff"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  }
+}
