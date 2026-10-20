@@ -6,11 +6,15 @@ mean is in edenic_decompiling_result.md, next to this file. Only the standard li
 
 import asyncio
 import json
+import time
 from collections.abc import Callable
 from datetime import datetime
 from itertools import count
 
 RECONNECT_DELAY_SECONDS = 2
+# how long the bridge may stay unreachable once it was reached. it is started and ended together
+# with the readings (OnePen.cmd), so it is gone that long only when the window was closed
+BRIDGE_GONE_SECONDS = 30
 # a device is a OnePen when its advertisement lists this service, as in the edenic app
 SERVICE = "983dd3da-d46f-bc05-0100-00c278b6b50a"
 
@@ -69,6 +73,10 @@ def now() -> str:
     return datetime.now().isoformat(timespec="microseconds")
 
 
+class BridgeGone(Exception):
+    """The bridge was reached, then stayed unreachable for BRIDGE_GONE_SECONDS."""
+
+
 class PenClient:
     """The OnePen behind the bridge: connects to it, subscribes, polls the saved readings and decodes what comes.
 
@@ -124,15 +132,24 @@ class PenClient:
             self._command(self._writer, "connect", address=address)
 
     async def run(self) -> None:
-        """Keeps connected to the bridge, reconnecting whenever it goes."""
+        """Keeps connected to the bridge, reconnecting whenever it goes.
+
+        Raises BridgeGone when the bridge stays unreachable for BRIDGE_GONE_SECONDS after it was
+        reached. Before it is first reached, it is waited for as long as it takes.
+        """
+        # when the bridge went, None while it is connected and before it is first reached
+        gone_since: float | None = None
         while True:
             try:
                 reader, writer = await asyncio.open_connection(self.host, self.port)
             except OSError as error:
+                if gone_since is not None and time.monotonic() - gone_since > BRIDGE_GONE_SECONDS:
+                    raise BridgeGone(f"the bridge has been gone for more than {BRIDGE_GONE_SECONDS} s") from error
                 self.on_status(f"bridge not reachable: {error!r}")
                 await asyncio.sleep(RECONNECT_DELAY_SECONDS)
                 continue
 
+            gone_since = None
             self.on_status(f"connected to the bridge at {self.host}:{self.port}")
             self._writer = writer
             # the bridge lets the pen go when the backend goes, so it is asked for again
@@ -164,6 +181,7 @@ class PenClient:
                 writer.close()
                 self._pending.clear()
 
+            gone_since = time.monotonic()
             self._forget_live()
             self.on_status("bridge disconnected")
             await asyncio.sleep(RECONNECT_DELAY_SECONDS)

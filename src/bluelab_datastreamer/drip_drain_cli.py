@@ -56,7 +56,7 @@ from cli_terminal import (
     fit,
 )
 from drip_drain import CSV_PATH, NO_VALUES, Room
-from onepen import PenClient, Reading, now
+from onepen import BridgeGone, PenClient, Reading, now
 
 # the bridge runs on windows, outside the container
 DEFAULT_HOST = "host.docker.internal"
@@ -295,6 +295,9 @@ async def take_rooms() -> None:
         start_room()
         # q ends read_keys
         await alongside(pen_task, read_keys())
+    except BridgeGone as error:
+        # the window was closed with the bridge in it, so nobody is left to press q
+        say(f"# {error}, quitting")
     finally:
         pen_task.cancel()
 
