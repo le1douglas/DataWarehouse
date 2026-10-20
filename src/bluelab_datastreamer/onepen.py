@@ -26,12 +26,13 @@ def characteristic(number: int) -> str:
 
 CHARACTERISTICS = {characteristic(number): f"{number:02d}" for number in range(1, 7)}
 DEVICE_INFO = characteristic(4)
+# the readings saved on the pen by a press of its button. a subscribe makes the pen send them and delete
+# them, so it is never subscribed: a reading is taken from the live values only, and a press stays on the
+# pen, for the official app
 SAVED_READINGS = characteristic(5)
 LIVE_READINGS = {characteristic(number) for number in (1, 2, 3)}
 # byte 0 of a live reading is a tag that says which quantity its first value is
 LIVE_TAGS = {ord("P"): "ph", ord("E"): "ec", ord("T"): "temperature"}
-SAVED_READINGS_PER_PACKET = 3
-SAVED_READING_SIZE = 9
 # the mantissa of a value the pen has not got, such as ec with the probe dry (f1d806)
 NO_READING = -9999
 
@@ -52,17 +53,6 @@ def value(group: bytes) -> float | None:
     return mantissa / 10**exponent if exponent >= 0 else mantissa * 10**-exponent
 
 
-def saved_readings(data: bytes) -> list[Reading]:
-    # byte 0 is a count, then up to 3 readings of ec, ph and temperature. whether the count is the
-    # readings in this packet or the readings still to come is not known yet
-    readings = []
-    for index in range(min(data[0], SAVED_READINGS_PER_PACKET)):
-        start = 1 + index * SAVED_READING_SIZE
-        ec, ph, temperature = (value(data[start + offset : start + offset + 3]) for offset in (0, 3, 6))
-        readings.append((ec, ph, temperature))
-    return readings
-
-
 def battery(data: bytes) -> int:
     # byte 1 of 04 is the battery in percent
     return data[1]
@@ -78,30 +68,22 @@ class BridgeGone(Exception):
 
 
 class PenClient:
-    """The OnePen behind the bridge: connects to it, subscribes, polls the saved readings and decodes what comes.
+    """The OnePen behind the bridge: connects to it, subscribes to its live values and decodes them.
 
     Until a pen is chosen, the bridge scans, and the OnePens it finds are in pens. Once chosen, the
-    bridge connects to that one, again on every connection to the bridge.
-
-    Every press of the pen's button saves a reading on the pen. The client subscribes to 05 again
-    every poll_seconds, because the pen sends its saved readings only right after a subscribe, and
-    deletes them once sent. Each saved reading goes to on_reading with its time, every change of
-    the live values to on_live, and everything else that happens to on_status, as a line of text.
+    bridge connects to that one, again on every connection to the bridge. Every change of the live
+    values goes to on_live, and everything else that happens to on_status, as a line of text.
     """
 
     def __init__(
         self,
         host: str,
         port: int,
-        poll_seconds: float,
-        on_reading: Callable[[str, Reading], None],
         on_live: Callable[[], None],
         on_status: Callable[[str], None],
     ) -> None:
         self.host = host
         self.port = port
-        self.poll_seconds = poll_seconds
-        self.on_reading = on_reading
         self.on_live = on_live
         self.on_status = on_status
         # the address of the pen chosen, None before the choice
@@ -157,7 +139,6 @@ class PenClient:
                 self._command(writer, "scan")
             else:
                 self._command(writer, "connect", address=self.address)
-            poller: asyncio.Task | None = None
             try:
                 async for line in reader:
                     message = json.loads(line)
@@ -166,17 +147,12 @@ class PenClient:
                         # subscriptions end with every pen connection, so they are made again on each
                         self._command(writer, "read", uuid=DEVICE_INFO)
                         for uuid in CHARACTERISTICS:
-                            self._command(writer, "subscribe", uuid=uuid)
+                            if uuid != SAVED_READINGS:
+                                self._command(writer, "subscribe", uuid=uuid)
                         await writer.drain()
-                        poller = asyncio.create_task(self._poll_saved_readings(writer))
-                    elif message["type"] == "disconnected" and poller is not None:
-                        poller.cancel()
-                        poller = None
             except ConnectionError:
                 pass
             finally:
-                if poller is not None:
-                    poller.cancel()
                 self._writer = None
                 writer.close()
                 self._pending.clear()
@@ -192,31 +168,16 @@ class PenClient:
         self._pending[request_id] = (op, fields.get("uuid", fields.get("address", "")))
         writer.write((json.dumps({"id": request_id, "op": op, **fields}) + "\n").encode())
 
-    async def _poll_saved_readings(self, writer: asyncio.StreamWriter) -> None:
-        while True:
-            await asyncio.sleep(self.poll_seconds)
-            self._command(writer, "unsubscribe", uuid=SAVED_READINGS)
-            self._command(writer, "subscribe", uuid=SAVED_READINGS)
-            await writer.drain()
-
     def _forget_live(self) -> None:
         # so nothing shows the values of a pen that is gone
         self.live.update(dict.fromkeys(self.live))
 
     def _on_notify(self, message: dict) -> None:
         data = bytes.fromhex(message["hex"])
-        if message["uuid"] in LIVE_READINGS:
-            # the tag, not the characteristic, says which quantity it is
-            if data and data[0] in LIVE_TAGS:
-                self.live[LIVE_TAGS[data[0]]] = value(data[1:4])
-                self.on_live()
-            return
-        # an empty list of saved readings comes as a packet of zeros after every subscribe
-        if message["uuid"] != SAVED_READINGS or not any(data):
-            return
-        # more than one reading in a packet only if several were saved between two polls
-        for reading in saved_readings(data):
-            self.on_reading(message["time"], reading)
+        # the tag, not the characteristic, says which quantity it is
+        if message["uuid"] in LIVE_READINGS and data and data[0] in LIVE_TAGS:
+            self.live[LIVE_TAGS[data[0]]] = value(data[1:4])
+            self.on_live()
 
     def _on_message(self, message: dict) -> None:
         kind = message["type"]

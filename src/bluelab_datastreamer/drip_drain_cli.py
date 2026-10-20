@@ -12,8 +12,9 @@ afternoon, and emptied to its header.
 The readings are taken a room at a time, 4 per room, in the order of ROOMS. A room starts with
 its 4 lines on screen and the water amounts in ml are typed first, one per line (enter goes to
 the next empty line, backspace or delete removes one digit, and on an empty line goes back to the
-one before). When every line has its ml, the first line streams the live readings, and a press
-of the button (or enter) records them in that line, beeps and moves on to the next empty one.
+one before). When every line has its ml, the first line streams the live readings, and enter
+records them in that line, beeps and moves on to the next empty one. The button of the pen records
+nothing here: what it saves stays on the pen.
 Backspace or delete removes the reading of the line, and on a line without one goes back to the
 line before. The up and down arrows move between the lines in both, the right arrow goes from the
 ml to the readings at any time, and the left arrow back to the ml, as they are on the line. When
@@ -56,19 +57,18 @@ from cli_terminal import (
     fit,
 )
 from drip_drain import CSV_PATH, NO_VALUES, Room
-from onepen import BridgeGone, PenClient, Reading, now
+from onepen import BridgeGone, PenClient, now
 
 # the bridge runs on windows, outside the container
 DEFAULT_HOST = "host.docker.internal"
 DEFAULT_PORT = 8765
-DEFAULT_POLL_SECONDS = 0.5
 CSV_RETRY_SECONDS = 1
 
 PART_OF_DAY_HINT = "MORNING OR AFTERNOON? UP AND DOWN TO CHOOSE, ENTER TO CONFIRM, Q TO QUIT"
 PEN_HINT = "WHICH PEN? UP AND DOWN TO CHOOSE, ENTER TO CONNECT, Q TO QUIT"
 NO_PEN_YET = "  no pen found yet, scanning..."
 TYPE_HINT = "TYPE THE ML AMOUNT, RIGHT TO MEASURE, Q TO QUIT"
-RECORD_HINT = "PRESS BUTTON OR ENTER TO TAKE MEASUREMENT, LEFT FOR ML, Q TO QUIT"
+RECORD_HINT = "ENTER TO TAKE MEASUREMENT, LEFT FOR ML, Q TO QUIT"
 RECORDED_HINT = "BACKSPACE TO DELETE THE MEASUREMENT, LEFT FOR ML, Q TO QUIT"
 CONFIRM_HINT = "ENTER TO CONFIRM, IT CANNOT BE CHANGED AFTER. UP TO CHANGE IT, Q TO QUIT"
 ROOM_SEPARATOR = "-" * 25
@@ -172,24 +172,17 @@ async def save_room() -> None:
     start_room()
 
 
-def record(date_time: str, reading: Reading) -> None:
-    """Puts a reading in the line of the room the arrows are on."""
-    if room is None:
-        say("# reading ignored, every room is done")
+def record_live() -> None:
+    """Puts the live values in the line of the room the arrows are on."""
+    if not pen.has_live:
+        say("# no live values yet, nothing recorded")
         return
-    reason = room.record(date_time, *reading)
+    reason = room.record(now(), *pen.live_reading())
     if reason is not None:
         say(f"# reading ignored, {reason}")
         return
     cli_terminal.beep()
     draw()
-
-
-def record_live() -> None:
-    if not pen.has_live:
-        say("# no live values yet, nothing recorded")
-        return
-    record(now(), pen.live_reading())
 
 
 def on_live() -> None:
@@ -238,12 +231,6 @@ async def main() -> None:
     parser.add_argument("--host", default=DEFAULT_HOST, help=f"host of the bridge (default {DEFAULT_HOST})")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port of the bridge (default {DEFAULT_PORT})")
     parser.add_argument(
-        "--poll",
-        type=float,
-        default=DEFAULT_POLL_SECONDS,
-        help=f"seconds between subscribes to 05, the saved readings (default {DEFAULT_POLL_SECONDS})",
-    )
-    parser.add_argument(
         "--daily-dir",
         type=Path,
         default=drip_drain.DEFAULT_DAILY_DIR,
@@ -251,7 +238,7 @@ async def main() -> None:
     )
     args = parser.parse_args()
     daily_dir = args.daily_dir
-    pen = PenClient(args.host, args.port, args.poll, record, on_live, lambda text: say(f"# {text}"))
+    pen = PenClient(args.host, args.port, on_live, lambda text: say(f"# {text}"))
     with cli_terminal.interactive():
         await take_rooms()
 
@@ -276,8 +263,7 @@ async def take_rooms() -> None:
     global part_of_day
     # fails at the start rather than at the first room when the csv cannot be used
     rows = drip_drain.read_csv()
-    # the bridge scans for the pens in range until one is chosen, and connects to it after. a reading
-    # sent before the part of the day is chosen is ignored, as there is no room yet
+    # the bridge scans for the pens in range until one is chosen, and connects to it after
     pen_task = asyncio.create_task(pen.run())
     try:
         address = await alongside(pen_task, cli_terminal.choose(screen, PEN_HINT, pen_options, NO_PEN_YET))

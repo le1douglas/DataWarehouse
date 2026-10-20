@@ -75,8 +75,8 @@ async def stop(task: asyncio.Task | None) -> None:
 
 
 class Console:
-    """Prints what the bridge tells. The backend polls several times a second and a pen advertises
-    several times a second, so the lines to and from the backend are printed only when verbose."""
+    """Prints what the bridge tells. A pen sends its live values and advertises several times a
+    second, so the lines to and from the backend are printed only when verbose."""
 
     def __init__(self, verbose: bool) -> None:
         self.verbose = verbose
