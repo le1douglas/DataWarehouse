@@ -48,7 +48,7 @@ A device is classed as a OnePen when its advertisement lists service UUID:
 983DD3DA-D46F-BC05-0100-00C278B6B50A
 ```
 
-The bridge finds pens by name instead: every pen seen so far is called `ONE-` followed by the last 4 hex digits of its address (`ONE-A1F0` is `F4:86:84:3B:A1:F0`).
+The bridge finds pens by this service UUID too, lists them and connects to the one chosen. Not confirmed by a capture yet. Every pen seen so far is called `ONE-` followed by the last 4 hex digits of its address (`ONE-A1F0` is `F4:86:84:3B:A1:F0`).
 
 For comparison, the other device families advertise:
 
@@ -286,7 +286,7 @@ Protocol:
 11. **Commands.** None has been sent to a pen yet.
 12. **Firmware-update protocol** (the SMP service). Not analysed.
 13. **Dart-side security code.** `bluetooth_security.dart` and X25519 crypto exist in the Dart code. Nothing on the OnePen path in the native code uses them; they probably serve Pulse or Intellilink. Connecting without them works.
-14. **Scan classification quirk.** As decompiled, `W.a.h` decides on the first advertised service UUID only, so a OnePen that advertises another UUID first may be classed differently. This could be a decompiler artifact. Not relevant to the bridge, which finds pens by name.
+14. **Scan classification quirk.** As decompiled, `W.a.h` decides on the first advertised service UUID only, so a OnePen that advertises another UUID first may be classed differently. This could be a decompiler artifact. The bridge looks for the OnePen UUID anywhere in the list, so the order does not matter to it.
 
 ## Reproducing the analysis
 

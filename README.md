@@ -77,6 +77,7 @@ Not built. Candidates:
 | [docs/DATA_FLOW_DIAGRAM.md](docs/DATA_FLOW_DIAGRAM.md) | Diagram of how data moves from collection to gold, including corrections|
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | The terms used for domain concepts |
 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Naming conventions, layer prefixes, SQL and Python style guide|
+| [docs/REMINDERS.md](docs/REMINDERS.md) | Unfinished business, parked on purpose |
 | [CLAUDE.md](CLAUDE.md) | Context and instructions for calude code |
 | [docs/agents/](docs/agents/) | Instructions for AI agents: the issue tracker and the domain docs |
 

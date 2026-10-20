@@ -38,6 +38,8 @@ How code in this repository is named and written. Domain terms are defined in `d
 - Do not repeat logic across CTEs: compute a value once and reuse it.
 - Repeated column lists go in a Jinja `{% set %}` list and a loop.
 - `Database/*.sql` (hand-written DDL): uppercase keywords, `CREATE ... IF NOT EXISTS`. These scripts are not formatted by any tool.
+- There is no SQL linter, and `sqlfmt` is the only SQL tool: do not add `sqlfluff` or another formatter next to it. The scripts in `Database` are not formatted by any tool.
+
 
 ## Python style
 
