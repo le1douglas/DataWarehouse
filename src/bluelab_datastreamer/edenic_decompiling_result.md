@@ -299,9 +299,9 @@ REA evidence IDs:
 | Dart AOT inspection | `ev_9483070dcb975cb7d7741246779ecc534e9fdf01ad98c1fe5969d8471420038f` |
 | `TelemetryData` references | `ev_87e00eedf267385450f3c02ba15f8d4d953d766225298e7f35ff82b8249283c2` |
 
-To capture packets again, run the bridge and the backend in two terminals from the repo root:
+To capture packets again, run the bridge on Windows and the backend in the loader container, in two terminals from the repo root. At the time of the captures above they were named `ble_bridge.py` and `datastreamer.py`.
 
 ```powershell
-uv run src\bluelab_datastreamer\ble_bridge.py
-uv run --no-project src\bluelab_datastreamer\datastreamer.py
+uv run src\bluelab_datastreamer\onepen_bridge.py
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps --entrypoint python loader src/bluelab_datastreamer/drip_drain_cli.py
 ```
