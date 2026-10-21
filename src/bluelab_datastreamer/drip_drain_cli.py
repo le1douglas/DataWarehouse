@@ -7,7 +7,7 @@ chosen until q.
 Then the morning or the afternoon, the same way. Each has its own rooms, in ROOMS of
 drip_drain.py, and the csv may hold rows of the chosen one only. Once every room of it is done,
 the csv is copied to --daily-dir as yymmdd-1.csv for the morning or yymmdd-2.csv for the
-afternoon, and emptied to its header.
+afternoon, and emptied to its header. The first room is shown once the pen is connected.
 
 The readings are taken a room at a time, 4 per room, in the order of ROOMS. A room starts with
 its 4 lines on screen and the water amounts in ml are typed first, one per line (enter goes to
@@ -22,9 +22,13 @@ every line of one is filled, the next empty line of the other is taken. A value 
 got, such as with the probe in the air, shows as n.a., a line not recorded yet as -. When every
 line has both its ml and its reading, a confirmation is shown below the lines (up goes back to
 change them). Enter on it appends the room to drip_drain.csv, next to this file, in the shape of
-a journal entries export, and the next room starts. A room that is not complete when q is pressed
-is not written. The room continues from the last row of the csv, so rows can be deleted by hand
-between rooms.
+a journal entries export, and the next room starts. While a room is shown, q quits after a second
+q to confirm (any other key stays and does nothing else), and a room that is not complete then is
+not written. s skips the room at any time, after a second s to confirm (any other key keeps
+the room and does nothing else): what was typed or recorded in it is dropped, nothing of it is
+written, and the next room starts. The room continues from the last row of the csv, past
+the rooms skipped since the start, so rows can be deleted by hand between rooms. The skips are not
+kept after q: a room skipped is taken again when the readings are started again.
 
 It runs in its own container (the datastreamer service, docker/datastreamer/Dockerfile), in an
 interactive terminal (no -T), or no key can be read, next to the bridge (onepen_bridge.py) on
@@ -67,10 +71,12 @@ CSV_RETRY_SECONDS = 1
 PART_OF_DAY_HINT = "MORNING OR AFTERNOON? UP AND DOWN TO CHOOSE, ENTER TO CONFIRM, Q TO QUIT"
 PEN_HINT = "WHICH PEN? UP AND DOWN TO CHOOSE, ENTER TO CONNECT, Q TO QUIT"
 NO_PEN_YET = "  no pen found yet, scanning..."
-TYPE_HINT = "TYPE THE ML AMOUNT, RIGHT TO MEASURE, Q TO QUIT"
-RECORD_HINT = "ENTER TO TAKE MEASUREMENT, LEFT FOR ML, Q TO QUIT"
-RECORDED_HINT = "BACKSPACE TO DELETE THE MEASUREMENT, LEFT FOR ML, Q TO QUIT"
-CONFIRM_HINT = "ENTER TO CONFIRM, IT CANNOT BE CHANGED AFTER. UP TO CHANGE IT, Q TO QUIT"
+TYPE_HINT = "TYPE THE ML AMOUNT, RIGHT TO MEASURE, S TO SKIP THE ROOM, Q TO QUIT"
+RECORD_HINT = "ENTER TO TAKE MEASUREMENT, LEFT FOR ML, S TO SKIP THE ROOM, Q TO QUIT"
+RECORDED_HINT = "BACKSPACE TO DELETE THE MEASUREMENT, LEFT FOR ML, S TO SKIP THE ROOM, Q TO QUIT"
+CONFIRM_HINT = "ENTER TO CONFIRM, IT CANNOT BE CHANGED AFTER. UP TO CHANGE IT, S TO SKIP THE ROOM, Q TO QUIT"
+SKIP_HINT = "S AGAIN TO SKIP, WHAT IS IN IT IS LOST. ANY OTHER KEY TO KEEP IT"
+QUIT_HINT = "Q AGAIN TO QUIT, A ROOM NOT CONFIRMED IS LOST. ANY OTHER KEY TO STAY"
 ROOM_SEPARATOR = "-" * 25
 LINE_NAME_WIDTH = max(len(line_name) for line_name in drip_drain.LINE_NAMES)
 SEPARATOR = " || "
@@ -85,6 +91,10 @@ part_of_day = ""
 daily_dir = drip_drain.DEFAULT_DAILY_DIR
 # None before the first room and after the last
 room: Room | None = None
+# the rooms skipped since the start, which leave no row in the csv to continue from
+skipped: set[str] = set()
+# "s" or "q" after the first press, while the skip or the quit waits for the second. empty otherwise
+asked = ""
 pen: PenClient | None = None
 
 
@@ -124,6 +134,10 @@ def room_lines(current: Room) -> list[str]:
         lines.append(fit([(f"> CONFIRM ROOM {current.name}", True), (SEPARATOR, False), (CONFIRM_HINT, True)]))
     elif current.complete:
         lines.append(fit([(f"> CONFIRM ROOM {current.name}", False)]))
+    if asked == "s":
+        lines.append(fit([(f"> SKIP ROOM {current.name}?", True), (SEPARATOR, False), (SKIP_HINT, True)]))
+    elif asked == "q":
+        lines.append(fit([("> QUIT?", True), (SEPARATOR, False), (QUIT_HINT, True)]))
     return lines
 
 
@@ -141,7 +155,7 @@ def start_room() -> None:
     """Starts the room that continues from the csv, or archives the csv when every room is done."""
     global room
     try:
-        room = drip_drain.next_room(drip_drain.read_csv(), part_of_day)
+        room = drip_drain.next_room(drip_drain.read_csv(), part_of_day, frozenset(skipped))
     except ValueError as error:
         room = None
         say(f"# no room can start: {error}")
@@ -172,6 +186,13 @@ async def save_room() -> None:
     start_room()
 
 
+def skip_room() -> None:
+    """Drops the room without writing it and starts the next one."""
+    skipped.add(room.name)
+    say(f"# room {room.name} skipped, not written to {CSV_PATH.name}")
+    start_room()
+
+
 def record_live() -> None:
     """Puts the live values in the line of the room the arrows are on."""
     if not pen.has_live:
@@ -193,7 +214,17 @@ def on_live() -> None:
 
 def press(key: str) -> None:
     """Does what the key does to the room."""
-    if key in (ARROW_UP, ARROW_DOWN):
+    global asked
+    if asked:
+        # only a second s skips (a second q is read_keys'), any other key does nothing else
+        was, asked = asked, ""
+        if was == "s" and key.lower() == "s":
+            # start_room draws
+            skip_room()
+            return
+    elif key.lower() in ("s", "q"):
+        asked = key.lower()
+    elif key in (ARROW_UP, ARROW_DOWN):
         room.move(1 if key == ARROW_DOWN else -1)
     elif key in (ARROW_LEFT, ARROW_RIGHT):
         room.switch(to_ml=key == ARROW_LEFT)
@@ -214,11 +245,11 @@ def press(key: str) -> None:
 
 
 async def read_keys() -> None:
-    """Passes the keys to the room, and returns on q."""
+    """Passes the keys to the room, and returns on a second q, or on the first when no room is shown."""
     while True:
         await asyncio.sleep(KEY_POLL_SECONDS)
         for key in cli_terminal.keys_pressed():
-            if key.lower() == "q":
+            if key.lower() == "q" and (room is None or room.saving or asked == "q"):
                 return
             if room is None or room.saving:
                 continue
@@ -258,6 +289,15 @@ async def alongside(pen_task: asyncio.Task, work: Coroutine[None, None, T]) -> T
     return task.result()
 
 
+async def wait_for_pen() -> bool:
+    """Waits until the pen chosen is connected. False on q."""
+    while not pen.connected:
+        await asyncio.sleep(KEY_POLL_SECONDS)
+        if any(key.lower() == "q" for key in cli_terminal.keys_pressed()):
+            return False
+    return True
+
+
 async def take_rooms() -> None:
     """Asks for the pen and the part of the day, then takes the rooms until q."""
     global part_of_day
@@ -278,6 +318,10 @@ async def take_rooms() -> None:
         part_of_day = chosen
         drip_drain.next_room(rows, part_of_day)
         say(f"# {part_of_day}, {CSV_PATH.name}: {len(rows)} rows")
+        if not pen.connected:
+            say("# waiting for the pen to connect, Q TO QUIT")
+            if not await alongside(pen_task, wait_for_pen()):
+                return
         start_room()
         # q ends read_keys
         await alongside(pen_task, read_keys())

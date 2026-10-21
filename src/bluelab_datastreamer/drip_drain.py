@@ -198,11 +198,11 @@ def read_csv() -> list[dict]:
         return [row for row in reader if any((cell or "").strip() for cell in row.values())]
 
 
-def next_room(rows: list[dict], part_of_day: str) -> Room | None:
+def next_room(rows: list[dict], part_of_day: str, skipped: frozenset[str] = frozenset()) -> Room | None:
     """The room of the part of the day that continues from the last row, with the lines it still needs.
 
-    None when every room is done. Every row must be of the part of the day: a csv of the other one
-    is not continued.
+    The rooms in skipped are passed over, as a skipped room leaves no row. None when every room is
+    done. Every row must be of the part of the day: a csv of the other one is not continued.
     """
     rooms = ROOMS[part_of_day]
     others = sorted({row["tags"] for row in rows} - set(rooms))
@@ -210,19 +210,21 @@ def next_room(rows: list[dict], part_of_day: str) -> Room | None:
         raise ValueError(
             f"{CSV_PATH.name} has rows with tags {', '.join(others)}, which are not rooms of this part of the day"
         )
-    if not rows:
-        return Room(rooms[0], READINGS_PER_ROOM)
-    last = rows[-1]["tags"]
-    index = rooms.index(last)
-    # the rows of the last room are the ones at the end with its tags
-    in_room = 0
-    for row in reversed(rows):
-        if row["tags"] != last:
-            break
-        in_room += 1
-    if in_room < READINGS_PER_ROOM:
-        return Room(rooms[index], READINGS_PER_ROOM - in_room)
-    return Room(rooms[index + 1], READINGS_PER_ROOM) if index + 1 < len(rooms) else None
+    start = 0
+    if rows:
+        last = rows[-1]["tags"]
+        index = rooms.index(last)
+        # the rows of the last room are the ones at the end with its tags
+        in_room = 0
+        for row in reversed(rows):
+            if row["tags"] != last:
+                break
+            in_room += 1
+        if in_room < READINGS_PER_ROOM and last not in skipped:
+            return Room(last, READINGS_PER_ROOM - in_room)
+        start = index + 1
+    following = next((room_name for room_name in rooms[start:] if room_name not in skipped), None)
+    return Room(following, READINGS_PER_ROOM) if following is not None else None
 
 
 def append_rows(rows: list[dict]) -> None:

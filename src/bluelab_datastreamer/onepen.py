@@ -92,6 +92,8 @@ class PenClient:
         self.pens: dict[str, tuple[str, int]] = {}
         # the name of the pen connected last, empty before the first
         self.name = ""
+        # true while the bridge is connected to the pen
+        self.connected = False
         # the connection to the bridge, None while there is none
         self._writer: asyncio.StreamWriter | None = None
         # the latest live values, None for one the pen has not sent or has not got
@@ -158,6 +160,7 @@ class PenClient:
                 self._pending.clear()
 
             gone_since = time.monotonic()
+            self.connected = False
             self._forget_live()
             self.on_status("bridge disconnected")
             await asyncio.sleep(RECONNECT_DELAY_SECONDS)
@@ -195,8 +198,10 @@ class PenClient:
                 self.on_status(f"battery {battery(bytes.fromhex(message['hex']))}%")
         elif kind == "connected":
             self.name = message["name"]
+            self.connected = True
             self.on_status(f"pen {message['name']} {message['address']} connected")
         else:
             if kind == "disconnected":
+                self.connected = False
                 self._forget_live()
             self.on_status(json.dumps(message))
