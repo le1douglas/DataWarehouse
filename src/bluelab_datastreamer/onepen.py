@@ -36,12 +36,25 @@ LIVE_TAGS = {ord("P"): "ph", ord("E"): "ec", ord("T"): "temperature"}
 # the mantissa of a value the pen has not got, such as ec with the probe dry (f1d806)
 NO_READING = -9999
 
+# the person each pen is assigned to, by the name of the pen, shown next to it to tell the pens apart
+OWNERS: dict[str, str] = {
+       "ONE-A1F0": "Leone",
+       "ONE-B8B5": "Wesley",
+       "ONE-38EA": "WTR",
+}
+
 # ec, ph and temperature, None for a value the pen has not got
 Reading = tuple[float | None, float | None, float | None]
 
 
 def name(uuid: str) -> str:
     return CHARACTERISTICS.get(uuid, uuid)
+
+
+def label(pen_name: str) -> str:
+    """The name of the pen as shown, with the person it is assigned to, such as ONE-A1F0 [ Leone ]."""
+    owner = OWNERS.get(pen_name)
+    return f"{pen_name} [ {owner} ]" if owner else pen_name
 
 
 def value(group: bytes) -> float | None:
@@ -199,7 +212,7 @@ class PenClient:
         elif kind == "connected":
             self.name = message["name"]
             self.connected = True
-            self.on_status(f"pen {message['name']} {message['address']} connected")
+            self.on_status(f"pen {label(message['name'])} {message['address']} connected")
         else:
             if kind == "disconnected":
                 self.connected = False

@@ -116,12 +116,12 @@ class Room:
             self._advance(self.ml)
 
     def delete(self) -> None:
-        """Removes a digit of the ml or the reading of the line. On a line without one, goes back to the one before."""
+        """Removes the ml or the reading of the line. On a line without one, goes back to the one before."""
         if self.confirming:
             self.line -= 1
             return
         if self.typing_ml and self.ml[self.line]:
-            self.ml[self.line] = self.ml[self.line][:-1]
+            self.ml[self.line] = ""
         elif not self.typing_ml and self.readings[self.line] is not None:
             self.readings[self.line] = None
         elif self.line > 0:
@@ -242,11 +242,12 @@ def append_rows(rows: list[dict]) -> None:
         csv.DictWriter(file, fieldnames=CSV_COLUMNS, lineterminator="\n").writerows(rows)
 
 
-def archive_csv(daily_dir: Path, part_of_day: str) -> Path:
-    """Copies the csv to the daily folder and leaves it with its header only. Never overwrites a file there."""
-    target = daily_dir / f"{datetime.now():%y%m%d}-{PART_NUMBERS[part_of_day]}.csv"
-    if target.exists():
-        raise FileExistsError(f"{target} exists already")
+def daily_csv(daily_dir: Path, part_of_day: str) -> Path:
+    """Where the csv of the part of the day is saved in the daily folder, such as 261020-1.csv."""
+    return daily_dir / f"{datetime.now():%y%m%d}-{PART_NUMBERS[part_of_day]}.csv"
+
+
+def archive_csv(target: Path) -> None:
+    """Copies the csv to target, overwriting a file there, and leaves the csv with its header only."""
     shutil.copyfile(CSV_PATH, target)
     CSV_PATH.write_text(",".join(CSV_COLUMNS) + "\n")
-    return target

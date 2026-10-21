@@ -22,10 +22,17 @@ UP = "\x1b[{}A"
 CLEAR_DOWN = "\r\x1b[J"
 HIDE_CURSOR = "\x1b[?25l"
 SHOW_CURSOR = "\x1b[?25h"
-BELL = "\a"
-# what can be typed, chosen or recorded is yellow, the rest in the terminal's own colour
+# the questions, what enter confirms and what is being typed or recorded are yellow, the commands
+# (the keys to press) cyan, the rest plain, in the terminal's own colour
+PLAIN = ""
 YELLOW = "\x1b[33m"
+CYAN = "\x1b[36m"
+# added to a colour, such as YELLOW + BLINK. the rapid blink code (5 is the slow one). windows terminal
+# blinks it, a terminal that cannot shows it steady
+BLINK = "\x1b[6m"
 RESET_COLOR = "\x1b[0m"
+# next to what enter confirms, such as the option chosen in a list
+ENTER_TO_CONFIRM = " (press enter to confirm)"
 ENTER = ("\r", "\n")
 # the keys that are more than one character are given these names, which no single key can be
 ARROW_UP = "up"
@@ -71,17 +78,17 @@ def interactive() -> Iterator[None]:
         print(SHOW_CURSOR, end="", flush=True)
 
 
-def fit(parts: list[tuple[str, bool]]) -> str:
-    """The parts of a line, yellow where marked, cut to the terminal width.
+def fit(parts: list[tuple[str, str]]) -> str:
+    """The parts of a line, each in its colour, cut to the terminal width.
 
     A line that wrapped would take two lines on screen, and the next draw would move up too few.
     """
     width_left = shutil.get_terminal_size().columns - 1
     line = ""
-    for text, yellow in parts:
+    for text, color in parts:
         text = text[:width_left]
         width_left -= len(text)
-        line += f"{YELLOW}{text}{RESET_COLOR}" if yellow else text
+        line += f"{color}{text}{RESET_COLOR}" if color else text
     return line
 
 
@@ -106,11 +113,6 @@ def keys_pressed() -> list[str]:
         if key is not None:
             keys.append(key)
     return keys
-
-
-def beep() -> None:
-    # the terminal outside the container plays it
-    print(BELL, end="", flush=True)
 
 
 class Screen:
@@ -150,8 +152,12 @@ class Screen:
         print((UP.format(self.drawn) if self.drawn else "") + CLEAR_DOWN + text, end=end, flush=True)
 
 
-async def choose(screen: Screen, hint: str, options: Callable[[], dict[str, str]], waiting: str = "") -> str | None:
-    """Lists the options under the hint until one is chosen with the up and down arrows and enter. Its key, None on q.
+async def choose(
+    screen: Screen, question: str, hint: str, options: Callable[[], dict[str, str]], waiting: str = ""
+) -> str | None:
+    """Lists the options under the question until one is chosen with the arrows and enter. Its key, None on q.
+
+    The hint, the keys to press, follows the question on its line.
 
     options gives the label of each option by its key, and is asked again at every redraw, so options
     can come in while the list is shown. The first one is chosen at the start, and the choice follows
@@ -162,8 +168,11 @@ async def choose(screen: Screen, hint: str, options: Callable[[], dict[str, str]
     chosen: str | None = None
 
     def render() -> list[str]:
-        rows = [fit([(label, key == chosen)]) for key, label in options().items()] or [fit([(waiting, False)])]
-        return [fit([(hint, True)]), *rows]
+        rows = [
+            fit([(f"{label}{ENTER_TO_CONFIRM}", YELLOW)]) if key == chosen else fit([(label, PLAIN)])
+            for key, label in options().items()
+        ] or [fit([(waiting, PLAIN)])]
+        return [fit([(question, YELLOW), (f" {hint}", CYAN)]), *rows]
 
     render_before, screen.render = screen.render, render
     try:

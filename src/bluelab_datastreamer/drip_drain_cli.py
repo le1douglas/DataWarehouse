@@ -1,19 +1,23 @@
 """Front end of the drip and drain readings: takes those of a part of the day, room by room, on the terminal.
 
-At the start, the pen is chosen with the up and down arrows and enter, from the OnePens in range
-that the bridge finds, with the signal strength of each. The bridge keeps reconnecting to the one
-chosen until q.
+At the start, it asks for the pen to be turned on, which enter confirms. Then the bridge scans
+for SCAN_SECONDS: when it finds a single OnePen, that one is taken. Else the pen is chosen with
+the up and down arrows and enter, from the OnePens in range that the bridge finds, with the
+signal strength of each. Before it is connected to, it asks whether
+the name chosen is the one on the back of the pen: yes goes on, no goes back to the list. The
+bridge keeps reconnecting to the one chosen until q.
 
 Then the morning or the afternoon, the same way. Each has its own rooms, in ROOMS of
 drip_drain.py, and the csv may hold rows of the chosen one only. Once every room of it is done,
 the csv is copied to --daily-dir as yymmdd-1.csv for the morning or yymmdd-2.csv for the
-afternoon, and emptied to its header. The first room is shown once the pen is connected.
+afternoon, and emptied to its header. When that file is there already, it asks whether to
+overwrite it: no keeps the csv as it is and shows it on screen. The first room is shown once the pen is connected.
 
 The readings are taken a room at a time, 4 per room, in the order of ROOMS. A room starts with
 its 4 lines on screen and the water amounts in ml are typed first, one per line (enter goes to
-the next empty line, backspace or delete removes one digit, and on an empty line goes back to the
+the next empty line, backspace or delete removes the whole amount, and on an empty line goes back to the
 one before). When every line has its ml, the first line streams the live readings, and enter
-records them in that line, beeps and moves on to the next empty one. The button of the pen records
+records them in that line and moves on to the next empty one. The button of the pen records
 nothing here: what it saves stays on the pen.
 Backspace or delete removes the reading of the line, and on a line without one goes back to the
 line before. The up and down arrows move between the lines in both, the right arrow goes from the
@@ -22,10 +26,10 @@ every line of one is filled, the next empty line of the other is taken. A value 
 got, such as with the probe in the air, shows as n.a., a line not recorded yet as -. When every
 line has both its ml and its reading, a confirmation is shown below the lines (up goes back to
 change them). Enter on it appends the room to drip_drain.csv, next to this file, in the shape of
-a journal entries export, and the next room starts. While a room is shown, q quits after a second
-q to confirm (any other key stays and does nothing else), and a room that is not complete then is
-not written. s skips the room at any time, after a second s to confirm (any other key keeps
-the room and does nothing else): what was typed or recorded in it is dropped, nothing of it is
+a journal entries export, and the next room starts. While a room is shown, q quits after enter to
+confirm (any other key stays and does nothing else), and a room that is not complete then is not
+written. s skips the room at any time, after enter to confirm (any other key keeps the room and
+does nothing else): what was typed or recorded in it is dropped, nothing of it is
 written, and the next room starts. The room continues from the last row of the csv, past
 the rooms skipped since the start, so rows can be deleted by hand between rooms. The skips are not
 kept after q: a room skipped is taken again when the readings are started again.
@@ -54,29 +58,47 @@ from cli_terminal import (
     ARROW_LEFT,
     ARROW_RIGHT,
     ARROW_UP,
+    BLINK,
+    CYAN,
     DELETE_KEYS,
     ENTER,
+    ENTER_TO_CONFIRM,
     KEY_POLL_SECONDS,
+    PLAIN,
+    YELLOW,
     Screen,
     fit,
 )
 from drip_drain import CSV_PATH, NO_VALUES, Room
-from onepen import BridgeGone, PenClient, now
+from onepen import BridgeGone, PenClient, label, now
 
 # the bridge runs on windows, outside the container
 DEFAULT_HOST = "host.docker.internal"
 DEFAULT_PORT = 8765
 CSV_RETRY_SECONDS = 1
+# how long the bridge scans after the pen is turned on before a single pen found is taken as the only
+# one in range. a OnePen advertises several times a second
+SCAN_SECONDS = 3
 
-PART_OF_DAY_HINT = "MORNING OR AFTERNOON? UP AND DOWN TO CHOOSE, ENTER TO CONFIRM, Q TO QUIT"
-PEN_HINT = "WHICH PEN? UP AND DOWN TO CHOOSE, ENTER TO CONNECT, Q TO QUIT"
+PART_OF_DAY_QUESTION = "MORNING OR AFTERNOON?"
+CHOOSE_HINT = "WITH THE KEYBOARD, PRESS UP AND DOWN ARROW KEYS TO CHOOSE, ENTER TO CONFIRM, Q TO QUIT"
+PEN_QUESTION = "WHICH PEN?"
+PEN_HINT = "WITH THE KEYBOARD, PRESS UP AND DOWN ARROW KEYS TO CHOOSE, ENTER TO CONNECT, Q TO QUIT"
 NO_PEN_YET = "  no pen found yet, scanning..."
 TYPE_HINT = "TYPE THE ML AMOUNT, RIGHT TO MEASURE, S TO SKIP THE ROOM, Q TO QUIT"
 RECORD_HINT = "ENTER TO TAKE MEASUREMENT, LEFT FOR ML, S TO SKIP THE ROOM, Q TO QUIT"
 RECORDED_HINT = "BACKSPACE TO DELETE THE MEASUREMENT, LEFT FOR ML, S TO SKIP THE ROOM, Q TO QUIT"
 CONFIRM_HINT = "ENTER TO CONFIRM, IT CANNOT BE CHANGED AFTER. UP TO CHANGE IT, S TO SKIP THE ROOM, Q TO QUIT"
-SKIP_HINT = "S AGAIN TO SKIP, WHAT IS IN IT IS LOST. ANY OTHER KEY TO KEEP IT"
-QUIT_HINT = "Q AGAIN TO QUIT, A ROOM NOT CONFIRMED IS LOST. ANY OTHER KEY TO STAY"
+SKIP_HINT = "ENTER TO SKIP, WHAT IS IN IT IS LOST. ANY OTHER KEY TO KEEP IT"
+QUIT_HINT = "ENTER TO QUIT, A ROOM NOT CONFIRMED IS LOST. ANY OTHER KEY TO STAY"
+TURN_ON_QUESTION = "TURN ON THE PEN."
+TURN_ON_HINT = "ENTER TO CONFIRM, Q TO QUIT"
+TURNED_ON = {"yes": "> the pen is turned on"}
+PEN_CHECK_QUESTION = "IS {} WRITTEN ON THE BACK OF THE PEN?"
+PEN_CHECKED = {"yes": "> yes", "no": "> no"}
+OVERWRITE_QUESTION = "{} IS IN THE DAILY FOLDER ALREADY. OVERWRITE IT?"
+# no first, so an enter pressed without reading overwrites nothing
+OVERWRITE = {"no": "> no, show the csv on screen", "yes": "> yes, overwrite it"}
 ROOM_SEPARATOR = "-" * 25
 LINE_NAME_WIDTH = max(len(line_name) for line_name in drip_drain.LINE_NAMES)
 SEPARATOR = " || "
@@ -91,6 +113,8 @@ part_of_day = ""
 daily_dir = drip_drain.DEFAULT_DAILY_DIR
 # None before the first room and after the last
 room: Room | None = None
+# true once every room of the part of the day is done, for the csv to be saved to the daily folder
+all_done = False
 # the rooms skipped since the start, which leave no row in the csv to continue from
 skipped: set[str] = set()
 # "s" or "q" after the first press, while the skip or the quit waits for the second. empty otherwise
@@ -117,27 +141,53 @@ def room_lines(current: Room) -> list[str]:
         values = values_text(reading, NOT_AVAILABLE) if reading else values_text(NO_VALUES, NOT_RECORDED)
         active = index == current.line and not current.saving
         if active and current.typing_ml:
-            parts = [(start, False), (ml, True), (f"{SEPARATOR}{values}{SEPARATOR}", False), (TYPE_HINT, True)]
+            parts = [
+                (start, PLAIN),
+                (ml, YELLOW + BLINK),
+                (f"{SEPARATOR}{values}{SEPARATOR}", PLAIN),
+                (TYPE_HINT, CYAN),
+            ]
         elif active and reading is None:
             # - until the pen has sent a live value, n.a. for the ones it has not got after that
             missing = NOT_AVAILABLE if pen.has_live else NOT_RECORDED
             live_values = values_text(drip_drain.csv_values(*pen.live_reading()), missing)
-            parts = [(f"{start}{ml}{SEPARATOR}", False), (live_values, True), (SEPARATOR, False), (RECORD_HINT, True)]
+            parts = [
+                (f"{start}{ml}{SEPARATOR}", PLAIN),
+                (live_values, YELLOW + BLINK),
+                (SEPARATOR, PLAIN),
+                (RECORD_HINT, CYAN),
+            ]
         elif active:
-            parts = [(f"{start}{ml}{SEPARATOR}", False), (values, True), (SEPARATOR, False), (RECORDED_HINT, True)]
+            parts = [(f"{start}{ml}{SEPARATOR}", PLAIN), (values, YELLOW), (SEPARATOR, PLAIN), (RECORDED_HINT, CYAN)]
         else:
-            parts = [(f"{start}{ml}{SEPARATOR}{values}", False)]
+            parts = [(f"{start}{ml}{SEPARATOR}{values}", PLAIN)]
         lines.append(fit(parts))
     if current.saving:
-        lines.append(fit([(f"> ROOM {current.name} CONFIRMED", False)]))
+        lines.append(fit([(f"> ROOM {current.name} CONFIRMED", PLAIN)]))
     elif current.confirming:
-        lines.append(fit([(f"> CONFIRM ROOM {current.name}", True), (SEPARATOR, False), (CONFIRM_HINT, True)]))
+        lines.append(
+            fit(
+                [
+                    (f"> CONFIRM ROOM {current.name}{ENTER_TO_CONFIRM}", YELLOW),
+                    (SEPARATOR, PLAIN),
+                    (CONFIRM_HINT, CYAN),
+                ]
+            )
+        )
     elif current.complete:
-        lines.append(fit([(f"> CONFIRM ROOM {current.name}", False)]))
+        lines.append(fit([(f"> CONFIRM ROOM {current.name}", PLAIN)]))
     if asked == "s":
-        lines.append(fit([(f"> SKIP ROOM {current.name}?", True), (SEPARATOR, False), (SKIP_HINT, True)]))
+        lines.append(
+            fit(
+                [
+                    (f"> SKIP ROOM {current.name}?{ENTER_TO_CONFIRM}", YELLOW),
+                    (SEPARATOR, PLAIN),
+                    (SKIP_HINT, CYAN),
+                ]
+            )
+        )
     elif asked == "q":
-        lines.append(fit([("> QUIT?", True), (SEPARATOR, False), (QUIT_HINT, True)]))
+        lines.append(fit([(f"> QUIT?{ENTER_TO_CONFIRM}", YELLOW), (SEPARATOR, PLAIN), (QUIT_HINT, CYAN)]))
     return lines
 
 
@@ -152,23 +202,38 @@ say = screen.say
 
 
 def start_room() -> None:
-    """Starts the room that continues from the csv, or archives the csv when every room is done."""
-    global room
+    """Starts the room that continues from the csv. When every room is done, read_keys returns, to save the csv."""
+    global room, all_done
     try:
         room = drip_drain.next_room(drip_drain.read_csv(), part_of_day, frozenset(skipped))
     except ValueError as error:
         room = None
         say(f"# no room can start: {error}")
         return
-    if room is not None:
-        draw()
+    if room is None:
+        all_done = True
         return
+    draw()
+
+
+async def save_csv() -> None:
+    """Saves the csv to the daily folder and empties it.
+
+    Asks before a file there is overwritten, and when it is not, keeps the csv and shows it.
+    """
+    target = drip_drain.daily_csv(daily_dir, part_of_day)
+    if target.exists():
+        question = OVERWRITE_QUESTION.format(target.name)
+        if await cli_terminal.choose(screen, question, CHOOSE_HINT, lambda: OVERWRITE) != "yes":
+            # the csv is kept as it is, so it can be saved by hand
+            say(f"# {target} not overwritten, {CSV_PATH.name} is kept as it is:\n{CSV_PATH.read_text().rstrip()}")
+            return
     try:
-        say(f"# {CSV_PATH.name} saved as {drip_drain.archive_csv(daily_dir, part_of_day)} and emptied")
+        drip_drain.archive_csv(target)
+        say(f"# {CSV_PATH.name} saved as {target} and emptied")
     except OSError as error:
         # the csv is kept as it is, so it can be saved by hand
         say(f"# {CSV_PATH.name} not saved to the daily folder, and not emptied: {error}")
-    say(room_separator(None))
 
 
 async def save_room() -> None:
@@ -202,7 +267,6 @@ def record_live() -> None:
     if reason is not None:
         say(f"# reading ignored, {reason}")
         return
-    cli_terminal.beep()
     draw()
 
 
@@ -216,9 +280,9 @@ def press(key: str) -> None:
     """Does what the key does to the room."""
     global asked
     if asked:
-        # only a second s skips (a second q is read_keys'), any other key does nothing else
+        # only enter skips (enter on the quit is read_keys'), any other key does nothing else
         was, asked = asked, ""
-        if was == "s" and key.lower() == "s":
+        if was == "s" and key in ENTER:
             # start_room draws
             skip_room()
             return
@@ -245,11 +309,11 @@ def press(key: str) -> None:
 
 
 async def read_keys() -> None:
-    """Passes the keys to the room, and returns on a second q, or on the first when no room is shown."""
-    while True:
+    """Passes the keys to the room until every room is done, q confirmed with enter, or q alone without a room."""
+    while not all_done:
         await asyncio.sleep(KEY_POLL_SECONDS)
         for key in cli_terminal.keys_pressed():
-            if key.lower() == "q" and (room is None or room.saving or asked == "q"):
+            if (asked == "q" and key in ENTER) or (key.lower() == "q" and (room is None or room.saving)):
                 return
             if room is None or room.saving:
                 continue
@@ -275,7 +339,7 @@ async def main() -> None:
 
 
 def pen_options() -> dict[str, str]:
-    return {address: f"> {name}  {address}  {rssi} dBm" for address, (name, rssi) in pen.pens.items()}
+    return {address: f"> {label(name)}  {address}  {rssi} dBm" for address, (name, rssi) in pen.pens.items()}
 
 
 async def alongside(pen_task: asyncio.Task, work: Coroutine[None, None, T]) -> T:
@@ -287,6 +351,21 @@ async def alongside(pen_task: asyncio.Task, work: Coroutine[None, None, T]) -> T
         # the pen runs until cancelled, so it ended with an error, which this raises
         pen_task.result()
     return task.result()
+
+
+async def scan() -> bool:
+    """Waits SCAN_SECONDS for the pens in range to be found. False on q."""
+    end = asyncio.get_running_loop().time() + SCAN_SECONDS
+    while asyncio.get_running_loop().time() < end:
+        await asyncio.sleep(KEY_POLL_SECONDS)
+        if any(key.lower() == "q" for key in cli_terminal.keys_pressed()):
+            return False
+    return True
+
+
+async def wait_for_q() -> None:
+    while not any(key.lower() == "q" for key in cli_terminal.keys_pressed()):
+        await asyncio.sleep(KEY_POLL_SECONDS)
 
 
 async def wait_for_pen() -> bool:
@@ -306,25 +385,57 @@ async def take_rooms() -> None:
     # the bridge scans for the pens in range until one is chosen, and connects to it after
     pen_task = asyncio.create_task(pen.run())
     try:
-        address = await alongside(pen_task, cli_terminal.choose(screen, PEN_HINT, pen_options, NO_PEN_YET))
-        if address is None:
+        # the bridge scans meanwhile, so the pen is in the list sooner
+        if (
+            await alongside(pen_task, cli_terminal.choose(screen, TURN_ON_QUESTION, TURN_ON_HINT, lambda: TURNED_ON))
+            is None
+        ):
             return
+        say("# looking for pens in range, Q TO QUIT")
+        if not await alongside(pen_task, scan()):
+            return
+        # a single pen in range is taken without the list, but only the first time: after a no, the list
+        only_pen = next(iter(pen.pens)) if len(pen.pens) == 1 else None
+        # until the name on the back of the pen is the one chosen
+        while True:
+            if only_pen is not None:
+                address, only_pen = only_pen, None
+            else:
+                address = await alongside(
+                    pen_task, cli_terminal.choose(screen, PEN_QUESTION, PEN_HINT, pen_options, NO_PEN_YET)
+                )
+            if address is None:
+                return
+            check_question = PEN_CHECK_QUESTION.format(label(pen.pens[address][0]))
+            checked = await alongside(
+                pen_task, cli_terminal.choose(screen, check_question, CHOOSE_HINT, lambda: PEN_CHECKED)
+            )
+            if checked is None:
+                return
+            if checked == "yes":
+                break
         pen.choose(address)
-        say(f"# pen {pen.pens[address][0]} {address} chosen")
+        say(f"# pen {label(pen.pens[address][0])} {address} chosen")
         part_of_days = {name: f"> {name}" for name in drip_drain.ROOMS}
-        chosen = await alongside(pen_task, cli_terminal.choose(screen, PART_OF_DAY_HINT, lambda: part_of_days))
+        chosen = await alongside(
+            pen_task, cli_terminal.choose(screen, PART_OF_DAY_QUESTION, CHOOSE_HINT, lambda: part_of_days)
+        )
         if chosen is None:
             return
         part_of_day = chosen
         drip_drain.next_room(rows, part_of_day)
         say(f"# {part_of_day}, {CSV_PATH.name}: {len(rows)} rows")
         if not pen.connected:
-            say("# waiting for the pen to connect, Q TO QUIT")
+            say("# waiting for the pen to connect. Make sure the pen is turned on, Q TO QUIT")
             if not await alongside(pen_task, wait_for_pen()):
                 return
         start_room()
-        # q ends read_keys
+        # q ends read_keys, and so does the last room done
         await alongside(pen_task, read_keys())
+        if all_done:
+            await alongside(pen_task, save_csv())
+            say(room_separator(None))
+            await alongside(pen_task, wait_for_q())
     except BridgeGone as error:
         # the window was closed with the bridge in it, so nobody is left to press q
         say(f"# {error}, quitting")
