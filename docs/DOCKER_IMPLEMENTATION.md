@@ -194,10 +194,8 @@ DBT_HOST=postgres
 # the port inside the docker network, where the postgres container always listens (5432).
 # not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
 DBT_PORT=5432
-DBT_DBNAME=DataWarehouse
-# postgres until the roles exist (step 3, postponed), then the transformer role
-DBT_USER=postgres
-DBT_ENV_SECRET_PASSWORD=the POSTGRES_PASSWORD from .env
+# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
+# env file (.env or .env.prod), set in compose.yaml: written once per environment
 # time zone of the container (its clock and date). dbt itself always logs in UTC, whatever this says
 TZ=Europe/Amsterdam
 ```
@@ -305,10 +303,8 @@ POSTGRESQL_SERVER=postgres
 # the port inside the docker network, where the postgres container always listens (5432).
 # not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
 POSTGRESQL_PORT=5432
-POSTGRESQL_DB=DataWarehouse
-# postgres until the roles exist (step 3, postponed), then the loader role
-POSTGRESQL_USER=postgres
-POSTGRESQL_PASSWORD=the POSTGRES_PASSWORD from .env
+# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
+# env file (.env or .env.prod), set in compose.yaml: written once per environment
 # each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR) and /inbox/corrections (CORRECTIONS_DIR)
 JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
 CORRECTIONS_WORKBOOK=journal_entries_corrections.xlsx

@@ -1,8 +1,10 @@
-# connection for dbt. every value comes from an environment variable, set by compose from .env.transformer
+# connection for dbt. every value comes from an environment variable, set by compose: host and port from the
+# environment's transformer env file, database, user and password from its project env file (see compose.yaml)
 DataWarehouseDbt:
-  target: dev
+  # one target for every environment: the environment comes from the connection, set per environment by compose
+  target: dw
   outputs:
-    dev:
+    dw:
       type: postgres
       host: "{{ env_var('DBT_HOST') }}"
       port: "{{ env_var('DBT_PORT') | as_number }}"

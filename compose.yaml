@@ -22,6 +22,12 @@ services:
     image: dbt:${RELEASE}
     # no env_file here: each environment's overlay sets its own. compose appends an overlay's env_file to this one,
     # so a file here would leak dev's values into prod for any variable the prod file leaves out
+    # the database, user and password of postgres above, from the project env file (.env or .env.prod), so each is
+    # written once per environment. environment wins over env_file. until the roles exist every service is postgres
+    environment:
+      DBT_DBNAME: ${POSTGRES_DB}
+      DBT_USER: ${POSTGRES_USER}
+      DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
@@ -34,6 +40,11 @@ services:
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: loader:${RELEASE}
     # no env_file here: each environment's overlay sets its own (see dbt)
+    # the database, user and password of postgres above, from the project env file (see dbt)
+    environment:
+      POSTGRESQL_DB: ${POSTGRES_DB}
+      POSTGRESQL_USER: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       # the inputs, read only (:ro), so the loader can never change an export or the workbook
       - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
