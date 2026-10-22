@@ -167,9 +167,10 @@ runs every `.sql` file in `/docker-entrypoint-initdb.d`, in alphabetical order. 
 is mounted there. The scripts that dropped and created the database were deleted; the scripts keep a number prefix for
 the order (the roles come after the DDL).
 
-The server's time zone is `Europe/Amsterdam`, set in `compose.yaml` with `-c timezone=... -c log_timezone=...` on the
-`postgres` command, so it applies to any volume, new or existing. The image's default is `Etc/UTC`, which would stamp
-the snapshots' `meta_valid_from` / `meta_valid_to` (`now()::timestamp`) in UTC.
+The server's time zone is `Europe/Amsterdam`, set in `compose.yaml` with `-c timezone="$TZ" -c log_timezone="$TZ"` on
+the `postgres` command, from the `TZ` of the service, so it applies to any volume, new or existing. The image's
+default is `Etc/UTC`, which every session would get, since no client sets its own. The snapshots' times are
+`timestamptz` (`macros/snapshot_get_time.sql`), so they do not depend on it.
 
 The init scripts run **only on an empty volume**. On an existing volume a changed `01_` script does nothing; see
 [Migrations](#migrations).

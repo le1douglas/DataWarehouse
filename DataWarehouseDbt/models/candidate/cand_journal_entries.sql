@@ -1,6 +1,6 @@
 -- the proposed silver: corrections applied, then derived columns. this is what the reviewer sees.
 -- every column except row_id is still text: it is cast in silver, and the castable test checks it before
--- all the datetimes are without time zone, the time zone is only assigned in silver
+-- every datetime is text with its time zone written, the source's or the one staging appends
 -- the tests run on this view, silver is rebuilt only when all of them pass
 -- the positions that are recorded, in the order they recorded in
 {% set positions = ["drip_left", "drip_right", "drain_left", "drain_right"] %}
@@ -25,8 +25,9 @@ with
         left join corrections as c on s.row_id = c.row_id
     ),
 
-    -- date_time is text in the shape YYYY-MM-DD HH:MM:SS, from staging and from corrections, so its text sorts in time
-    -- order. date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
+    -- date_time is text, sorted as text: it sorts in time order while every row of a dataset has the same format, as
+    -- one source writes them. a correction must keep the format of its source (the corrections workbook's job).
+    -- date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
     identify_room_entry_index as (
         select
             *,

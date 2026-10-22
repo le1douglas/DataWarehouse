@@ -9,7 +9,7 @@ ROW_ID = "0199d8a4-7c7e-7b3a-9d5e-2f1c8a6b4e10"
 
 VALID_ROW = {
     "row_id": ROW_ID,
-    "date_time": "2026-09-17 15:13:08",
+    "date_time": "2026-09-17T15:13:08 Europe/Amsterdam",
     "subject": "ONE-A1F0",
     "type": "measurement",
     "ml": "250",
@@ -27,7 +27,7 @@ def test_valid_row():
 
     assert row.model_dump() == {
         "row_id": UUID(ROW_ID),
-        "date_time": "2026-09-17 15:13:08",
+        "date_time": "2026-09-17T15:13:08 Europe/Amsterdam",
         "subject": "ONE-A1F0",
         "type": "measurement",
         "ml": "250",
@@ -49,22 +49,21 @@ def test_metadata_column_is_refused(column, value):
         CorrRecordJournalEntries(**VALID_ROW, **{column: value})
 
 
-# candidate sorts room groups by the text of date_time, so only the shape YYYY-MM-DD HH:MM:SS is accepted,
-# even for a value that is a valid timestamp
+# date_time is not checked here, in any format: a value that cannot be cast, or has no time zone written, is reported
+# by the castable test in dbt
 @pytest.mark.parametrize(
     "date_time",
-    ["2026-9-17 15:02:12", "2026-09-17 9:02:12", "2026-09-17T15:02:12", "2026-09-17 15:02:12.5", "2026-09-17 15:02"],
+    [
+        "2026-09-17T15:13:08.363212 Europe/Amsterdam",
+        "2026-09-17T13:13:08Z",
+        "2026-09-17 15:13:08",
+        "2026-09-17 25:00:00 Europe/Amsterdam",
+    ],
 )
-def test_date_time_in_another_shape_is_refused(date_time):
-    with pytest.raises(ValidationError):
-        CorrRecordJournalEntries(**{**VALID_ROW, "date_time": date_time})
+def test_date_time_is_accepted_as_it_is(date_time):
+    row = CorrRecordJournalEntries(**{**VALID_ROW, "date_time": date_time})
 
-
-# the shape is checked, not the value: a date_time that is not a timestamp is reported by the castable test in dbt
-def test_date_time_in_the_shape_that_is_not_a_timestamp_is_accepted():
-    row = CorrRecordJournalEntries(**{**VALID_ROW, "date_time": "2026-09-17 25:00:00"})
-
-    assert row.date_time == "2026-09-17 25:00:00"
+    assert row.date_time == date_time
 
 
 # the measurements are text: a value that is not a number is reported by the castable test in dbt, not refused here

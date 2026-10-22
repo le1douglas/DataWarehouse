@@ -1,8 +1,14 @@
+# the time zone of every container (its clock and date), written only here: a time without a zone is assumed to be amsterdam
+x-timezone: &timezone Europe/Amsterdam
+
 services:
   postgres:
     image: postgres:18
-    command: postgres -c timezone=Europe/Amsterdam -c log_timezone=Europe/Amsterdam #all timestamp without timezone are assumed to be amsterdam. so we set it as a delfault here as well.
+    # the server's time zone from TZ, so the zone stays written once. compose would replace $TZ itself, $$ leaves it to sh.
+    # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would
+    command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\""]
     environment:
+      TZ: *timezone
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -28,6 +34,7 @@ services:
     # the database, user and password of postgres above, from the project env file (.env or .env.prod), so each is
     # written once per environment. environment wins over env_file. until the roles exist every service is postgres
     environment:
+      TZ: *timezone # dbt itself always logs in UTC, whatever this says
       DBT_DBNAME: ${POSTGRES_DB}
       DBT_USER: ${POSTGRES_USER}
       DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
@@ -45,6 +52,7 @@ services:
     # no env_file here: each environment's overlay sets its own (see dbt)
     # the database, user and password of postgres above, from the project env file (see dbt)
     environment:
+      TZ: *timezone # CSVReader stamps meta_extract_date_time in it, read by src/datawarehouse/config.py
       POSTGRESQL_DB: ${POSTGRES_DB}
       POSTGRESQL_USER: ${POSTGRES_USER}
       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
@@ -65,6 +73,8 @@ services:
       dockerfile: docker/datastreamer/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: datastreamer:${RELEASE}
+    environment:
+      TZ: *timezone # stamps each reading and names the daily csv, read by src/bluelab_datastreamer/drip_drain.py
     volumes:
       # where the csv of a part of the day is saved once every room is done
       - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv

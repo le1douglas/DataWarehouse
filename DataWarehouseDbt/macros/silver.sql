@@ -12,18 +12,8 @@
 {% endmacro %}
 
 {#
-    true when a column is declared with a time zone. its text has none, so silver assigns var("timezone") to it and
-    the castable test checks it as a timestamp without zone.
-    used by silver_select (below) and by aud_castable (macros/aud_castable.sql)
-#}
-{% macro is_timestamptz(col) %}
-    {{ return((col.data_type | lower).startswith("timestamptz")) }}
-{% endmacro %}
-
-
-{#
     the select of slvr_<dataset>: row_id unchanged, every other column of its yml cast from the candidate to its
-    data_type. a timestamptz column first gets the time zone var("timezone"), the same rule for every dataset.
+    data_type. a timestamptz column is cast like the others: its text has its time zone written since staging.
     the casts are not guarded: aud_<dataset>__castable has already checked every value.
     a candidate column that is not in the yml is not published.
     used by the silver models (models/silver/slvr_<dataset>.sql)
@@ -33,8 +23,7 @@ select
     row_id
     {%- for col in silver_columns(dataset) %}
         {%- set name = adapter.quote(col.name) %}
-        {%- set value = "(" ~ name ~ "::timestamp at time zone '" ~ var("timezone") ~ "')" if is_timestamptz(col) else name %}
-    , {{ value }}::{{ col.data_type }} as {{ name }}
+    , {{ name }}::{{ col.data_type }} as {{ name }}
     {%- endfor %}
 from {{ ref("cand_" ~ dataset) }}
 {% endmacro %}

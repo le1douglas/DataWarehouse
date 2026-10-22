@@ -9,6 +9,7 @@ from datawarehouse.config import (
     POSTGRES_CONFIG,
     TBL_BRNZ_JOURNAL_ENTRIES,
     TBL_CORR_JOURNAL_ENTRIES,
+    TIMEZONE,
 )
 from datawarehouse.databases.sql_postgres_database import PostgreSQLDatabase
 from datawarehouse.loaders.loader import Loader
@@ -20,7 +21,7 @@ from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalE
 
 # csv -> bronze
 def load_bronze() -> None:
-    df_csv = CSVReader.read(JOURNAL_ENTRIES_CSV)
+    df_csv = CSVReader.read(JOURNAL_ENTRIES_CSV, TIMEZONE)
     record_set = Loader.load(df_csv, BrnzRecordJournalEntries)
     print(record_set.rows[0])
 

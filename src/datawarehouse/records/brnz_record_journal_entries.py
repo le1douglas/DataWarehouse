@@ -21,7 +21,7 @@ class BrnzRecordJournalEntries(BrnzRecord):
     that intent is preserved as-is, not conflated with a missing value.
     """
 
-    date_time: str = Field(max_length=50)
+    date_time: str = Field(max_length=100)  # with a time zone name, see the table's DDL
     subject: str = Field(max_length=50)
     notes: Optional[str] = Field(max_length=400)
     type: Optional[str] = Field(max_length=50)
