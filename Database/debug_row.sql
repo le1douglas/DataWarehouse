@@ -25,26 +25,26 @@ WITH params AS (
 -- every fact the summary can show, named as in debug_journal_entry.sql
 facts AS (
     SELECT 'meta_bronze' AS origin, m.kind::TEXT AS kind, m.description::TEXT AS description
-    FROM dev_bronze.meta_bronze AS m
+    FROM dw_bronze.meta_bronze AS m
     JOIN params AS p ON m.row_id = p.row_id
     UNION ALL
     -- the row_id is a uuidv7 assigned on insert into bronze, so its timestamp is when the row was loaded
     SELECT 'meta_bronze', 'meta_bronze_load_date_time', uuid_extract_timestamp(b.row_id)::TEXT
-    FROM dev_bronze.brnz_journal_entries AS b
+    FROM dw_bronze.brnz_journal_entries AS b
     JOIN params AS p ON b.row_id = p.row_id
     UNION ALL
     SELECT 'meta_corrections', m.kind::TEXT, m.description::TEXT
-    FROM dev_corrections.meta_corrections AS m
+    FROM dw_corrections.meta_corrections AS m
     JOIN params AS p ON m.row_id = p.row_id
     UNION ALL
     -- the newest version is the one with the latest meta_valid_from
     SELECT 'snap_meta_corrections', s.kind || '.newest.meta_valid_from', MAX(s.meta_valid_from)::TEXT
-    FROM dev_snapshots.snap_meta_corrections AS s
+    FROM dw_snapshots.snap_meta_corrections AS s
     JOIN params AS p ON s.row_id = p.row_id
     GROUP BY s.kind
     UNION ALL
     SELECT 'snap_slvr_journal_entries', 'newest.meta_valid_from', MAX(s.meta_valid_from)::TEXT
-    FROM dev_snapshots.snap_slvr_journal_entries AS s
+    FROM dw_snapshots.snap_slvr_journal_entries AS s
     JOIN params AS p ON s.row_id = p.row_id
     GROUP BY s.row_id
 ),
@@ -82,11 +82,11 @@ WITH layers AS (
     SELECT t.table_schema, t.table_name, l.layer_order, l.layer
     FROM (
         VALUES
-            (1, 'bronze', 'dev_bronze', 'brnz'),
-            (2, 'staging', 'dev_staging', 'stg'),
-            (3, 'corrections', 'dev_corrections', 'corr'),
-            (4, 'candidate', 'dev_candidate', 'cand'),
-            (5, 'silver', 'dev_silver', 'slvr')
+            (1, 'bronze', 'dw_bronze', 'brnz'),
+            (2, 'staging', 'dw_staging', 'stg'),
+            (3, 'corrections', 'dw_corrections', 'corr'),
+            (4, 'candidate', 'dw_candidate', 'cand'),
+            (5, 'silver', 'dw_silver', 'slvr')
     ) AS l (layer_order, layer, schema_name, prefix)
     JOIN information_schema.tables AS t
         ON t.table_schema = l.schema_name AND t.table_name = l.prefix || '_' || current_setting('debug.dataset')
@@ -141,7 +141,7 @@ ORDER BY MIN(layer_order * 1000 + column_order);
 -- AUDIT
 -- the rules failed in the last full build
 SELECT a.*
-FROM dev_audit.aud_journal_entries AS a
+FROM dw_audit.aud_journal_entries AS a
 WHERE a.row_id = current_setting('debug.row_id')::UUID
 ORDER BY a.kind;
 
@@ -152,11 +152,11 @@ ORDER BY a.kind;
 -- BRONZE
 
 SELECT b.*
-FROM dev_bronze.brnz_journal_entries AS b
+FROM dw_bronze.brnz_journal_entries AS b
 WHERE b.row_id = current_setting('debug.row_id')::UUID;
 
 SELECT m.*
-FROM dev_bronze.meta_bronze AS m
+FROM dw_bronze.meta_bronze AS m
 WHERE m.row_id = current_setting('debug.row_id')::UUID
 ORDER BY m.kind;
 
@@ -164,37 +164,37 @@ ORDER BY m.kind;
 -- STAGING
 
 SELECT s.*
-FROM dev_staging.stg_journal_entries AS s
+FROM dw_staging.stg_journal_entries AS s
 WHERE s.row_id = current_setting('debug.row_id')::UUID;
 
 
 -- CANDIDATE
 
 SELECT c.*
-FROM dev_candidate.cand_journal_entries AS c
+FROM dw_candidate.cand_journal_entries AS c
 WHERE c.row_id = current_setting('debug.row_id')::UUID;
 
 
 -- CORRECTIONS
 
 SELECT c.*
-FROM dev_corrections.corr_journal_entries AS c
+FROM dw_corrections.corr_journal_entries AS c
 WHERE c.row_id = current_setting('debug.row_id')::UUID;
 
 SELECT m.*
-FROM dev_corrections.meta_corrections AS m
+FROM dw_corrections.meta_corrections AS m
 WHERE m.row_id = current_setting('debug.row_id')::UUID
 ORDER BY m.kind;
 
 -- every version, oldest first
 SELECT s.*
-FROM dev_snapshots.snap_corr_journal_entries AS s
+FROM dw_snapshots.snap_corr_journal_entries AS s
 WHERE s.row_id = current_setting('debug.row_id')::UUID
 ORDER BY s.meta_valid_from;
 
 -- every version of each kind, oldest first
 SELECT s.*
-FROM dev_snapshots.snap_meta_corrections AS s
+FROM dw_snapshots.snap_meta_corrections AS s
 WHERE s.row_id = current_setting('debug.row_id')::UUID
 ORDER BY s.kind, s.meta_valid_from;
 
@@ -203,7 +203,7 @@ ORDER BY s.kind, s.meta_valid_from;
 
 -- the rules failed in the last full build
 SELECT a.*
-FROM dev_audit.aud_journal_entries AS a
+FROM dw_audit.aud_journal_entries AS a
 WHERE a.row_id = current_setting('debug.row_id')::UUID
 ORDER BY a.kind;
 
@@ -211,12 +211,12 @@ ORDER BY a.kind;
 -- SILVER
 
 SELECT s.*
-FROM dev_silver.slvr_journal_entries AS s
+FROM dw_silver.slvr_journal_entries AS s
 WHERE s.row_id = current_setting('debug.row_id')::UUID;
 
 -- every version, oldest first
 SELECT s.*
-FROM dev_snapshots.snap_slvr_journal_entries AS s
+FROM dw_snapshots.snap_slvr_journal_entries AS s
 WHERE s.row_id = current_setting('debug.row_id')::UUID
 ORDER BY s.meta_valid_from;
 

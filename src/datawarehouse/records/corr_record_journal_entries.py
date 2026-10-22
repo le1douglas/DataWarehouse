@@ -7,7 +7,7 @@ from datawarehouse.records.corr_record import CorrRecord
 
 class CorrRecordJournalEntries(CorrRecord):
     """
-    One row of dev_corrections.corr_journal_entries.
+    One row of dw_corrections.corr_journal_entries.
 
     row_id is the key, unique in the table. It is declared in CorrRecord.
     Every column except row_id is text, like in staging, matching VARCHAR

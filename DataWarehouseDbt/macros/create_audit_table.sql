@@ -73,7 +73,7 @@
             description varchar(400) not null,
             constraint pk_aud_{{ dataset }} primary key (row_id, kind),
             constraint fk_aud_{{ dataset }}_row_id foreign key (row_id)
-            references {{ source("dev_bronze", "brnz_" ~ dataset) }} (row_id)
+            references {{ source("dw_bronze", "brnz_" ~ dataset) }} (row_id)
         );
         insert into {{ audit_table }} (row_id, kind, description)
         {{ failures | join("\nunion all\n") }};

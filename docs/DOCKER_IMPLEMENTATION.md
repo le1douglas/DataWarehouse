@@ -142,8 +142,8 @@ psql -U postgres -d DataWarehouse -c "\dt dev_*.*"
 ```
 
 Expected: `Europe/Amsterdam`, a `now()` with the Amsterdam offset (`+02` in summer, `+01` in winter), and four tables:
-`dev_bronze.brnz_journal_entries`, `dev_bronze.meta_bronze`, `dev_corrections.corr_journal_entries`,
-`dev_corrections.meta_corrections`.
+`dw_bronze.brnz_journal_entries`, `dw_bronze.meta_bronze`, `dw_corrections.corr_journal_entries`,
+`dw_corrections.meta_corrections`.
 
 After changing `compose.yaml` or `.env`, apply it with `up -d` (it recreates the container and keeps the volume); a
 restart keeps the old settings.
@@ -286,10 +286,11 @@ On an empty bronze, expected: `Found 3 models, 2 data tests, 1 operation, 3 snap
 Then, in VS Code on the `localhost:5432` connection:
 
 ```sql
-SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'dev_%' ORDER BY 1;
+SELECT schema_name FROM information_schema.schemata
+WHERE schema_name IN ('dw_audit', 'dw_bronze', 'dw_candidate', 'dw_corrections', 'dw_silver', 'dw_snapshots', 'dw_staging') ORDER BY 1;
 ```
 
-Expected: `dev_audit`, `dev_bronze`, `dev_candidate`, `dev_corrections`, `dev_silver`, `dev_snapshots`, `dev_staging`.
+Expected: `dw_audit`, `dw_bronze`, `dw_candidate`, `dw_corrections`, `dw_silver`, `dw_snapshots`, `dw_staging`.
 
 ## 5. The `loader` image
 
@@ -364,7 +365,7 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm loader bronze
 ```
 
 Expected: `Loading CSV file: /inbox/exports/drip_drain_csv/journal-entries.csv`, `Connection successful`,
-`Loaded <n> rows into dev_bronze.brnz_journal_entries` and `Loaded <2n> rows into dev_bronze.meta_bronze`, and in
+`Loaded <n> rows into dw_bronze.brnz_journal_entries` and `Loaded <2n> rows into dw_bronze.meta_bronze`, and in
 the printed first row a `meta_extract_date_time` in local time (Amsterdam), not UTC.
 
 ### 5.5 `dbt build` on the loaded data
@@ -375,10 +376,10 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt build
 
 Before any corrections, the data tests flag rows and silver is skipped: this is the first half of the loop, not a
 problem with the setup. With the sample CSV, expected: `FAIL 1 aud_journal_entries__castable`,
-`FAIL 8 aud_journal_entries__position_index_max_4`, `SKIP` for `dev_silver.slvr_journal_entries` and
-`dev_snapshots.snap_slvr_journal_entries`, the `on-run-end` hook `OK`, and
+`FAIL 8 aud_journal_entries__position_index_max_4`, `SKIP` for `dw_silver.slvr_journal_entries` and
+`dw_snapshots.snap_slvr_journal_entries`, the `on-run-end` hook `OK`, and
 `Done. PASS=5 WARN=0 ERROR=2 SKIP=2`. The command exits with an error, so Docker prints its "What's next" lines.
-The flagged rows are in `dev_audit.aud_journal_entries` (9 rows), candidate has every row of bronze.
+The flagged rows are in `dw_audit.aud_journal_entries` (9 rows), candidate has every row of bronze.
 
 ### 5.6 Load corrections and build silver
 
@@ -391,17 +392,17 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm dbt build
 ```
 
 Expected from the load: `Loading Excel file: /inbox/corrections/<workbook>`, `Connection successful`,
-`Loaded <n> rows into dev_corrections.corr_journal_entries`, `Loaded <2n> rows into dev_corrections.meta_corrections`.
+`Loaded <n> rows into dw_corrections.corr_journal_entries`, `Loaded <2n> rows into dw_corrections.meta_corrections`.
 When the corrections fix every flagged row, expected from the build: both tests `PASS`,
-`OK created sql table model dev_silver.slvr_journal_entries`, `Done. PASS=9 WARN=0 ERROR=0 SKIP=0`, and
-`dev_audit.aud_journal_entries` empty.
+`OK created sql table model dw_silver.slvr_journal_entries`, `Done. PASS=9 WARN=0 ERROR=0 SKIP=0`, and
+`dw_audit.aud_journal_entries` empty.
 
 ### 5.7 Check Excel
 
 New blank workbook → **Data** → **Get Data** → **From Other Sources** → **From ODBC** → DSN `PostgreSQL_DataWarehouse`
 → **OK** (if asked for credentials: **Default or Custom** → **Connect**). In the **Navigator**, check **Select multiple
-items**, select `dev_candidate.cand_journal_entries`, `dev_audit.aud_journal_entries` and
-`dev_silver.slvr_journal_entries`, then **Load**.
+items**, select `dw_candidate.cand_journal_entries`, `dw_audit.aud_journal_entries` and
+`dw_silver.slvr_journal_entries`, then **Load**.
 
 Expected in **Queries & Connections**: candidate and silver with every row of bronze, silver's `date_time` as a date
 and time. The audit table has only its headers (`row_id`, `kind`, `description`) when the last build flagged nothing,

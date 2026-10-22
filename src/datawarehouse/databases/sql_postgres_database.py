@@ -4,8 +4,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError, ProgrammingError
 
 from datawarehouse.config import (
-    DB_DEV_SCHEMA_BRONZE,
-    DB_DEV_SCHEMA_CORRECTIONS,
+    DB_SCHEMA_BRONZE,
+    DB_SCHEMA_CORRECTIONS,
     TBL_META_BRONZE,
     TBL_META_CORRECTIONS,
 )
@@ -40,12 +40,12 @@ class PostgreSQLDatabase:
             raise
 
     # bronze only ever appends: row_id is assigned by the database, so a row is never already there
-    def load_to_dev_bronze(self, table_name: str, record_set: RecordSet):
-        self._load(DB_DEV_SCHEMA_BRONZE, table_name, TBL_META_BRONZE, record_set, upsert=False)
+    def load_to_bronze(self, table_name: str, record_set: RecordSet):
+        self._load(DB_SCHEMA_BRONZE, table_name, TBL_META_BRONZE, record_set, upsert=False)
 
     # a correction replaces the earlier correction of the same row_id
-    def load_to_dev_corrections(self, table_name: str, record_set: RecordSet):
-        self._load(DB_DEV_SCHEMA_CORRECTIONS, table_name, TBL_META_CORRECTIONS, record_set, upsert=True)
+    def load_to_corrections(self, table_name: str, record_set: RecordSet):
+        self._load(DB_SCHEMA_CORRECTIONS, table_name, TBL_META_CORRECTIONS, record_set, upsert=True)
 
     # meta_table_name is the meta table of the layer, i.e. "meta_bronze"
     def _load(self, layer: str, table_name: str, meta_table_name: str, record_set: RecordSet, upsert: bool):

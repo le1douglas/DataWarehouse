@@ -7,7 +7,7 @@ from datawarehouse.records.brnz_record import BrnzRecord
 
 class BrnzRecordJournalEntries(BrnzRecord):
     """
-    One row of dev_bronze.brnz_journal_entries.
+    One row of dw_bronze.brnz_journal_entries.
 
     Bronze does no type conversion on source data — every source field
     stays a string, matching VARCHAR in PostgreSQL, even where the

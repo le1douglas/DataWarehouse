@@ -5,7 +5,6 @@
 - files oustise the repo should be read only. if nedded, ask for permission
 - `docs/CODING_STANDARDS.md` hold the naming conventions and the programming style guide
 - `docs/GLOSSARY.md` hold domain modeling names, related to it, there is the /mattpocock-skills:domain-modeling skill
-- `docs/DATA_FLOW_DIAGRAM.md` The diagram of the pipeline. Update it when an object or a dependency between objects changes.
 - windows tooling is minimal, most of the work happens inside docker containers
 - the usual work setup is
     - Window 1: where calude code lives, with an oveeview of the whole repo
@@ -15,6 +14,8 @@
 - Datetimes have no time zone anywhere before silver, and are cut to the second. Silver is the only place a zone is assigned, from the `timezone` var (`Europe/Amsterdam`). dates are aussmed to be `Europe/Amsterdam` when not specified. Warn every time this assuption is not true
 - Empty string means null. The decimal separator is `.`
 - In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` or `"position"` arrive unquoted and fail or hit the wrong object. Run such statements through the Bash tool instead.
+- A library must not be installed by hand (pip install x in the dev container terminal) and must be added to the Dockerfile instead.
+- in dbt: for package added to packages.yml,  package-lock.yml must also be considered.
 
 Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
 

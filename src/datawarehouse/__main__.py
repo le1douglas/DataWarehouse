@@ -18,7 +18,7 @@ from datawarehouse.records.brnz_record_journal_entries import BrnzRecordJournalE
 from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalEntries
 
 
-# csv -> dev_bronze
+# csv -> bronze
 def load_bronze() -> None:
     df_csv = CSVReader.read(JOURNAL_ENTRIES_CSV)
     record_set = Loader.load(df_csv, BrnzRecordJournalEntries)
@@ -26,10 +26,10 @@ def load_bronze() -> None:
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
     postgres.connect()
-    postgres.load_to_dev_bronze(TBL_BRNZ_JOURNAL_ENTRIES, record_set)
+    postgres.load_to_bronze(TBL_BRNZ_JOURNAL_ENTRIES, record_set)
 
 
-# excel -> dev_corrections
+# excel -> corrections
 def load_corrections() -> None:
     df_excel = ExcelReader.read(CORRECTIONS_WORKBOOK, sheet=CORRECTIONS_SHEET)
     record_set = Loader.load(df_excel, CorrRecordJournalEntries)
@@ -37,7 +37,7 @@ def load_corrections() -> None:
 
     postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
     postgres.connect()
-    postgres.load_to_dev_corrections(TBL_CORR_JOURNAL_ENTRIES, record_set)
+    postgres.load_to_corrections(TBL_CORR_JOURNAL_ENTRIES, record_set)
 
 
 
@@ -56,7 +56,7 @@ LOADS = {
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m datawarehouse", description="Load one input of the warehouse.")
-    parser.add_argument("load", choices=LOADS, help="bronze: csv -> dev_bronze, corrections: excel -> dev_corrections")
+    parser.add_argument("load", choices=LOADS, help="bronze: csv -> bronze, corrections: excel -> corrections")
     args = parser.parse_args()
     LOADS[args.load]()
 

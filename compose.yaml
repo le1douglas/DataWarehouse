@@ -20,7 +20,8 @@ services:
       dockerfile: docker/dbt/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: dbt:${RELEASE}
-    env_file: .env.transformer
+    # no env_file here: each environment's overlay sets its own. compose appends an overlay's env_file to this one,
+    # so a file here would leak dev's values into prod for any variable the prod file leaves out
     depends_on:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
@@ -32,7 +33,7 @@ services:
       dockerfile: docker/loader/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: loader:${RELEASE}
-    env_file: .env.loader
+    # no env_file here: each environment's overlay sets its own (see dbt)
     volumes:
       # the inputs, read only (:ro), so the loader can never change an export or the workbook
       - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro

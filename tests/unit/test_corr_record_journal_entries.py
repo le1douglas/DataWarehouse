@@ -21,7 +21,7 @@ VALID_ROW = {
 }
 
 
-# the row is exactly the columns of dev_corrections.corr_journal_entries, in the same order
+# the row is exactly the columns of dw_corrections.corr_journal_entries, in the same order
 def test_valid_row():
     row = CorrRecordJournalEntries(**VALID_ROW)
 

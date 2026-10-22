@@ -2,6 +2,6 @@ snapshots:
   - name: snap_corr_journal_entries
     description: Every version of the corrections of journal entries. Runs on every build, also when a data test fails,
                 so a correction that was rejected is recorded too.
-    relation: source("dev_corrections", "corr_journal_entries")
+    relation: source("dw_corrections", "corr_journal_entries")
     config:
       unique_key: row_id

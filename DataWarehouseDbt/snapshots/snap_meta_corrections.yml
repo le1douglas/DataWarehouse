@@ -2,6 +2,6 @@ snapshots:
   - name: snap_meta_corrections
     description: Every version of the metadata of corrections, such as who reviewed a journal entry and when.
                 Runs on every build, also when a data test fails.
-    relation: source("dev_corrections", "meta_corrections")
+    relation: source("dw_corrections", "meta_corrections")
     config:
       unique_key: [row_id, kind]
