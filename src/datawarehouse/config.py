@@ -12,8 +12,8 @@ POSTGRES_CONFIG = {
 }
 
 # the schemas that python loads into, everything else is created by dbt
-DB_DEV_SCHEMA_BRONZE = "dev_bronze"
-DB_DEV_SCHEMA_CORRECTIONS = "dev_corrections"
+DB_SCHEMA_BRONZE = "dw_bronze"
+DB_SCHEMA_CORRECTIONS = "dw_corrections"
 
 TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
 TBL_CORR_JOURNAL_ENTRIES = "corr_journal_entries"

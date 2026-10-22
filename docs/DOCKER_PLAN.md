@@ -190,15 +190,16 @@ read-only user for the ODBC DSN.
 
 The roles are postponed in phase 1: dbt, the loader, Grafana and Excel connect as `postgres` until they exist, with
 user and password read from their env files, so adding the roles changes only those files. On dev a reset then
-recreates dbt's objects under `transformer`. The roles must exist before prod starts (phase 2), and `reader` before
-OpenMetadata (phase 3).
+recreates dbt's objects under `transformer`. Prod starts without them (decided 2026-10-22, infrastructure first):
+it connects as `postgres` with its own password, and adding the roles later is a prod migration (`REASSIGN OWNED`,
+grants). `reader` must exist before OpenMetadata (phase 3).
 
 ### Schema names
 
 With one database per environment, the environment comes from the connection, and schemas no longer need the `dev_`
-prefix (`bronze`, `silver` instead of `dev_bronze`, `dev_silver`). This settles the "source names contain `dev_`"
-reminder in `CLAUDE.md`. It is the largest code change of the move, so it is done in phase 2, when prod comes; phase 1
-keeps the current names.
+prefix. Done on 2026-10-22: the schemas are `dw_bronze`, `dw_silver`, ..., the same in dev and prod. `dw_` is dbt's
+default prefix from the profile's `schema: dw`, chosen over a `generate_schema_name` override that would give plain
+`bronze`, `silver`.
 
 ### Volumes are the data
 

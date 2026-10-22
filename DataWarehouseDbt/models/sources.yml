@@ -1,16 +1,16 @@
 
 sources:
-  - name: dev_bronze
+  - name: dw_bronze
     description: An input layer. The store of all raw data, exactly as received from the sources, one table per source.
                 It has meaning on its own. Everything is stored as text and almost nothing is asserted about it.
                 It has no "meta_" columns, the metadata created at ingestion is in the meta table of the layer.
     tables:
       - name: brnz_journal_entries
         description: csv data coming from the app "edenic" developed by bluelab.
-  - name: dev_corrections
+  - name: dw_corrections
     description: An input layer. The latest correction of each journal entry, as uploaded by reviewers from external tools
                 (for example excel). It has meaning only for journal entries already in the warehouse.
-                Earlier corrections are in dev_snapshots.
+                Earlier corrections are in dw_snapshots.
     tables:
       - name: corr_journal_entries
       - name: meta_corrections

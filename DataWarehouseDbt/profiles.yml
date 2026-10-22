@@ -9,5 +9,5 @@ DataWarehouseDbt:
       dbname: "{{ env_var('DBT_DBNAME') }}"
       user: "{{ env_var('DBT_USER') }}"
       password: "{{ env_var('DBT_ENV_SECRET_PASSWORD') }}"
-      schema: dev # -> dev_staging, dev_candidate, dev_audit, dev_silver, dev_snapshots
+      schema: dw # dbt's default prefix: dw_staging, dw_candidate, dw_audit, dw_silver, dw_snapshots
       threads: 1

@@ -29,9 +29,9 @@ classDiagram
         - \_\_init__(db_server: str, db_name: str, db_user: str, db_password: str, db_port: int)
         + connect()
         + table_exists(layer: str, table_name: str) bool
-        + load_to_dev_corrections(table_name: str, record_set: RecordSet, key_columns: list[str])
+        + load_to_corrections(table_name: str, record_set: RecordSet, key_columns: list[str])
         - \_upsert(layer: str, table_name: str, record_set: RecordSet, key_columns: list[str])
-        + load_to_dev_bronze(table_name: str, record_set: RecordSet)
+        + load_to_bronze(table_name: str, record_set: RecordSet)
         - \_load_to_bronze(layer: str, table_name: str, meta_table_name: str, record_set: RecordSet)
     }
 

@@ -52,6 +52,6 @@ def test_corrections_and_metadata_about_different_row_ids_are_refused(
     meta_record_set = RecordSet(rows=[metadata(row_id) for row_id in metadata_row_ids])
 
     with pytest.raises(ValueError, match=refused_row_id):
-        unreachable_database.load_to_dev_corrections(
+        unreachable_database.load_to_corrections(
             "corr_journal_entries", record_set, ["row_id"], "meta_corrections", meta_record_set
         )

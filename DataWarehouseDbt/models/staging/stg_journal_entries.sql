@@ -6,7 +6,7 @@ with
         select
             -- the key, assigned by bronze. it is carried through every step unchanged
             row_id, date_time, subject, notes, type, ec, ph, temp, tags as room_raw
-        from {{ source("dev_bronze", "brnz_journal_entries") }}
+        from {{ source("dw_bronze", "brnz_journal_entries") }}
 
     ),
 

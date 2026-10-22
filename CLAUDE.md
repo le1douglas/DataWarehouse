@@ -5,7 +5,6 @@
 - files oustise the repo should be read only. if nedded, ask for permission
 - `docs/CODING_STANDARDS.md` hold the naming conventions and the programming style guide
 - `docs/GLOSSARY.md` hold domain modeling names, related to it, there is the /mattpocock-skills:domain-modeling skill
-- `docs/DATA_FLOW_DIAGRAM.md` The diagram of the pipeline. Update it when an object or a dependency between objects changes.
 - windows tooling is minimal, most of the work happens inside docker containers
 - the usual work setup is
     - Window 1: where calude code lives, with an oveeview of the whole repo
