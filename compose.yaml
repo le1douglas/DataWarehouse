@@ -11,6 +11,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
       - ./Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
+      # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
+      # in the repo, ignored by git. a convenience for development, not the backups of prod
+      - ./Database/dumps:/dumps
     restart: unless-stopped
 
   # a job: "docker compose run --rm dbt <command>" runs one dbt command, then the container exits

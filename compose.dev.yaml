@@ -4,6 +4,11 @@
 name: dw-dev
 
 services:
+  postgres:
+    volumes:
+      # replaces the mount of compose.yaml at the same path (/dumps): dev only reads the prod dumps, never changes one
+      - ./Database/dumps:/dumps:ro
+
   dbt:
     build:
       target: dev # runtime plus sqlfmt
