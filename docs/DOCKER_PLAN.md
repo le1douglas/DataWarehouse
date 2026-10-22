@@ -137,12 +137,13 @@ services:
   loader:
     build: { context: ., dockerfile: docker/loader/Dockerfile }
     image: loader:${RELEASE}
-    env_file: .env.loader
   dbt:
     build: { context: ., dockerfile: docker/dbt/Dockerfile }
     image: dbt:${RELEASE}
-    env_file: .env.transformer
 ```
+
+The env files of the loader and dbt are not in `compose.yaml`: each overlay (`compose.dev.yaml`, `compose.prod.yaml`)
+sets its own, because compose appends an overlay's `env_file` to the base one instead of replacing it.
 
 `RELEASE` is set once in the environment's env file (`RELEASE=dev`, `RELEASE=1.4`). Changing that one line moves both
 images, forwards or back.
