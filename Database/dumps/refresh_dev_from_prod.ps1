@@ -18,10 +18,10 @@ function Assert-Ok([string]$step) {
 }
 
 $database = "DataWarehouse"
-$prod = @("compose", "-f", "compose.yaml", "-f", "compose.prod.yaml", "--env-file", ".env.prod")
-$dev = @("compose", "-f", "compose.yaml", "-f", "compose.dev.yaml")
+$prod = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.prod.yaml", "--env-file", "docker/.env.prod")
+$dev = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.dev.yaml")
 
-# compose needs the repo root: the compose files, the env files, and ./Database/dumps for the mounts
+# the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..\..")
 try {
     if ($DumpFile -eq "") {

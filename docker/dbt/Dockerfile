@@ -1,5 +1,5 @@
 # the dbt job: runs one dbt command against the postgres service, then exits.
-# built from the repo root (build context in compose.yaml), so paths below are relative to the repo root
+# built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
 # runtime: only what the job needs to run. prod uses it as is, dev (and later ci) adds its own tools on top
 FROM python:3.14-slim AS runtime
 
@@ -25,7 +25,7 @@ RUN dbt deps
 ENTRYPOINT ["dbt"]
 CMD ["build"]
 
-# dev only (target: dev in compose.dev.yaml): runtime plus sqlfmt.
+# dev only (target: dev in docker/compose.dev.yaml): runtime plus sqlfmt.
 # jinjafmt formats the jinja inside the sql with black. the config is in pyproject.toml at the repo root
 FROM runtime AS dev
 

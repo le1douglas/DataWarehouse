@@ -1,5 +1,5 @@
 # the datastreamer: the drip and drain readings of the OnePen, taken on the terminal, until q.
-# built from the repo root (build context in compose.yaml), so paths below are relative to the repo root
+# built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
 # runtime: only what it needs to run. prod uses it as is, dev (and later ci) adds its own tools on top
 FROM python:3.14-slim AS runtime
 
@@ -18,7 +18,7 @@ COPY src/bluelab_datastreamer/ ./src/bluelab_datastreamer/
 # in src/bluelab_datastreamer: without the repo mounted (dev), it is lost with the container
 ENTRYPOINT ["python", "src/bluelab_datastreamer/drip_drain_cli.py"]
 
-# dev only (target: dev in compose.dev.yaml): runtime plus the tools for the python code.
+# dev only (target: dev in docker/compose.dev.yaml): runtime plus the tools for the python code.
 # their config is in pyproject.toml at the repo root
 FROM runtime AS dev
 
