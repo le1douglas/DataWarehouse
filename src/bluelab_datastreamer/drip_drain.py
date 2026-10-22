@@ -5,10 +5,12 @@ that cannot be used as an exception. Only the standard library.
 """
 
 import csv
+import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 CSV_PATH = Path(__file__).with_name("drip_drain.csv")
 CSV_COLUMNS = (
@@ -35,10 +37,19 @@ ROOMS = {
 # date and the number of the part of the day, such as 261020-1.csv. the path in the container, where
 # compose mounts the windows folder DAILY_RAW_CSV_DIR of .env
 DEFAULT_DAILY_DIR = Path("/daily_raw_csv")
+# the time zone of the readings and of the date in the daily csv name, from TZ, set once in docker/compose.yaml.
+# read here instead of taken from the container's clock, which falls back to UTC without an error: an empty or
+# unknown TZ stops the readings before the first one
+TIMEZONE = ZoneInfo(os.environ["TZ"])
 PART_NUMBERS = {"morning": 1, "afternoon": 2}
 READINGS_PER_ROOM = 4
 # the lines of a room, in the order they are taken
 LINE_NAMES = ("Drip Left", "Drip Right", "Drain Left", "Drain Right")
+
+
+def now() -> str:
+    """The time of a reading, in TIMEZONE but written without it, as in a journal entries export."""
+    return datetime.now(TIMEZONE).replace(tzinfo=None).isoformat(timespec="microseconds")
 
 
 def csv_values(ec: float | None, ph: float | None, temperature: float | None) -> dict:
@@ -244,7 +255,7 @@ def append_rows(rows: list[dict]) -> None:
 
 def daily_csv(daily_dir: Path, part_of_day: str) -> Path:
     """Where the csv of the part of the day is saved in the daily folder, such as 261020-1.csv."""
-    return daily_dir / f"{datetime.now():%y%m%d}-{PART_NUMBERS[part_of_day]}.csv"
+    return daily_dir / f"{datetime.now(TIMEZONE):%y%m%d}-{PART_NUMBERS[part_of_day]}.csv"
 
 
 def archive_csv(target: Path) -> None:

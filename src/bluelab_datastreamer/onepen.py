@@ -8,7 +8,6 @@ import asyncio
 import json
 import time
 from collections.abc import Callable
-from datetime import datetime
 from itertools import count
 
 RECONNECT_DELAY_SECONDS = 2
@@ -69,11 +68,6 @@ def value(group: bytes) -> float | None:
 def battery(data: bytes) -> int:
     # byte 1 of 04 is the battery in percent
     return data[1]
-
-
-def now() -> str:
-    # the same time format as the bridge's
-    return datetime.now().isoformat(timespec="microseconds")
 
 
 class BridgeGone(Exception):

@@ -69,8 +69,8 @@ from cli_terminal import (
     Screen,
     fit,
 )
-from drip_drain import CSV_PATH, NO_VALUES, Room
-from onepen import BridgeGone, PenClient, label, now
+from drip_drain import CSV_PATH, NO_VALUES, Room, now
+from onepen import BridgeGone, PenClient, label
 
 # the bridge runs on windows, outside the container
 DEFAULT_HOST = "host.docker.internal"

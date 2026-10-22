@@ -5,8 +5,9 @@ version: '1.0.0'
 profile: 'DataWarehouseDbt'
 
 vars:
-  # assigned in silver to every timestamptz column, the datetimes have no time zone before it
-  timezone: 'Europe/Amsterdam'
+  # appended in staging to a datetime whose source text has no time zone, so every datetime has one from staging on.
+  # the container's time zone, set once in docker/compose.yaml. no default: without TZ dbt stops instead of guessing
+  timezone: "{{ env_var('TZ') }}"
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]
@@ -28,7 +29,7 @@ models:
     candidate:           # corrections override staging, then derived columns. still text
       +materialized: view
       +schema: candidate
-    silver:              # casts and time zone, rebuilt only when all candidate tests pass
+    silver:              # casts, rebuilt only when all candidate tests pass
       +materialized: table
       +schema: silver
 

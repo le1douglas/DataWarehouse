@@ -1,4 +1,4 @@
-from typing import ClassVar, Optional
+from typing import Optional
 
 from pydantic import Field
 
@@ -16,15 +16,14 @@ class CorrRecordJournalEntries(CorrRecord):
     the castable test on candidate reports it, and silver is not built
     until it is corrected again.
 
-    date_time must have the shape YYYY-MM-DD HH:MM:SS, like the check
-    constraint on the table: candidate sorts room groups by its text, so a
-    value in another shape is refused even when it is a valid timestamp.
+    date_time is text with its time zone written, in the format of its
+    source (2026-09-17T15:13:08.363212 Europe/Amsterdam): the corrections
+    workbook keeps the format, so candidate still sorts it in time order.
+    A date_time without a time zone is accepted here too: the castable test
+    on candidate reports it.
     """
 
-    # the shape of date_time in staging and corrections, the same as the check constraint of the table
-    DATE_TIME_SHAPE: ClassVar[str] = r"^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$"
-
-    date_time: str = Field(max_length=50, pattern=DATE_TIME_SHAPE)  # required, non-null
+    date_time: str = Field(max_length=100)  # required, non-null. with a time zone name, see the table's DDL
     subject: str = Field(max_length=50)  # required, non-null
     type: Optional[str] = Field(max_length=50)
     ml: Optional[str] = Field(max_length=50)

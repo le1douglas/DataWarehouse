@@ -16,7 +16,8 @@ models:
             name: pk_slvr_journal_entries
       - name: date_time
         data_type: timestamptz(0)
-        description: When the journal entry was measured, in the time zone of the timezone var.
+        description: When the journal entry was measured. The time zone is the one the source wrote, or the timezone
+                    var when it wrote none.
       - name: subject
         data_type: text
         description: The sensor that took the journal entry.

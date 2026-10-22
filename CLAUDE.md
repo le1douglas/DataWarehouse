@@ -1,35 +1,35 @@
 # CLAUDE.md
-- we are buyilding a A bronze/silver/gold data warehouse. The design goal is that bad data never reaches silver, and that a human can fix it without touching the source file or bronze. gold is where the data modeling happens.
-- Go one step at a time. Make the change that was asked, report, and wait. Large multi-file changes in one go are not wanted.
-- Do not run `dbt build` or anything
-- files oustise the repo should be read only. if nedded, ask for permission
-- `docs/CODING_STANDARDS.md` hold the naming conventions and the programming style guide
-- `docs/GLOSSARY.md` hold domain modeling names, related to it, there is the /mattpocock-skills:domain-modeling skill
-- windows tooling is minimal, most of the work happens inside docker containers
-- the usual work setup is
-    - Window 1: where calude code lives, with an oveeview of the whole repo
-    - Window 2: a Dev container opened on the relevant container
-- Bronze stores everything as text, exactly as received.
-- `row_id` is the only column shared between datasets, and is the primary key. is carried unchanged through the data pipeline
-- Datetimes have no time zone anywhere before silver, and are cut to the second. Silver is the only place a zone is assigned, from the `timezone` var (`Europe/Amsterdam`). dates are aussmed to be `Europe/Amsterdam` when not specified. Warn every time this assuption is not true
-- Empty string means null. The decimal separator is `.`
-- In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` or `"position"` arrive unquoted and fail or hit the wrong object. Run such statements through the Bash tool instead.
-- A library must not be installed by hand (pip install x in the dev container terminal) and must be added to the Dockerfile instead.
-- in dbt: for package added to packages.yml,  package-lock.yml must also be considered.
+A bronze/silver/gold data warehouse. Bad data never reaches silver, and a human fixes it without touching the source file or bronze. Gold is where the data modeling happens.
 
-Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
+## How to work
+- One step at a time: make the change that was asked, report, and wait. Large multi-file changes in one go are not wanted.
+- Files outside the repo are read only. Ask permission when one needs to change.
 
-dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone drops every view on top of it without a warning: `dbt run --select stg_journal_entries` drops `cand_journal_entries`, and the tests then error with "relation does not exist". Select the views downstream too (`--select stg_journal_entries+`, but that also builds silver without its tests, so prefer `dbt build`), or recreate them after with `dbt run --select cand_journal_entries`. Silver is a table and is not affected.
+## Environment
+- Windows tooling is minimal: most of the work happens inside docker containers.
+- Usual setup: Window 1 is Claude Code, with an overview of the whole repo; Window 2 is a Dev Container opened on the relevant container.
+- A library goes into the Dockerfile, never installed by hand (`pip install` in the dev container terminal).
+- In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` or `"position"` arrive unquoted and fail or hit the wrong object. Run such statements through the Bash tool.
+- Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
 
-A full loop is: DDL, `load_bronze()`, `dbt build` (tests fail, silver skipped), review in Excel, `load_corrections()`, `dbt build` (silver built). Machine setup (Docker, the env files, ODBC) is documented step by step in `docs/DOCKER_IMPLEMENTATION.md`.
+## Database and dbt
+- On a feature branch, in a dev container, any command that affects the database is allowed. On master or in prod, the database is not touched in any way.
+- Use `dbt build`, not `dbt run`: dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone silently drops every view on top of it.
+- A package added to `packages.yml` means updating `package-lock.yml` too.
+- A full loop is: DDL, `load_bronze()`, `dbt build` (tests fail, silver skipped), review in Excel, `load_corrections()`, `dbt build` (silver built).
+
+## Data rules
+- `row_id` is the primary key and the only column shared between datasets, carried unchanged through the pipeline.
+- A datetime is text up to silver, with its time zone written from staging on: the source's, or the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) appended by staging when the source wrote none. The castable test accepts only a zone that cannot be misread (`macros/aud_castable.sql`); silver casts it to `timestamptz(0)`, rounded to the second. A metadata date-time is written with its offset (`2026-10-22T14:42:08+02:00`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
+- Empty string means null. The decimal separator is `.`.
 
 ## Agent skills
 
-### Issue tracker
+### Coding standards
+`docs/CODING_STANDARDS.md` holds the naming conventions and the programming style guide.
 
+### Issue tracker
 Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this repo. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
-
-One context: `GLOSSARY-MAP.md` at the repo root points to `docs/GLOSSARY.md`. There are no ADRs; a new one goes in `docs/adr/`. See `docs/agents/domain.md`.
-Do not create a `GLOSSARY.md` in the repo root, instead follow the instructions in `GLOSSARY-MAP.md`.
+One context: `GLOSSARY-MAP.md` at the repo root points to `docs/GLOSSARY.md`, which holds the domain modeling names (skill: `/mattpocock-skills:domain-modeling`). The glossary lives only where `GLOSSARY-MAP.md` says, never as a root `GLOSSARY.md`. There are no ADRs; a new one goes in `docs/adr/`. See `docs/agents/domain.md`.

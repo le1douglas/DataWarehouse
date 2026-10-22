@@ -10,15 +10,20 @@ with
 
     ),
 
-    -- auto-fix rules: trim, empty becomes NULL, decimal comma becomes dot, harmonize date_time.
+    -- auto-fix rules: trim, empty becomes NULL, decimal comma becomes dot, time zone of date_time.
     auto_fixed as (
         select
             row_id,
-            -- date_time gets the shape of the corrections, YYYY-MM-DD HH:MM:SS (T becomes a space and it is cut to the
-            -- whole second).
-            -- bronze always has the form 2026-09-17T15:13:08.363212 (or with fewer decimals), so the result always has
-            -- the shape and it is not tested. no time zone here: it is only assigned in silver
-            regexp_replace(replace(nullif(trim(date_time), ''), 'T', ' '), '\.\d+$', '') as date_time,
+            -- date_time stays the text of the source, with a time zone written: when it ends right after the time
+            -- (2026-09-17T15:13:08.363212), none is written and the timezone var is appended
+            -- (2026-09-17T15:13:08.363212 Europe/Amsterdam). the time starts after T or a space, so an offset
+            -- such as +02:00 is not taken for one. anything else is left as it is, a zone or not: whether it can be
+            -- cast, and with a zone that cannot be misread, is the castable test's job
+            case
+                when trim(date_time) ~ '[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$'
+                then trim(date_time) || ' {{ var("timezone") }}'
+                else nullif(trim(date_time), '')
+            end as date_time,
             subject,
             nullif(trim(notes), '') as notes,
             nullif(trim(type), '') as type,

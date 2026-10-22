@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 # every setting comes from .env.loader, which compose passes to the loader container. no defaults: a missing variable
 # stops the loader with a KeyError naming it, instead of silently connecting or reading somewhere else
@@ -10,6 +11,10 @@ POSTGRES_CONFIG = {
     "db_password": os.environ["POSTGRESQL_PASSWORD"],
     "db_port": int(os.environ["POSTGRESQL_PORT"]),
 }
+
+# the time zone of the date-times the loader stamps, from TZ, set once in docker/compose.yaml. read here instead of
+# taken from the container's clock, which falls back to UTC without an error: an empty or unknown TZ stops the loader
+TIMEZONE = ZoneInfo(os.environ["TZ"])
 
 # the schemas that python loads into, everything else is created by dbt
 DB_SCHEMA_BRONZE = "dw_bronze"
