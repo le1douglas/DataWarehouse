@@ -14,9 +14,9 @@ set "BRIDGE_LOG=%TEMP%\onepen_bridge.log"
 start "" /b cmd /c "uv run src\bluelab_datastreamer\onepen_bridge.py > "%BRIDGE_LOG%" 2>&1"
 
 rem a container of its own, removed after (--rm), with a fixed name so cleanup finds it. it needs no
-rem database, and the daily folder (DAILY_RAW_CSV_DIR in .env) is mounted by compose. it retries every
+rem database, and the daily folder (DAILY_RAW_CSV_DIR in docker\.env) is mounted by compose. it retries every
 rem 2 seconds until the bridge listens
-docker compose -f compose.yaml -f compose.dev.yaml run --rm --name onepen-drip-drain datastreamer
+docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm --name onepen-drip-drain datastreamer
 set "EXITCODE=%ERRORLEVEL%"
 
 call :cleanup

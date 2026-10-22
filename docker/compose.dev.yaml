@@ -1,9 +1,14 @@
-# dev only, on top of compose.yaml: "docker compose -f compose.yaml -f compose.dev.yaml ...". prod never loads it
+# dev only, on top of compose.yaml: "docker compose -f docker/compose.yaml -f docker/compose.dev.yaml ...". prod never loads it
 
 # the project name, so "docker compose run" and the Dev Containers use the same postgres container and volume
 name: dw-dev
 
 services:
+  postgres:
+    volumes:
+      # replaces the mount of compose.yaml at the same path (/dumps): dev only reads the prod dumps, never changes one
+      - ../Database/dumps:/dumps:ro
+
   dbt:
     build:
       target: dev # runtime plus sqlfmt
@@ -12,7 +17,7 @@ services:
       # the whole repo, live: edits apply without a rebuild, and sqlfmt finds pyproject.toml at /usr/app.
       # hides the project copied at build time, at the same path, so the working directory stays /usr/app/DataWarehouseDbt.
       # dbt_packages too: dbt deps installs it into the repo folder (gitignored), and dbt Power User runs dbt deps on open
-      - .:/usr/app
+      - ..:/usr/app
 
   loader:
     build:
@@ -21,7 +26,7 @@ services:
     volumes:
       # the whole repo, live: edits apply without a rebuild, and pytest and ruff find tests and pyproject.toml at
       # /usr/app. hides the package copied at build time, at the same path, so PYTHONPATH stays /usr/app/src
-      - .:/usr/app
+      - ..:/usr/app
 
   datastreamer:
     build:
@@ -29,4 +34,4 @@ services:
     volumes:
       # the whole repo, live: edits apply without a rebuild, ruff finds pyproject.toml at /usr/app, and the csv of
       # the readings is written into the repo folder on windows. hides the code copied at build time, at the same path
-      - .:/usr/app
+      - ..:/usr/app

@@ -1,4 +1,4 @@
-# prod only, on top of compose.yaml: "docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod ...".
+# prod only, on top of compose.yaml: "docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod ...".
 # dev never loads it. no code is mounted: the loader and dbt run the runtime image of the git tag in RELEASE
 
 # the project name, so prod has its own containers, network and pgdata volume, apart from dw-dev

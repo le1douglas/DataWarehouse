@@ -17,6 +17,11 @@ installed. The design is in [DOCKER_PLAN.md](DOCKER_PLAN.md).
 
 **Resume at:** phase 1, step 6, Grafana.
 
+> **TODO (reminder, 2026-10-22):** a script that creates every env file of an environment (`.env`, `.env.loader`,
+> `.env.transformer`, and `.env.prod`, `.env.prod.loader`, `.env.prod.transformer`) from the contents in this guide.
+> It asks for what differs per PC or environment (the password, or offers to generate one; the input folders) and
+> never overwrites a file that exists. It replaces the "Create `.env...`" steps below.
+
 ## 1. Install Docker Desktop
 
 ### 1.1 Check virtualization

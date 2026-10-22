@@ -10,13 +10,16 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
-      - ./Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
+      - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
+      # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
+      # in the repo, ignored by git. a convenience for development, not the backups of prod
+      - ../Database/dumps:/dumps
     restart: unless-stopped
 
   # a job: "docker compose run --rm dbt <command>" runs one dbt command, then the container exits
   dbt:
     build:
-      context: . # the repo root. docker/dbt/Dockerfile.dockerignore keeps only DataWarehouseDbt
+      context: .. # the repo root, one up from this folder. docker/dbt/Dockerfile.dockerignore keeps only DataWarehouseDbt
       dockerfile: docker/dbt/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: dbt:${RELEASE}
@@ -35,7 +38,7 @@ services:
   # a job: "docker compose run --rm loader bronze" (or corrections) runs one load, then the container exits
   loader:
     build:
-      context: . # the repo root. docker/loader/Dockerfile.dockerignore keeps only src
+      context: .. # the repo root, one up from this folder. docker/loader/Dockerfile.dockerignore keeps only src
       dockerfile: docker/loader/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: loader:${RELEASE}
@@ -58,7 +61,7 @@ services:
   # no database and no env file: it writes a csv only
   datastreamer:
     build:
-      context: . # the repo root. docker/datastreamer/Dockerfile.dockerignore keeps only src/bluelab_datastreamer
+      context: .. # the repo root, one up from this folder. docker/datastreamer/Dockerfile.dockerignore keeps only src/bluelab_datastreamer
       dockerfile: docker/datastreamer/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: datastreamer:${RELEASE}

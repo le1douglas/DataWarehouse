@@ -39,7 +39,7 @@ interactive terminal (no -T), or no key can be read, next to the bridge (onepen_
 Windows. OnePen.cmd, next to this file, starts both. Compose mounts the daily folder at --daily-dir. By
 hand, from the repo root:
 
-    docker compose -f compose.yaml -f compose.dev.yaml run --rm datastreamer
+    docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm datastreamer
 
 This file only draws and reads keys: the pen is in onepen.py, the rooms and the csv in
 drip_drain.py, the terminal in cli_terminal.py. Only the standard library is used.
