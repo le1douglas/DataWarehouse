@@ -233,7 +233,12 @@ location is a setting, never part of the code or the image:
 Moving a folder is one line in the env file, without a rebuild (mounts are set when a container starts). The two
 folders can be unrelated or subfolders of one parent. A new dataset adds its own `<DATASET>_CSV` line, not a mount.
 A loader command per dataset (`bronze journal_entries`) is a Python change for when a second dataset comes, not
-part of the move. Until the location is decided, `EXPORTS_DIR` points to `SampleData` in the repo. A folder in
+part of the move. Until the location is decided, `EXPORTS_DIR` points to `SampleData` in the repo.
+
+The corrections workbook holds no data: it is a window into the database, and only its Power Query and conditional
+formatting are worth keeping. Each environment has its own, in the repo (decided 2026-10-27):
+`user_input/corrections_dev` (dev, not in git) and `user_input/corrections_prod` (prod, in git, so each tag carries
+the workbook that goes with it). Each workbook queries its own database: dev on 5432, prod on 5433. A folder in
 OneDrive needs its files set to "Always keep on this device": a cloud-only file has no content for the container.
 
 The paths that are hardcoded in `src/datawarehouse/config.py` today (`CORRECTIONS_WORKBOOK`, `JOURNAL_ENTRIES_CSV`) and

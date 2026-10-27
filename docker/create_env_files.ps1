@@ -56,11 +56,11 @@ RELEASE=dev
 # windows folders mounted read only into the loader container. each can move: change the line, no rebuild needed
 # the root of the csv exports, mounted at /inbox/exports. SampleData until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
-# the folder of the corrections workbook, mounted at /inbox/corrections. the desktop until the location is decided
-CORRECTIONS_DIR=C:/Users/leone/Desktop
+# the folder of the corrections workbook, mounted at /inbox/corrections. the dev workbook, not in git
+CORRECTIONS_DIR=../user_input/corrections_dev
 # windows folder mounted into the datastreamer container, at /daily_raw_csv: where the csv of a part of the day is saved
 # TODO placeholder (2026-10-22): align with the .env on the other machine
-DAILY_RAW_CSV_DIR=../daily_raw_csv_placeholder
+DAILY_RAW_CSV_DIR=../user_input/journal_entries
 
 "@
 }
@@ -78,12 +78,13 @@ POSTGRES_PORT=5433
 # the git tag, the same name. built in step 5. prod does not start before that image exists
 RELEASE=v0.1.2-alpha
 # windows folders mounted read only into the loader container
-# TODO placeholder (2026-10-22): the same folders as dev until the day-to-day location is decided
+# TODO placeholder (2026-10-22): the same folder as dev until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
-CORRECTIONS_DIR=C:/Users/leone/Desktop
+# the prod corrections workbook, in git and released with each tag
+CORRECTIONS_DIR=../user_input/corrections_prod
 # windows folder mounted into the datastreamer container, at /daily_raw_csv
 # TODO placeholder (2026-10-22): compose.yaml requires it even though prod does not run the datastreamer yet
-DAILY_RAW_CSV_DIR=../daily_raw_csv_placeholder
+DAILY_RAW_CSV_DIR=../user_input/journal_entries
 
 "@
 }

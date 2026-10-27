@@ -333,12 +333,13 @@ when the folder has no workbook yet):
 ```
 # windows folders mounted read only into the loader container. each can move: change the line, no rebuild needed
 # the root of the csv exports, mounted at /inbox/exports
-EXPORTS_DIR=./SampleData
-# the folder of the corrections workbook, mounted at /inbox/corrections
-CORRECTIONS_DIR=C:/Users/<you>/Desktop
+EXPORTS_DIR=../SampleData
+# the folder of the corrections workbook, mounted at /inbox/corrections. the dev workbook, not in git
+CORRECTIONS_DIR=../user_input/corrections_dev
 ```
 
-Relative paths start at the repo root. Use forward slashes.
+Relative paths start at `docker/`, the folder of `compose.yaml`. Use forward slashes. Prod uses
+`../user_input/corrections_prod`, the workbook in git.
 
 ### 5.3 Check the `loader` service
 

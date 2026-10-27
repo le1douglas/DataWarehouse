@@ -16,7 +16,9 @@ with
             row_id,
             -- date_time stays the text of the source, with a time zone written: when it ends right after the time
             -- (2026-09-17T15:13:08.363212), none is written and the timezone var is appended
-            -- (2026-09-17T15:13:08.363212 Europe/Amsterdam). the time starts after T or a space, so an offset
+            -- (2026-09-17T15:13:08.363212 Europe/Amsterdam). a name, not an offset such as +02:00: the offset changes
+            -- with daylight saving (+02:00 in summer, +01:00 in winter), so writing it would mean working it out for
+            -- each date. the name leaves that to the cast in silver. the time starts after T or a space, so an offset
             -- such as +02:00 is not taken for one. anything else is left as it is, a zone or not: whether it can be
             -- cast, and with a zone that cannot be misread, is the castable test's job
             case
