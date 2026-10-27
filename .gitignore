@@ -500,3 +500,10 @@ src/bluelab_datastreamer/drip_drain.csv
 # database dumps, anywhere in the repo: data, not code. the prod dumps of the dev refresh are in Database/dumps,
 # next to their script, which is in git. not the backups of prod
 *.dump
+
+# the dev corrections workbook: a window into the dev database, not data. the prod one, in user_input/corrections_prod,
+# is in git and released with each tag (its power query and conditional formatting)
+user_input/corrections_dev/
+
+# the daily csv written by the datastreamer (DAILY_RAW_CSV_DIR in docker/.env): data, not code
+user_input/journal_entries/
