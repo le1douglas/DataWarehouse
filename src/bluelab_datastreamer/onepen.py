@@ -204,9 +204,11 @@ class PenClient:
             elif op == "read" and uuid == DEVICE_INFO:
                 self.on_status(f"battery {battery(bytes.fromhex(message['hex']))}%")
         elif kind == "connected":
-            self.name = message["name"]
+            # the device found by address can come without its name (on windows it is often only in the
+            # advertisement), then the one seen while scanning is kept
+            self.name = message["name"] or self.pens.get(message["address"], ("",))[0] or self.name
             self.connected = True
-            self.on_status(f"pen {label(message['name'])} {message['address']} connected")
+            self.on_status(f"pen {label(self.name)} {message['address']} connected")
         else:
             if kind == "disconnected":
                 self.connected = False

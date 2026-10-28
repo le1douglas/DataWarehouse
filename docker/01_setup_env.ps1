@@ -2,7 +2,7 @@
 # when some exist, one question: yes overwrites them all, no keeps them and creates only the missing ones
 # asks for the postgres password of each environment, only when its project env file (.env or .env.prod) is written
 # the input folders are hardcoded: temporary locations until the day-to-day ones are decided
-# run from Windows: powershell -ExecutionPolicy Bypass -File docker\create_env_files.ps1
+# run from Windows: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1
 $ErrorActionPreference = 'Stop'
 
 function Read-Password([string]$environment) {
@@ -17,6 +17,15 @@ function Read-Password([string]$environment) {
         if ($password -match '[\s$#"'']') { Write-Host 'no spaces, quotes, $ or # in the password'; continue }
         return $password
     }
+}
+
+# the newest git tag, by creation date: the release prod runs. windows powershell 5.1 does not stop on a failed
+# native command, so the exit code is checked. every tag is read first: Select-Object -First 1 in the pipe would stop
+# git early and leave a failed exit code
+function Get-LatestRelease {
+    $tags = @(git -C $PSScriptRoot tag --sort=-creatordate)
+    if ($LASTEXITCODE -ne 0 -or $tags.Count -eq 0) { throw 'no git tag found: run git fetch --tags, then this script again' }
+    return $tags[0]
 }
 
 $names = '.env', '.env.prod', '.env.loader', '.env.prod.loader', '.env.transformer', '.env.prod.transformer'
@@ -67,6 +76,7 @@ DAILY_RAW_CSV_DIR=../user_input/journal_entries
 
 if (Confirm-Write '.env.prod') {
     $prodPassword = Read-Password 'prod'
+    $release = Get-LatestRelease
     Save-EnvFile '.env.prod' @"
 # the prod compose env file. not in git. pass it explicitly: --env-file docker/.env.prod
 POSTGRES_DB=DataWarehouse
@@ -75,8 +85,8 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$prodPassword
 # published to Windows: dev is on 5432
 POSTGRES_PORT=5433
-# the git tag, the same name. built in step 5. prod does not start before that image exists
-RELEASE=v0.1.2-alpha
+# the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
+RELEASE=$release
 # windows folders mounted read only into the loader container
 # TODO placeholder (2026-10-22): the same folder as dev until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
