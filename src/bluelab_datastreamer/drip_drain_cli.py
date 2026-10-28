@@ -7,14 +7,15 @@ signal strength of each. Before it is connected to, it asks whether
 the name chosen is the one on the back of the pen: yes goes on, no goes back to the list. The
 bridge keeps reconnecting to the one chosen until q.
 
-Then the morning or the afternoon, the same way. Each has its own rooms, in ROOMS of
+Then the morning, the afternoon or the mothers, the same way. Each has its own rooms, in ROOMS of
 drip_drain.py, and the csv may hold rows of the chosen one only. Once every room of it is done,
-the csv is copied to --daily-dir as yymmdd-1.csv for the morning or yymmdd-2.csv for the
-afternoon, and emptied to its header. When that file is there already, it asks whether to
+the csv is copied to --daily-dir as yymmdd-1.csv for the morning, yymmdd-2.csv for the
+afternoon or yymmdd-3.csv for the mothers, and emptied to its header. When that file is there already, it asks whether to
 overwrite it: no keeps the csv as it is and shows it on screen. The first room is shown once the pen is connected.
 
-The readings are taken a room at a time, 4 per room, in the order of ROOMS. A room starts with
-its 4 lines on screen and the water amounts in ml are typed first, one per line (enter goes to
+The readings are taken a room at a time, in the order of ROOMS, one per line of the room: 4 (drip
+and drain, left and right), or 20 in the rooms of ROOM_LINE_NAMES (drip_1, drain_1, drip_2, ...).
+A room starts with its lines on screen and the water amounts in ml are typed first, one per line (enter goes to
 the next empty line, backspace or delete removes the whole amount, and on an empty line goes back to the
 one before). When every line has its ml, the first line streams the live readings, and enter
 records them in that line and moves on to the next empty one. The button of the pen records
@@ -80,7 +81,7 @@ CSV_RETRY_SECONDS = 1
 # one in range. a OnePen advertises several times a second
 SCAN_SECONDS = 3
 
-PART_OF_DAY_QUESTION = "MORNING OR AFTERNOON?"
+PART_OF_DAY_QUESTION = "MORNING, AFTERNOON OR MOTHERS?"
 CHOOSE_HINT = "WITH THE KEYBOARD, PRESS UP AND DOWN ARROW KEYS TO CHOOSE, ENTER TO CONFIRM, Q TO QUIT"
 PEN_QUESTION = "WHICH PEN?"
 PEN_HINT = "WITH THE KEYBOARD, PRESS UP AND DOWN ARROW KEYS TO CHOOSE, ENTER TO CONNECT, Q TO QUIT"
@@ -100,7 +101,12 @@ OVERWRITE_QUESTION = "{} IS IN THE DAILY FOLDER ALREADY. OVERWRITE IT?"
 # no first, so an enter pressed without reading overwrites nothing
 OVERWRITE = {"no": "> no, show the csv on screen", "yes": "> yes, overwrite it"}
 ROOM_SEPARATOR = "-" * 25
-LINE_NAME_WIDTH = max(len(line_name) for line_name in drip_drain.LINE_NAMES)
+LINE_NAME_WIDTH = max(
+    len(line_name)
+    for rooms in drip_drain.ROOMS.values()
+    for room_name in rooms
+    for line_name in drip_drain.line_names(room_name)
+)
 SEPARATOR = " || "
 # every value is padded to the width of one such as 7.46, 0.42 or 26.1, so the | line up
 VALUE_WIDTH = 4

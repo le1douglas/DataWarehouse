@@ -32,6 +32,7 @@ CSV_COLUMNS = (
 ROOMS = {
     "morning": ("1.30", "1.29", "1.28", "1.27", "1.26", "1.25", "1.24", "0.31", "0.32", "0.33"),
     "afternoon": ("1.23", "1.22", "1.21", "1.20", "1.19", "1.18", "1.17", "0.27", "0.28", "0.29"),
+    "mothers": ("0.14", "0.15"),
 }
 # once every room of the part of the day is done, the csv is moved to this folder, named by the
 # date and the number of the part of the day, such as 261020-1.csv. the path in the container, where
@@ -41,10 +42,19 @@ DEFAULT_DAILY_DIR = Path("/daily_raw_csv")
 # read here instead of taken from the container's clock, which falls back to UTC without an error: an empty or
 # unknown TZ stops the readings before the first one
 TIMEZONE = ZoneInfo(os.environ["TZ"])
-PART_NUMBERS = {"morning": 1, "afternoon": 2}
-READINGS_PER_ROOM = 4
+PART_NUMBERS = {"morning": 1, "afternoon": 2, "mothers": 3}
 # the lines of a room, in the order they are taken
 LINE_NAMES = ("Drip Left", "Drip Right", "Drain Left", "Drain Right")
+# the rooms with other lines than LINE_NAMES: 10 drips and 10 drains, taken drip_1, drain_1, drip_2, ...
+ROOM_LINE_NAMES = {
+    room_name: tuple(f"{kind}_{number}" for number in range(1, 11) for kind in ("drip", "drain"))
+    for room_name in ("0.14", "0.15")
+}
+
+
+def line_names(room_name: str) -> tuple[str, ...]:
+    """The lines of the room, in the order they are taken."""
+    return ROOM_LINE_NAMES.get(room_name, LINE_NAMES)
 
 
 def now() -> str:
@@ -107,7 +117,8 @@ class Room:
     @property
     def line_names(self) -> tuple[str, ...]:
         # a room continued from the csv has only its last lines left
-        return LINE_NAMES[READINGS_PER_ROOM - self.lines :]
+        names = line_names(self.name)
+        return names[len(names) - self.lines :]
 
     def move(self, step: int) -> None:
         """Goes step lines down, up when negative, and to the confirmation only when the room is complete."""
@@ -231,11 +242,11 @@ def next_room(rows: list[dict], part_of_day: str, skipped: frozenset[str] = froz
             if row["tags"] != last:
                 break
             in_room += 1
-        if in_room < READINGS_PER_ROOM and last not in skipped:
-            return Room(last, READINGS_PER_ROOM - in_room)
+        if in_room < len(line_names(last)) and last not in skipped:
+            return Room(last, len(line_names(last)) - in_room)
         start = index + 1
     following = next((room_name for room_name in rooms[start:] if room_name not in skipped), None)
-    return Room(following, READINGS_PER_ROOM) if following is not None else None
+    return Room(following, len(line_names(following))) if following is not None else None
 
 
 def append_rows(rows: list[dict]) -> None:
