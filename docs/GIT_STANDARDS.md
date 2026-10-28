@@ -21,13 +21,21 @@ A release is a tag on a `dev` commit, and `prod` moved to that commit:
 ```bash
 git switch dev
 git pull
+git push origin dev               # the commits to release are on GitHub
 git tag -a v0.1.6-alpha -m "v0.1.6-alpha: <what the release brings, one line>"
 git push origin dev:prod          # refused when it is not a fast-forward: see "Things to avoid"
-git push origin v0.1.6-alpha
+git push origin v0.1.6-alpha      # the tag too: git push never sends tags on its own
+git fetch origin prod:prod        # the local prod branch to where GitHub's now is
 ```
 
-- Then set `RELEASE` in `docker/.env.prod` to the tag and run `docker\03_setup_prod.ps1`: prod is built from the
-  tag, not from the branch.
+- Release only a commit that passed the full loop (`dbt build`) on dev.
+- The tag push is what makes the release exist outside this PC: without it, `03_setup_prod.ps1` elsewhere cannot
+  find the tag, `01_setup_env.ps1` picks an older one, and GitHub does not list it.
+- A local `prod` does not follow GitHub's on its own; the last line moves it, without switching to it.
+- Then rebuild prod, which is built from the tag, not from the branch:
+  - set `RELEASE` in `docker/.env.prod` to the tag
+  - `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1` → ends with `prod setup done, on <tag>`
+  - images of the previous release stay: going back is setting `RELEASE` back and running the script again
 - Tags are annotated (`-a`) and follow [semantic versioning](https://semver.org): `vMAJOR.MINOR.PATCH`, with
   `-alpha` while the warehouse is not in real use. A hotfix raises PATCH, a normal release MINOR.
 - Optionally publish the tag as a GitHub Release, so the Releases page lists every version.
@@ -43,12 +51,14 @@ git switch -c hotfix/v0.1.7-alpha v0.1.6-alpha   # from the release prod runs
 git tag -a v0.1.7-alpha -m "v0.1.7-alpha: <the fix>"
 git push origin hotfix/v0.1.7-alpha:prod         # a fast-forward: the fix sits on top of the release
 git push origin v0.1.7-alpha
+git fetch origin prod:prod                       # local prod to the fix, or the merge below merges nothing
 git switch dev
 git merge prod                                   # dev gets the fix
 git push origin dev
 git branch -d hotfix/v0.1.7-alpha
 ```
 
+- Then rebuild prod on the new tag, as under **Releases**.
 - The merge into `dev` is what keeps the next release a fast-forward: after it, the fix is an ancestor of `dev`.
 - The next normal release takes the next number (`v0.1.8-alpha`).
 
