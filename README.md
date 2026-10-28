@@ -38,4 +38,4 @@ read_only_user	-----> Excel, Power BI, Tableau, Grafana	USAGE on gold, SELECT on
 
 
 
-this is a test in dev
+this is a hotfix
