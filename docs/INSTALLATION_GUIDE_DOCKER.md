@@ -28,7 +28,8 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ### Git
 
 - [Download](https://git-scm.com/install/windows), installer defaults, except:
-  - **Initial branch name:** `master`
+  - **Initial branch name:** the default (it only names the branch of a new repository; a clone of this one starts
+    on `dev`)
   - **Credential helper:** Git Credential Manager
 - `git config --global user.name "Your Name"`
 - `git config --global user.email "you@example.com"`
@@ -249,7 +250,8 @@ Setup is done.
 
 ### A new release in prod
 
-- `git tag` the release, set `RELEASE` in `docker/.env.prod` to it, run `03_setup_prod.ps1`
+- Tag and push the release as in `docs/GIT_STANDARDS.md` (**Releases**), set `RELEASE` in `docker/.env.prod` to it,
+  run `03_setup_prod.ps1`
 
 ---
 

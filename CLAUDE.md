@@ -13,7 +13,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver, and a human 
 - Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
 
 ## Database and dbt
-- On a feature branch, in a dev container, any command that affects the database is allowed. On master or in prod, the database is not touched in any way.
+- On `dev` or a hotfix branch, in a dev container, any command that affects the database is allowed. On `prod` or in the prod stack, the database is not touched in any way.
 - Use `dbt build`, not `dbt run`: dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone silently drops every view on top of it.
 - A package added to `packages.yml` means updating `package-lock.yml` too.
 - A full loop is: DDL, `load_bronze()`, `dbt build` (tests fail, silver skipped), review in Excel, `load_corrections()`, `dbt build` (silver built).
@@ -27,6 +27,9 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver, and a human 
 
 ### Coding standards
 `docs/CODING_STANDARDS.md` holds the naming conventions and the programming style guide.
+
+### Git standards
+`docs/GIT_STANDARDS.md` holds the branches (`dev`, `prod`), releases, hotfixes and commit messages.
 
 ### Issue tracker
 Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this repo. See `docs/agents/issue-tracker.md`.
