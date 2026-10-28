@@ -60,31 +60,25 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 ---
 
-## 3. Create what git does not carry
+## 3. Env files: `01_setup_env.ps1`
 
-`git clone` brings none of these. Nothing works until the required ones exist.
-
-| What | Where | Required | How |
-|---|---|---|---|
-| Six env files: `.env`, `.env.loader`, `.env.transformer`, `.env.prod`, `.env.prod.loader`, `.env.prod.transformer` | `docker/` | yes | the script below |
-| dbt packages (`dbt_utils`) | `DataWarehouseDbt/dbt_packages/` | yes, in dev | `setup_dev.ps1`, section 4 |
-| Dev corrections workbook `journal_entries_corrections.xlsx` | `user_input/corrections_dev/` | yes, in dev | copy of the prod one, section 6 |
-| Prod dumps `*.dump` | `Database/dumps/` | no | written by `refresh_dev_from_prod.ps1` |
-
-### Env files
-
-- `powershell -ExecutionPolicy Bypass -File docker\create_env_files.ps1`
-  - Asks a password for dev, then for prod
-  - No spaces, quotes, `$` or `#` in a password
-  - Existing files: answers `N` keep them and create only the missing ones
+- `powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1`
+  - Writes the six env files in `docker/`: `.env`, `.env.loader`, `.env.transformer`, `.env.prod`, `.env.prod.loader`,
+    `.env.prod.transformer`
+  - Asks a password for dev, then for prod: no spaces, quotes, `$` or `#`
   - `RELEASE` in `.env.prod` is the newest git tag at that moment
-- Check: `git status --short --ignored docker` lists all six with `!!`
+  - Existing files: answer `N` to keep them and create only the missing ones
+
+### Check
+
+- `git status --short --ignored docker` → all six listed with `!!`
+- `Select-String -Path docker\.env.prod -Pattern '^RELEASE='` → the newest tag (`git tag --sort=-creatordate`, first line)
 
 ---
 
-## 4. Dev stack
+## 4. Dev stack: `02_setup_dev.ps1`
 
-- `powershell -ExecutionPolicy Bypass -File docker\setup_dev.ps1`
+- `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
   - Starts postgres, builds the `dbt` and `loader` images, runs `dbt deps` and `dbt debug`
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
@@ -104,13 +98,10 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 ---
 
-## 5. Prod stack
-
-- Prod runs the images of the git tag in `RELEASE` (`docker/.env.prod`), with no code mounted
-- **Always** pass `--env-file docker/.env.prod`: without it compose reads dev's `.env`
+## 5. Prod stack: `03_setup_prod.ps1`
 
 - No uncommitted changes (commit or stash first): the build switches the repo to the tag
-- `powershell -ExecutionPolicy Bypass -File docker\setup_prod.ps1`
+- `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1`
   - Builds the `dbt` and `loader` images of `RELEASE` from the tag's code, then switches the repo back
   - Images of `RELEASE` that exist are not rebuilt
   - Starts postgres, runs `dbt debug`
@@ -258,7 +249,7 @@ Setup is done.
 
 ### A new release in prod
 
-- `git tag` the release, set `RELEASE` in `docker/.env.prod` to it, run `setup_prod.ps1`
+- `git tag` the release, set `RELEASE` in `docker/.env.prod` to it, run `03_setup_prod.ps1`
 
 ---
 
@@ -269,15 +260,15 @@ Setup is done.
 - **`set EXPORTS_DIR / CORRECTIONS_DIR / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
-- **Prod `up` fails with `pull access denied for dbt` / `loader`:** the images of `RELEASE` were not built: run `setup_prod.ps1`.
-- **`setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
+- **Prod `up` fails with `pull access denied for dbt` / `loader`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
+- **`03_setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
 - **Port 5432 already in use:** a PostgreSQL installed on Windows (old setup). Stop it: `Get-Service *postgres*`,
   then `Stop-Service <name>` and set it to **Manual** in Services.
 - **Reset dev** (deletes dev's database; the fix for the next three pitfalls): close the dev container windows, then
 
   ```powershell
   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job down -v
-  powershell -ExecutionPolicy Bypass -File docker\setup_dev.ps1
+  powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
   ```
 
   - Without `--profile job`, `down` leaves the `dbt` and `loader` dev containers running on the old network
@@ -292,7 +283,7 @@ Setup is done.
   **Data Source Settings** → edit the credentials.
 - **`dbt run`:** use `dbt build`. `dbt run` on a view drops every view on top of it (`CASCADE`).
 - **`dbt build` in the `dbt` container fails with `No dbt_project.yml found`:** `cd DataWarehouseDbt` first.
-- **`dbt_utils` not found in dev:** run `setup_dev.ps1` (section 4), or open the `dbt` dev container once.
+- **`dbt_utils` not found in dev:** run `02_setup_dev.ps1` (section 4), or open the `dbt` dev container once.
 - **`psql -c` from PowerShell loses double quotes** (`"DataWarehouse"`, `"position"`): pipe the SQL through stdin,
   `"SELECT ...;" | docker exec -i dw-dev-postgres-1 psql -U postgres -d DataWarehouse`, or use Git Bash.
 - **Excel / VS Code SQL tabs disconnect after a compose command:** running compose from Windows after a Dev Container

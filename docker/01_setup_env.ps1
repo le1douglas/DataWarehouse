@@ -2,7 +2,7 @@
 # when some exist, one question: yes overwrites them all, no keeps them and creates only the missing ones
 # asks for the postgres password of each environment, only when its project env file (.env or .env.prod) is written
 # the input folders are hardcoded: temporary locations until the day-to-day ones are decided
-# run from Windows: powershell -ExecutionPolicy Bypass -File docker\create_env_files.ps1
+# run from Windows: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1
 $ErrorActionPreference = 'Stop'
 
 function Read-Password([string]$environment) {

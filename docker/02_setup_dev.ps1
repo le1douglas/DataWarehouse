@@ -1,8 +1,8 @@
 # dev setup: starts postgres, builds the dbt and loader images, installs the dbt packages and checks dbt's connection.
 # safe to run again: up and build change only what changed, dbt deps reinstalls the same versions.
 # loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
-# needs the env files (create_env_files.ps1) and Docker Desktop running. from the repo root:
-#   powershell -ExecutionPolicy Bypass -File docker\setup_dev.ps1
+# needs the env files (01_setup_env.ps1) and Docker Desktop running. from the repo root:
+#   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
 $ErrorActionPreference = 'Stop'
 
 # windows powershell 5.1 does not stop on a failed native command, so every docker call is checked with Assert-Ok
@@ -25,7 +25,7 @@ Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
     $missing = @('.env', '.env.loader', '.env.transformer' | Where-Object { -not (Test-Path "docker\$_") })
     if ($missing.Count -gt 0) {
-        throw "missing in docker\: $($missing -join ', '). run: powershell -ExecutionPolicy Bypass -File docker\create_env_files.ps1"
+        throw "missing in docker\: $($missing -join ', '). run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1"
     }
 
     if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
