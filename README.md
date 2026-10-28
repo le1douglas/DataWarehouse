@@ -35,3 +35,7 @@ postgres ---> superuser responsable for permissions and owns bronze layer
 extract_load_user	----> the Python load script	INSERT on bronze and correction tables
 transform_user	---> what dbt connects as.	owns the  silver/gold schemas, with CREATE on the database, only select needed in bronze and corrections
 read_only_user	-----> Excel, Power BI, Tableau, Grafana	USAGE on gold, SELECT on gold, nothing on bronze or silver
+
+
+
+this is a hotfix
