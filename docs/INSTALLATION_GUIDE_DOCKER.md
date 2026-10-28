@@ -264,7 +264,8 @@ Setup is done.
 
 ## Common pitfalls
 
-- **`docker` fails with `Docker Desktop is unable to start`:** open Docker Desktop; tick autostart (section 1).
+- **`docker` fails with `Docker Desktop is unable to start`, or a setup script with `docker does not answer`:** open
+  Docker Desktop and wait until the engine runs; tick autostart (section 1).
 - **`set EXPORTS_DIR / CORRECTIONS_DIR / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
@@ -272,12 +273,19 @@ Setup is done.
 - **`setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
 - **Port 5432 already in use:** a PostgreSQL installed on Windows (old setup). Stop it: `Get-Service *postgres*`,
   then `Stop-Service <name>` and set it to **Manual** in Services.
+- **Reset dev** (deletes dev's database; the fix for the next three pitfalls): close the dev container windows, then
+
+  ```powershell
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job down -v
+  powershell -ExecutionPolicy Bypass -File docker\setup_dev.ps1
+  ```
+
+  - Without `--profile job`, `down` leaves the `dbt` and `loader` dev containers running on the old network
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
-  `ALTER USER postgres PASSWORD '...'` in the database, or on dev reset: `down -v`, then `up -d` (loses dev's data).
-- **DDL changed, nothing happens:** `01_create_schemas_and_tables.sql` runs only on an empty volume. On dev:
-  `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml down -v`, then `up -d`.
+  `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.
+- **DDL changed, nothing happens:** `01_create_schemas_and_tables.sql` runs only on an empty volume. Reset dev.
+- **`loader bronze` twice:** duplicates every row. Reset dev and load once.
 - **Never `down -v` on prod:** it deletes the database.
-- **`loader bronze` twice:** duplicates every row. On dev: reset (`down -v`, `up -d`) and load once.
 - **`loader corrections` fails with `PermissionError`:** the workbook is open in Excel. Close it.
 - **Workbook or CSV empty in the container:** a cloud-only OneDrive file. **Always keep on this device**.
 - **Excel query shows "no visible columns":** wrong credentials in Power Query, not a database problem.
