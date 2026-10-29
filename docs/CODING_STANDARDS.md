@@ -2,6 +2,11 @@
 
 How code in this repository is named and written. Domain terms are defined in `docs/GLOSSARY.md`; formatting is done by `sqlfmt` and `ruff` (config in `pyproject.toml`) and is not repeated here.
 
+## Which rules win
+
+- In `src/webapps`, `docs/NICEGUI_STANDARDS.md` is NiceGUI's own standard and is followed as it is: where it and this file disagree, it wins (`logging`, not `print()`). This file adds only what NiceGUI leaves open: names, comments, queries.
+- Everywhere else this file holds. `docs/NICEGUI_STANDARDS.md` is not edited to fit the project.
+
 ## Naming
 
 - One name per dataset (`journal_entries`, `JournalEntries` in class names), spelled the same everywhere. The shape is `<layer prefix>_<dataset>__<detail>`: the step goes before the dataset, a detail of it (a test rule) after it.
@@ -21,8 +26,8 @@ How code in this repository is named and written. Domain terms are defined in `d
 - Tables and dbt models: `<prefix>_<dataset>` (`dw_bronze.brnz_journal_entries`, `slvr_journal_entries`). The dbt file name is the relation name; no `alias` and no `generate_alias_name` or `generate_schema_name` override. The folder decides materialisation and schema in `dbt_project.yml`.
 - dbt sources are named after the schema and the table: `source("dw_bronze", "brnz_journal_entries")`.
 - dbt singular tests: `tests/aud_<dataset>/aud_<dataset>__<rule>.sql`, pointing at the candidate model. Severity `error`, `store_failures` and the `audit` schema are set for every data test in `dbt_project.yml`, not per file. The file name is the name of the failure table in `dw_audit`, and relation names are limited to 63 characters.
-- A data test returns two columns, `row_id` and `description`: `select row_id, <reason> as description from {{ ref("cand_<dataset>") }} where ...`, on one candidate model, at most one row per `row_id`. `description` is what only the test knows (the columns that cannot be cast, the offending value); the row's values are candidate's and are not copied.
-- Audit table: `aud_<dataset>` (`dw_audit.aud_journal_entries`), one per candidate model, next to the failure tables `aud_<dataset>__<rule>`. It is created by the `create_audit_table` macro in `on-run-end`, one call per dataset in `dbt_project.yml`, not by a model, as the union of the failure tables: `row_id, kind, target_column, description`, one row per failed rule and column, where `kind` is the `<rule>` part of the data test's name and `target_column` is the column the error is in, null when it is in the whole row. Every data test returns `row_id, target_column, description`. Its columns and constraints are those of the meta tables: `UUID`, `VARCHAR(50)`, `VARCHAR(400)`, all not null, foreign key `fk_aud_<dataset>_row_id` to the dataset's bronze table, plus `target_column VARCHAR(63)`, nullable. The key is the unique constraint `uq_aud_<dataset>` on `(row_id, kind, target_column)` with `NULLS NOT DISTINCT`, not a primary key, which cannot hold the null of a whole-row error.
+- A data test returns three columns, `row_id`, `target_column` and `description`: `select row_id, <column or null::text> as target_column, <reason> as description from {{ ref("cand_<dataset>") }} where ...`, on one candidate model, at most one row per `row_id` and `target_column`. `target_column` is the column the error is in, null when it is in the whole row. `description` is what only the test knows (why the value cannot be cast, the offending value); the row's values are candidate's and are not copied.
+- Audit table: `aud_<dataset>` (`dw_audit.aud_journal_entries`), one per candidate model, next to the failure tables `aud_<dataset>__<rule>`. It is created by the `create_audit_table` macro in `on-run-end`, one call per dataset in `dbt_project.yml`, not by a model, as the union of the failure tables: `row_id, kind, target_column, description`, one row per failed rule and column, where `kind` is the `<rule>` part of the data test's name and `target_column` and `description` are those the data test returned. Its columns and constraints are those of the meta tables: `UUID`, `VARCHAR(50)`, `VARCHAR(400)`, all not null, foreign key `fk_aud_<dataset>_row_id` to the dataset's bronze table, plus `target_column VARCHAR(63)`, nullable. The key is the unique constraint `uq_aud_<dataset>` on `(row_id, kind, target_column)` with `NULLS NOT DISTINCT`, not a primary key, which cannot hold the null of a whole-row error.
 - Metadata columns start with `meta_` (`meta_reviewed_by` and `meta_reviewed_date_time` in the workbook, and `meta_failed_tests`, which the workbook builds from the audit table's `kind`s). The Excel side filters on this prefix, so a non-`meta_` column of candidate that also exists in staging is treated as correctable.
 - The columns and types of silver are declared only in `models/silver/slvr_<dataset>.yml`, every column with its `data_type`, with `contract: {enforced: true}`. `slvr_<dataset>.sql` is `{{ silver_select("<dataset>") }}` and `aud_<dataset>__castable.sql` is `{{ aud_castable("<dataset>") }}`; both read the yml. Every column except `row_id` is cast from text to its `data_type`, a `timestamptz` column also gets the `timezone` var. There are no per-column rules: a candidate column has the name of the silver column it becomes, and a candidate column that is not in the yml is not published.
 - From staging onwards the bronze column `tags` is called `room_raw`, the room as recorded (and as corrected). Candidate derives `room`, the room of the room group, which is what silver publishes. Names and comments use "room", "room group" and `room_index`.
@@ -48,3 +53,15 @@ How code in this repository is named and written. Domain terms are defined in `d
 - Turning missing values into `None` is the reader's job, not the model's. A dataframe from CSV and one from Excel must look the same where cells are empty.
 - A row model mirrors its SQL table as closely as possible: same column names, order, lengths and nullability.
 - Database errors are caught per exception type, printed with context, and re-raised. Loads run in one transaction.
+- A function used only inside its module starts with `_`.
+
+## Webapps
+
+The NiceGUI app in `src/webapps`, where a reviewer corrects candidate. It does not share code with the loader.
+
+- One module per job: `main.py` the page, `grid.py` the AG Grid options, `logic.py` the rules (which column is locked, which row and cell are in error), `queries.py` the database. A custom element is a class in its own file, with its `.vue` file next to it under the same name (`errors_tooltip.py`, `errors_tooltip.vue`, class `ErrorsTooltip`).
+- A rule is decided once in Python, in `logic.py`, and sent with the row as a field the grid has no column for (`is_error_row`, `row_errors`, `column_errors`). The JavaScript in the grid options only reads these fields.
+- Queries use SQLAlchemy Core `select()` on reflected tables, never `text()`, so SQLAlchemy quotes every name. A function that reads is `select_<what>` (`select_datasets`, `select_aud_errors`), one that writes is named after the statement (`upsert_corrections`). Every value goes to the browser as text: a `uuid` cannot be sent as it is.
+- Blocking calls (every query) run in `run.io_bound`, so the page does not freeze for every user.
+- The grid is styled with AG Grid's theme parameters (`--ag-*` variables, `color-mix` on them), so it follows dark mode by itself. A custom class or color is used only when no theme parameter fits.
+- JavaScript and CSS come in only where NiceGUI's Python API has nothing that fits, as the golden rule of `docs/NICEGUI_STANDARDS.md` allows, each with a comment saying why: the grid's `:`-prefixed options, `GRID_JS` and `GRID_CSS` in `grid.py`, and `.vue` components.

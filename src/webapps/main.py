@@ -1,8 +1,9 @@
 from nicegui import events, run, ui
 
+from webapps.errors_tooltip import ErrorsTooltip
 from webapps.grid import GRID_CSS, GRID_JS, grid_options
+from webapps.logic import rows_text
 from webapps.queries import select_aud_errors, select_cand_as_corr, select_datasets, upsert_corrections
-from webapps.row_errors import RowErrors
 
 # a placeholder until the app knows who is logged in
 REVIEWER = "Claude"
@@ -11,7 +12,7 @@ REVIEWER = "Claude"
 @ui.page("/")
 async def index():
     # the queries block, so they run in a thread instead of freezing the page for every user
-    datasets = await run.io_bound(select_datasets) or []
+    datasets = await run.io_bound(select_datasets)
 
     # the rows edited since the dataset was shown or last submitted, by row_id: a row edited twice is kept once, as it
     # is now
@@ -29,7 +30,7 @@ async def index():
         if count == 0:
             submit_button.set_text("Submit")
         else:
-            submit_button.set_text(f"Submit ({count} {'row' if count == 1 else 'rows'})")
+            submit_button.set_text(f"Submit ({rows_text(count)})")
 
     # the page content is a column as high as the window, and the grid takes all of it below the top row
     ui.query(".nicegui-content").classes("h-screen")
@@ -41,8 +42,8 @@ async def index():
         with ui.row().classes("items-center"):
             ui.switch("Dark mode").bind_value(ui.dark_mode(True))
             submit_button = ui.button("Submit", on_click=lambda: submit())
-    row_errors = RowErrors()
-    grid = ui.aggrid(grid_options([], [], {}, row_errors)).classes("w-full flex-grow")
+    errors_tooltip = ErrorsTooltip()
+    grid = ui.aggrid(grid_options([], [], {}, errors_tooltip)).classes("w-full flex-grow")
     grid.on("cellValueChanged", on_cell_edited)
     ui.add_css(GRID_CSS)
     ui.add_body_html(GRID_JS)
@@ -50,11 +51,11 @@ async def index():
     # the grid is updated in place: the columns change with the dataset, so all its options are replaced.
     # edits not submitted are dropped with the dataset they belong to
     async def show_dataset(dataset: str) -> None:
-        columns, rows = await run.io_bound(select_cand_as_corr, dataset) or ([], [])
-        aud_errors = await run.io_bound(select_aud_errors, dataset) or {}
+        columns, rows = await run.io_bound(select_cand_as_corr, dataset)
+        aud_errors = await run.io_bound(select_aud_errors, dataset)
         edited_rows.clear()
         show_edited_count()
-        grid.options.update(grid_options(columns, rows, aud_errors, row_errors))
+        grid.options.update(grid_options(columns, rows, aud_errors, errors_tooltip))
         grid.update()
 
     # the dataset is shown again after a submit: the grid shows candidate as it is now, with the corrections, and no
@@ -64,7 +65,7 @@ async def index():
             ui.notify("Nothing to submit")
             return
         await run.io_bound(upsert_corrections, dataset_select.value, list(edited_rows.values()), REVIEWER)
-        ui.notify(f"Submitted {len(edited_rows)} rows", type="positive")
+        ui.notify(f"Submitted {rows_text(len(edited_rows))}", type="positive")
         await show_dataset(dataset_select.value)
 
     # the first dataset is shown when the page opens. setting the value calls show_dataset

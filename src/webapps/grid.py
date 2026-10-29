@@ -1,7 +1,7 @@
 import json
 
-from webapps.logic import error_columns, is_error_row, is_locked_column
-from webapps.row_errors import RowErrors
+from webapps.errors_tooltip import ErrorsTooltip
+from webapps.logic import column_errors, is_error_row, is_locked_column, row_errors
 
 # pixels
 MIN_COLUMN_WIDTH = 120
@@ -23,9 +23,7 @@ ERROR_CELL_STYLE = "{backgroundColor: 'color-mix(in srgb, var(--ag-invalid-color
 # a cell edited since the dataset was shown or last submitted has a dashed outline in the theme's range selection
 # color, the accent. an outline, not a border: it takes no room and leaves the cell's own border to the grid's focus.
 # none is set too: the grid keeps a style property a cell had until a new style sets it again
-EDITED_CELL_STYLE = (
-    "{outline: '2px dashed var(--ag-range-selection-border-color)', outlineOffset: '-3px'}"
-)
+EDITED_CELL_STYLE = "{outline: '2px dashed var(--ag-range-selection-border-color)', outlineOffset: '-3px'}"
 NOT_EDITED_CELL_STYLE = "{outline: 'none'}"
 
 # the default theme with columnBorder: true. nicegui only takes a theme by name, so the parameter is set as its css
@@ -48,13 +46,13 @@ function markEdited(params) {
 
 # the options of ui.aggrid
 def grid_options(
-    columns: list[str], rows: list[dict], aud_errors: dict[str, list[dict]], row_errors: RowErrors
+    columns: list[str], rows: list[dict], aud_errors: dict[str, list[dict]], errors_tooltip: ErrorsTooltip
 ) -> dict:
     return {
         "columnDefs": [column_def(column) for column in columns],
         # flex: the columns share the window width, down to MIN_COLUMN_WIDTH, then the grid scrolls sideways
         "defaultColDef": {"resizable": True, "sortable": False, "flex": 1, "minWidth": MIN_COLUMN_WIDTH},
-        **row_errors.grid_handlers(),
+        **errors_tooltip.grid_handlers(),
         ":onCellValueChanged": "params => markEdited(params)",
         "rowData": [row_data(row, aud_errors) for row in rows],
         ":getRowId": "params => params.data.row_id",
@@ -65,7 +63,7 @@ def grid_options(
 # a locked column is not editable and grayed out, every other cell is editable and outlined once edited. a cell that
 # an error names is red on top: a locked one keeps its gray text and cursor
 def column_def(column: str) -> dict:
-    is_error_cell = f"params.data.error_columns.includes({json.dumps(column)})"
+    is_error_cell = f"({json.dumps(column)} in params.data.column_errors)"
     error_style = f"...({is_error_cell} ? {ERROR_CELL_STYLE} : {{}})"
     if is_locked_column(column):
         locked_style = f"...{LOCKED_CELL_STYLE}"
@@ -75,13 +73,14 @@ def column_def(column: str) -> dict:
     return {"field": column, "editable": True, ":cellStyle": f"params => ({{{edited_style}, {error_style}}})"}
 
 
-# the row and cell rules and the errors are decided once here and sent with the row: is_error_row, error_columns,
-# errors and edited_columns have no column, so the grid does not show them. RowErrors picks the errors of each
-# cell, and markEdited fills edited_columns
+# the row and cell rules and the errors are decided once here and sent with the row: is_error_row, row_errors,
+# column_errors and edited_columns have no column, so the grid does not show them. ErrorsTooltip shows a cell the
+# row_errors and the column_errors of its column, and markEdited fills edited_columns
 def row_data(row: dict, aud_errors: dict[str, list[dict]]) -> dict:
+    errors = aud_errors.get(row["row_id"], [])
     return row | {
-        "is_error_row": is_error_row(row, aud_errors),
-        "error_columns": error_columns(row, aud_errors),
-        "errors": aud_errors.get(row["row_id"], []),
+        "is_error_row": is_error_row(errors),
+        "row_errors": row_errors(errors),
+        "column_errors": column_errors(errors),
         "edited_columns": [],
     }

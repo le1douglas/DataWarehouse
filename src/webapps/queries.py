@@ -16,9 +16,7 @@ information_schema_tables = table("tables", column("table_schema"), column("tabl
 # a dataset is every table of dw_candidate, without its prefix: the one name of its tables in every layer
 def select_datasets() -> list[str]:
     dataset = func.regexp_replace(information_schema_tables.c.table_name, "^cand_", "").label("dataset")
-    statement = (
-        select(dataset).where(information_schema_tables.c.table_schema == "dw_candidate").order_by(dataset)
-    )
+    statement = select(dataset).where(information_schema_tables.c.table_schema == "dw_candidate").order_by(dataset)
     with engine.connect() as connection:
         return list(connection.execute(statement).scalars())
 
@@ -26,23 +24,18 @@ def select_datasets() -> list[str]:
 # the rows of candidate, with only the columns of corrections, in their order: what a reviewer can correct.
 # every value as text: row_id is a uuid, which the browser cannot receive as is
 def select_cand_as_corr(dataset: str) -> tuple[list[str], list[dict]]:
-
     # a corrections column that candidate does not have raises ValueError naming them: the two tables are out of step.
-    cand = get_cand(dataset)
-    columns = list(get_corr(dataset).columns.keys())
+    cand = _get_cand(dataset)
+    columns = list(_get_corr(dataset).columns.keys())
     missing = [name for name in columns if name not in cand.c]
     if missing:
         raise ValueError(f"{cand.fullname} lacks the corrections columns {missing}")
     statement = select(*(cand.c[name] for name in columns))
-    
-
-    
     with engine.connect() as connection:
         rows = [
             {name: None if value is None else str(value) for name, value in row.items()}
             for row in connection.execute(statement).mappings()
         ]
-
     return columns, rows
 
 
@@ -50,7 +43,7 @@ def select_cand_as_corr(dataset: str) -> tuple[list[str], list[dict]]:
 # an error is its target_column, null when it is in the whole row, and its description, ordered by kind and column.
 # the row_id is text, like in select_cand_as_corr
 def select_aud_errors(dataset: str) -> dict[str, list[dict]]:
-    aud = get_aud(dataset)
+    aud = _get_aud(dataset)
     statement = select(aud.c.row_id, aud.c.target_column, aud.c.description).order_by(
         aud.c.row_id, aud.c.kind, aud.c.target_column
     )
@@ -73,7 +66,7 @@ def upsert_corrections(dataset: str, rows: list[dict], reviewer: str) -> None:
 
 # the upsert of the rows into corrections, matched by row_id
 def _corr_upsert(dataset: str, rows: list[dict]) -> Insert:
-    corr = get_corr(dataset)
+    corr = _get_corr(dataset)
     values = [{name: row.get(name) or None for name in corr.columns.keys()} for row in rows]
     statement = insert(corr).values(values)
     return statement.on_conflict_do_update(
@@ -100,20 +93,16 @@ def _meta_corr_upsert(row_ids: list[str], reviewer: str) -> Insert:
     )
 
 
-# the table of a dataset in each layer: get_corr("journal_entries") is dw_corrections.corr_journal_entries
-def get_brnz(dataset: str) -> Table:
-    return _get_table_from_name("dw_bronze", f"brnz_{dataset}")
-
-
-def get_corr(dataset: str) -> Table:
+# the table of a dataset in each layer: _get_corr("journal_entries") is dw_corrections.corr_journal_entries
+def _get_corr(dataset: str) -> Table:
     return _get_table_from_name("dw_corrections", f"corr_{dataset}")
 
 
-def get_cand(dataset: str) -> Table:
+def _get_cand(dataset: str) -> Table:
     return _get_table_from_name("dw_candidate", f"cand_{dataset}")
 
 
-def get_aud(dataset: str) -> Table:
+def _get_aud(dataset: str) -> Table:
     return _get_table_from_name("dw_audit", f"aud_{dataset}")
 
 
@@ -121,4 +110,3 @@ def get_aud(dataset: str) -> Table:
 # sqlalchemy quotes every name itself. a table that does not exist raises NoSuchTableError naming it
 def _get_table_from_name(schema: str, name: str) -> Table:
     return Table(name, MetaData(), schema=schema, autoload_with=engine)
-
