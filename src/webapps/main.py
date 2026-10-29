@@ -1,7 +1,7 @@
 from nicegui import events, run, ui
 
-from webapps.grid import GRID_CSS, grid_options
-from webapps.queries import select_cand_as_corr, select_datasets, upsert_corrections
+from webapps.grid import GRID_CSS, ROW_ERRORS_JS, grid_options
+from webapps.queries import select_aud_errors, select_cand_as_corr, select_datasets, upsert_corrections
 
 # a placeholder until the app knows who is logged in
 REVIEWER = "Claude"
@@ -31,15 +31,17 @@ async def index():
         with ui.row().classes("items-center"):
             ui.switch("Dark mode").bind_value(ui.dark_mode(True))
             ui.button("Submit", on_click=lambda: submit())
-    grid = ui.aggrid(grid_options([], [])).classes("w-full flex-grow").on("cellValueChanged", on_cell_edited)
+    grid = ui.aggrid(grid_options([], [], {})).classes("w-full flex-grow").on("cellValueChanged", on_cell_edited)
     ui.add_css(GRID_CSS)
+    ui.add_body_html(ROW_ERRORS_JS)
 
     # the grid is updated in place: the columns change with the dataset, so all its options are replaced.
     # edits not submitted are dropped with the dataset they belong to
     async def show_dataset(dataset: str) -> None:
         columns, rows = await run.io_bound(select_cand_as_corr, dataset) or ([], [])
+        aud_errors = await run.io_bound(select_aud_errors, dataset) or {}
         edited_rows.clear()
-        grid.options.update(grid_options(columns, rows))
+        grid.options.update(grid_options(columns, rows, aud_errors))
         grid.update()
 
     async def submit() -> None:

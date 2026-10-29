@@ -46,6 +46,18 @@ def select_cand_as_corr(dataset: str) -> tuple[list[str], list[dict]]:
     return columns, rows
 
 
+# the known errors of each row, by row_id: audit holds one row per error, so a row_id can have several.
+# an error is its kind and description, as "kind: description". the row_id is text, like in select_cand_as_corr
+def select_aud_errors(dataset: str) -> dict[str, list[str]]:
+    aud = get_aud(dataset)
+    statement = select(aud.c.row_id, aud.c.kind, aud.c.description).order_by(aud.c.row_id, aud.c.kind)
+    errors: dict[str, list[str]] = {}
+    with engine.connect() as connection:
+        for row_id, kind, description in connection.execute(statement):
+            errors.setdefault(str(row_id), []).append(f"{kind}: {description}")
+    return errors
+
+
 # the edited rows go into corrections, replacing any earlier correction of the same row_id, and the reviewer and the
 # review date-time go into meta_corrections: both in one transaction, so a failure writes neither.
 # empty string is null. the date-time is postgres's now(), in the server's time zone
