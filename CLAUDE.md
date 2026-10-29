@@ -28,6 +28,9 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver, and a human 
 ### Coding standards
 `docs/CODING_STANDARDS.md` holds the naming conventions and the programming style guide.
 
+### NiceGUI standards
+`docs/NICEGUI_STANDARDS.md` holds the rules for the NiceGUI interface. The full NiceGUI documentation is one JSON file, https://nicegui.io/static/sitewide_index.json: look an API up there, do not guess it.
+
 ### Git standards
 `docs/GIT_STANDARDS.md` holds the branches (`dev`, `prod`), releases, hotfixes and commit messages.
 
