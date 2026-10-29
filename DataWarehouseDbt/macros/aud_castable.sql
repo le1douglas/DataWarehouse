@@ -23,24 +23,32 @@
 {% endmacro %}
 
 {#
+    the reason a value of col fails castable, for a reviewer: the column and the data_type it must be cast to
+#}
+{% macro castable_description(col) -%}
+    column {{ col.name }} is not of type {{ col.data_type }}
+{%- endmacro %}
+
+{#
     the body of aud_<dataset>__castable: the candidate rows with a value that cannot be cast to the data_type its
     silver column declares, so silver's unguarded casts never fail. an empty value is null and passes:
     pg_input_is_valid of null is null.
-    returns row_id and description, the columns that cannot be cast separated by ", " (concat_ws skips the nulls).
-    silver's yml is read from the graph, not with ref, so the test does not depend on silver
+    returns row_id, target_column and description: one row per value that cannot be cast, with the column it is in
+    and its castable_description. each candidate row is unpivoted into one row per column by the lateral values, so
+    the candidate is read once. silver's yml is read from the graph, not with ref, so the test does not depend on
+    silver
 #}
 {% macro aud_castable(dataset) %}
 select
-    row_id,
-    concat_ws(
-        ', '
-        {%- for col in silver_columns(dataset) %}
-        , case when not {{ castable(col) }} then '{{ col.name }}' end
-        {%- endfor %}
-    ) as description
-from {{ ref("cand_" ~ dataset) }}
-where
+    cand.row_id,
+    checked.target_column,
+    checked.description
+from {{ ref("cand_" ~ dataset) }} as cand
+cross join lateral (
+    values
     {%- for col in silver_columns(dataset) %}
-    {{ "or " if not loop.first }}not {{ castable(col) }}
+        ('{{ col.name }}', {{ castable(col) }}, '{{ castable_description(col) }}'){{ "," if not loop.last }}
     {%- endfor %}
+) as checked (target_column, is_castable, description)
+where not checked.is_castable
 {% endmacro %}

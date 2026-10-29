@@ -47,14 +47,14 @@ def select_cand_as_corr(dataset: str) -> tuple[list[str], list[dict]]:
 
 
 # the known errors of each row, by row_id: audit holds one row per error, so a row_id can have several.
-# an error is its kind and description, as "kind: description". the row_id is text, like in select_cand_as_corr
+# an error is its description, ordered by kind. the row_id is text, like in select_cand_as_corr
 def select_aud_errors(dataset: str) -> dict[str, list[str]]:
     aud = get_aud(dataset)
-    statement = select(aud.c.row_id, aud.c.kind, aud.c.description).order_by(aud.c.row_id, aud.c.kind)
+    statement = select(aud.c.row_id, aud.c.description).order_by(aud.c.row_id, aud.c.kind)
     errors: dict[str, list[str]] = {}
     with engine.connect() as connection:
-        for row_id, kind, description in connection.execute(statement):
-            errors.setdefault(str(row_id), []).append(f"{kind}: {description}")
+        for row_id, description in connection.execute(statement):
+            errors.setdefault(str(row_id), []).append(description)
     return errors
 
 
