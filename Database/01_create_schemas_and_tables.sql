@@ -104,4 +104,17 @@ CREATE TABLE IF NOT EXISTS dw_corrections.meta_corrections (
     )
 );
 
+
+
+CREATE SCHEMA IF NOT EXISTS dw_gold;
+CREATE TABLE IF NOT EXISTS dw_gold.dim_rooms (
+    room VARCHAR(50) NOT NULL,
+    room_time VARCHAR(50) NOT NULL,
+    floor_number INTEGER NOT NULL,
+    assigned_stage VARCHAR(50) NOT NULL,
+    CONSTRAINT pk_dim_rooms PRIMARY KEY (room),
+    CONSTRAINT ck_dim_rooms_room_time CHECK (room_time IN ('morning', 'afternoon'))
+);
+
+
 COMMIT;
