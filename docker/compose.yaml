@@ -79,5 +79,25 @@ services:
       - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
     profiles: ["job"] # not started by "up", only by "run"
 
+  # a server: the NiceGUI pages of the warehouse, at http://localhost on the port each overlay publishes.
+  # started by "up" with postgres, and kept running
+  webapps:
+    build:
+      context: .. # the repo root, one up from this folder. docker/webapps/Dockerfile.dockerignore keeps only src/webapps
+      dockerfile: docker/webapps/Dockerfile
+      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+    image: webapps:${RELEASE}
+    # no env_file here: each environment's overlay sets its own (see dbt)
+    # the database, user and password of postgres above, from the project env file (see dbt)
+    environment:
+      TZ: *timezone
+      POSTGRESQL_DB: ${POSTGRES_DB}
+      POSTGRESQL_USER: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+    # no ports here: each overlay publishes its own, so dev and prod can run side by side (as postgres does)
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
 volumes:
   pgdata:

@@ -35,3 +35,14 @@ services:
       # the whole repo, live: edits apply without a rebuild, ruff finds pyproject.toml at /usr/app, and the csv of
       # the readings is written into the repo folder on windows. hides the code copied at build time, at the same path
       - ..:/usr/app
+
+  webapps:
+    build:
+      target: dev # runtime plus ruff
+    env_file: .env.webapps
+    ports:
+      - "8080:8080"
+    volumes:
+      # the whole repo, live: the app reloads on every save, and ruff finds pyproject.toml at /usr/app.
+      # hides the code copied at build time, at the same path
+      - ..:/usr/app

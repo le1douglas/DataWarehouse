@@ -1,4 +1,4 @@
-# dev setup: starts postgres, builds the dbt and loader images, installs the dbt packages and checks dbt's connection.
+# dev setup: starts postgres, builds the dbt, loader and webapps images, installs the dbt packages and checks dbt's connection.
 # safe to run again: up and build change only what changed, dbt deps reinstalls the same versions.
 # loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env files (01_setup_env.ps1) and Docker Desktop running. from the repo root:
@@ -23,7 +23,7 @@ $dev = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.dev.yaml"
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    $missing = @('.env', '.env.loader', '.env.transformer' | Where-Object { -not (Test-Path "docker\$_") })
+    $missing = @('.env', '.env.loader', '.env.transformer', '.env.webapps' | Where-Object { -not (Test-Path "docker\$_") })
     if ($missing.Count -gt 0) {
         throw "missing in docker\: $($missing -join ', '). run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1"
     }
@@ -44,8 +44,8 @@ try {
     }
     if (-not $ready) { throw 'postgres is not ready after 2 minutes: see the logs of dw-dev-postgres-1 in Docker Desktop' }
 
-    Write-Host 'building the dbt and loader images'
-    & docker @dev build dbt loader
+    Write-Host 'building the dbt, loader and webapps images'
+    & docker @dev build dbt loader webapps
     Assert-Ok 'the build'
 
     # the repo mount hides the packages installed in the image, so dev keeps its own in DataWarehouseDbt/dbt_packages

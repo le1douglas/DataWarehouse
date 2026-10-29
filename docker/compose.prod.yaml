@@ -1,5 +1,5 @@
 # prod only, on top of compose.yaml: "docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod ...".
-# dev never loads it. no code is mounted: the loader and dbt run the runtime image of the git tag in RELEASE
+# dev never loads it. no code is mounted: dbt, the loader and the web apps run the runtime image of the git tag in RELEASE
 
 # the project name, so prod has its own containers, network and pgdata volume, apart from dw-dev
 name: dw-prod
@@ -10,3 +10,8 @@ services:
 
   loader:
     env_file: .env.prod.loader
+
+  webapps:
+    env_file: .env.prod.webapps
+    ports:
+      - "8081:8080" # dev is on 8080

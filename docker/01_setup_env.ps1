@@ -1,4 +1,4 @@
-# creates the six env files of dev and prod in this folder, next to compose.yaml
+# creates the eight env files of dev and prod in this folder, next to compose.yaml
 # when some exist, one question: yes overwrites them all, no keeps them and creates only the missing ones
 # asks for the postgres password of each environment, only when its project env file (.env or .env.prod) is written
 # the input folders are hardcoded: temporary locations until the day-to-day ones are decided
@@ -28,7 +28,7 @@ function Get-LatestRelease {
     return $tags[0]
 }
 
-$names = '.env', '.env.prod', '.env.loader', '.env.prod.loader', '.env.transformer', '.env.prod.transformer'
+$names = '.env', '.env.prod', '.env.loader', '.env.prod.loader', '.env.transformer', '.env.prod.transformer', '.env.webapps', '.env.prod.webapps'
 $existing = @($names | Where-Object { Test-Path (Join-Path $PSScriptRoot $_) })
 $overwrite = $false
 if ($existing.Count -gt 0) {
@@ -148,6 +148,30 @@ DBT_HOST=postgres
 # the port inside the docker network, where the postgres container always listens (5432).
 # not POSTGRES_PORT from .env.prod, which is the port published to Windows
 DBT_PORT=5432
+# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
+# env file (.env or .env.prod), set in compose.yaml: written once per environment
+
+'@
+
+Write-EnvFile '.env.webapps' @'
+# connection for the webapps container, read by src/webapps/main.py. not in git
+# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
+POSTGRESQL_SERVER=postgres
+# the port inside the docker network, where the postgres container always listens (5432).
+# not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
+POSTGRESQL_PORT=5432
+# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
+# env file (.env or .env.prod), set in compose.yaml: written once per environment
+
+'@
+
+Write-EnvFile '.env.prod.webapps' @'
+# connection for the prod webapps container, read by src/webapps/main.py. not in git
+# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
+POSTGRESQL_SERVER=postgres
+# the port inside the docker network, where the postgres container always listens (5432).
+# not POSTGRES_PORT from .env.prod, which is the port published to Windows
+POSTGRESQL_PORT=5432
 # the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
 # env file (.env or .env.prod), set in compose.yaml: written once per environment
 

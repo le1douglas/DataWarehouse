@@ -1,4 +1,4 @@
-# prod setup: builds the dbt and loader images of the git tag in RELEASE (docker/.env.prod), starts postgres and
+# prod setup: builds the dbt, loader and webapps images of the git tag in RELEASE (docker/.env.prod), starts postgres and
 # checks dbt's connection. the images are built from the tag's code: the repo is switched to the tag for the build
 # and back to where it was after, even when the build fails.
 # safe to run again: images of RELEASE that exist are not rebuilt, and up changes only what changed. loads nothing.
@@ -24,7 +24,7 @@ $prod = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.prod.yam
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    $missing = @('.env.prod', '.env.prod.loader', '.env.prod.transformer' | Where-Object { -not (Test-Path "docker\$_") })
+    $missing = @('.env.prod', '.env.prod.loader', '.env.prod.transformer', '.env.prod.webapps' | Where-Object { -not (Test-Path "docker\$_") })
     if ($missing.Count -gt 0) {
         throw "missing in docker\: $($missing -join ', '). run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1"
     }
@@ -36,7 +36,7 @@ try {
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "dbt:$release") -and (Test-Docker image inspect "loader:$release")) {
+    if ((Test-Docker image inspect "dbt:$release") -and (Test-Docker image inspect "loader:$release") -and (Test-Docker image inspect "webapps:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {
@@ -56,7 +56,7 @@ try {
         git switch --detach $release
         Assert-Ok "git switch to $release"
         try {
-            & docker @prod build dbt loader
+            & docker @prod build dbt loader webapps
             Assert-Ok 'the build'
         }
         finally {

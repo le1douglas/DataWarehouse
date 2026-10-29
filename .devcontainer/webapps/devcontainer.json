@@ -1,0 +1,28 @@
+// the web apps' dev container: the dev stage of docker/webapps/Dockerfile, with the whole repo at /usr/app.
+// open with "Dev Containers: Reopen in Container" (or "Switch Container") and pick webapps.
+// start the web apps in its terminal with "python src/webapps/main.py": they reload on every save, at http://localhost:8080
+{
+  "name": "webapps",
+  // paths are relative to this file. docker/compose.dev.yaml sets the project name (dw-dev), the dev target, the mount and the port
+  "dockerComposeFile": ["../../docker/compose.yaml", "../../docker/compose.dev.yaml"],
+  "service": "webapps",
+  // only this service, and postgres through depends_on
+  "runServices": ["webapps"],
+  "workspaceFolder": "/usr/app",
+  // the image serves the web apps: keep the container running instead, so they are started and stopped from the terminal
+  "overrideCommand": true,
+  // closing the window leaves the containers running: postgres is shared with Excel and the other container
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      // the same as the datastreamer's
+      "extensions": ["ms-python.python", "charliermarsh.ruff"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  }
+}
