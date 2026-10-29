@@ -11,8 +11,10 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /usr/app
 
+# python finds the webapps package in src without installing it, so in dev the mounted src is what runs (as the loader).
 # print output shows in the logs right away, and no __pycache__ is written into the mounted repo folder
-ENV PYTHONUNBUFFERED=1 \
+ENV PYTHONPATH=/usr/app/src \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 COPY src/webapps/ ./src/webapps/

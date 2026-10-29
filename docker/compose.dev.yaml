@@ -40,6 +40,9 @@ services:
     build:
       target: dev # runtime plus ruff
     env_file: .env.webapps
+    # a save on windows sends no change event into the container, so the reload of ui.run checks the files on a timer
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8080:8080"
     volumes:
