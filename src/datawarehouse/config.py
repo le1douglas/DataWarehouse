@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# every setting comes from .env.loader, which compose passes to the loader container. no defaults: a missing variable
+# every setting comes from docker/compose.yaml, which passes them to the loader container. no defaults: a missing variable
 # stops the loader with a KeyError naming it, instead of silently connecting or reading somewhere else
 POSTGRES_CONFIG = {
     "db_server": os.environ["POSTGRESQL_SERVER"],
@@ -25,7 +25,7 @@ TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
 TBL_META_BRONZE = "meta_bronze"
 
 # the input. compose mounts a windows folder read only at this path in the loader container (EXPORTS_DIR in the
-# environment's env file), and .env.loader names each file relative to it
+# environment's env file), and JOURNAL_ENTRIES_CSV in the same file names the csv relative to it
 INBOX_EXPORTS = Path("/inbox/exports")
 
 JOURNAL_ENTRIES_CSV = INBOX_EXPORTS / os.environ["JOURNAL_ENTRIES_CSV"]

@@ -64,15 +64,14 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ## 3. Env files: `01_setup_env.ps1`
 
 - `powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1`
-  - Writes the six env files in `docker/`: `.env`, `.env.loader`, `.env.transformer`, `.env.prod`, `.env.prod.loader`,
-    `.env.prod.transformer`
+  - Writes the two env files in `docker/`: `.env` and `.env.prod`
   - Asks a password for dev, then for prod: no spaces, quotes, `$` or `#`
   - `RELEASE` in `.env.prod` is the newest git tag at that moment
   - Existing files: answer `N` to keep them and create only the missing ones
 
 ### Check
 
-- `git status --short --ignored docker` → all six listed with `!!`
+- `git status --short --ignored docker` → both listed with `!!`
 - `Select-String -Path docker\.env.prod -Pattern '^RELEASE='` → the newest tag (`git tag --sort=-creatordate`, first line)
 
 ---
@@ -80,7 +79,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ## 4. Dev stack: `02_setup_dev.ps1`
 
 - `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
-  - Starts postgres, builds the `dbt` and `loader` images, runs `dbt deps` and `dbt debug`
+  - Builds the `dbt`, `loader` and `webapps` images, starts postgres and the web app, runs `dbt deps` and `dbt debug`
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
 
@@ -231,7 +230,7 @@ Setup is done.
 
 - **`docker` fails with `Docker Desktop is unable to start`, or a setup script with `docker does not answer`:** open
   Docker Desktop and wait until the engine runs; tick autostart (section 1).
-- **`set EXPORTS_DIR / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
+- **`set EXPORTS_DIR / JOURNAL_ENTRIES_CSV / NICEGUI_PORT / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
 - **Prod `up` fails with `pull access denied for dbt` / `loader`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.

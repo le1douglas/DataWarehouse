@@ -2,7 +2,7 @@
 # checks dbt's connection. the images are built from the tag's code: the repo is switched to the tag for the build
 # and back to where it was after, even when the build fails.
 # safe to run again: images of RELEASE that exist are not rebuilt, and up changes only what changed. loads nothing.
-# needs the prod env files (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
+# needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
 
@@ -24,9 +24,8 @@ $prod = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.prod.yam
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    $missing = @('.env.prod', '.env.prod.loader', '.env.prod.transformer', '.env.prod.webapps' | Where-Object { -not (Test-Path "docker\$_") })
-    if ($missing.Count -gt 0) {
-        throw "missing in docker\: $($missing -join ', '). run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1"
+    if (-not (Test-Path 'docker\.env.prod')) {
+        throw 'missing: docker\.env.prod. run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1'
     }
 
     if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }

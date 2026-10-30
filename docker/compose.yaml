@@ -29,12 +29,14 @@ services:
       dockerfile: docker/dbt/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: dbt:${RELEASE}
-    # no env_file here: each environment's overlay sets its own. compose appends an overlay's env_file to this one,
-    # so a file here would leak dev's values into prod for any variable the prod file leaves out
+    # the host is the service name above, and the port the one postgres listens on inside the docker network: not
+    # POSTGRES_PORT, which is published to windows and changes per environment.
     # the database, user and password of postgres above, from the project env file (.env or .env.prod), so each is
-    # written once per environment. environment wins over env_file. until the roles exist every service is postgres
+    # written once per environment. until the roles exist every service is postgres
     environment:
       TZ: *timezone # dbt itself always logs in UTC, whatever this says
+      DBT_HOST: postgres
+      DBT_PORT: "5432"
       DBT_DBNAME: ${POSTGRES_DB}
       DBT_USER: ${POSTGRES_USER}
       DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
@@ -49,13 +51,16 @@ services:
       dockerfile: docker/loader/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: loader:${RELEASE}
-    # no env_file here: each environment's overlay sets its own (see dbt)
-    # the database, user and password of postgres above, from the project env file (see dbt)
+    # the connection to postgres above, as for dbt
     environment:
       TZ: *timezone # CSVReader stamps meta_extract_date_time in it, read by src/datawarehouse/config.py
+      POSTGRESQL_SERVER: postgres
+      POSTGRESQL_PORT: "5432"
       POSTGRESQL_DB: ${POSTGRES_DB}
       POSTGRESQL_USER: ${POSTGRES_USER}
       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      # relative to /inbox/exports
+      JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
     volumes:
       # the input, read only (:ro), so the loader can never change an export
       - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
@@ -79,7 +84,7 @@ services:
       - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
     profiles: ["job"] # not started by "up", only by "run"
 
-  # a server: the NiceGUI pages of the warehouse, at http://localhost on the port each overlay publishes.
+  # a server: the NiceGUI pages of the warehouse, at http://localhost on NICEGUI_PORT.
   # started by "up" with postgres, and kept running
   webapps:
     build:
@@ -87,14 +92,17 @@ services:
       dockerfile: docker/webapps/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: webapps:${RELEASE}
-    # no env_file here: each environment's overlay sets its own (see dbt)
-    # the database, user and password of postgres above, from the project env file (see dbt)
+    # the connection to postgres above, as for dbt
     environment:
       TZ: *timezone
+      POSTGRESQL_SERVER: postgres
+      POSTGRESQL_PORT: "5432"
       POSTGRESQL_DB: ${POSTGRES_DB}
       POSTGRESQL_USER: ${POSTGRES_USER}
       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
-    # no ports here: each overlay publishes its own, so dev and prod can run side by side (as postgres does)
+    # one port per environment, so dev and prod can run side by side (as postgres does)
+    ports:
+      - "${NICEGUI_PORT:?set NICEGUI_PORT in the env file}:8080"
     depends_on:
       - postgres
     restart: unless-stopped
