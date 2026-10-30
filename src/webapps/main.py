@@ -1,10 +1,14 @@
 from nicegui import app, run, ui
 
-from webapps.orchestration import run_ended, start_run_end_listener
-from webapps.queries import select_aud_errors, select_cand_as_corr, select_datasets
+from webapps.orchestration import run_dbt_build, run_ended, start_run_end_listener
+from webapps.queries import select_aud_errors, select_cand_as_corr, select_datasets, upsert_corrections
 from webapps.ui_elements.grid import Grid
 from webapps.ui_elements.reload_button import ReloadButton
+from webapps.ui_elements.rows_text import rows_text
 from webapps.ui_elements.submit_button import SubmitButton
+
+# a placeholder until the app knows who is logged in
+REVIEWER = "Claude"
 
 app.on_startup(start_run_end_listener)
 
@@ -26,11 +30,7 @@ async def index():
             reload_button = ReloadButton(on_reload=lambda: show_dataset(dataset_select.value)).bind_enabled_from(
                 dataset_select, "value", backward=bool
             )
-            submit_button = SubmitButton(
-                get_dataset=lambda: dataset_select.value,
-                on_saved=lambda dataset: show_dataset(dataset),
-                has_errors=lambda: grid.has_errors,
-            )
+            submit_button = SubmitButton(on_submit=lambda rows: submit(rows))
     grid = Grid(on_row_edited=submit_button.add_edit)
 
     # edits not submitted are dropped with the dataset they belong to
@@ -40,6 +40,25 @@ async def index():
         submit_button.clear_edits()
         reload_button.show_current()
         grid.show_rows(columns, rows, aud_errors)
+
+    # the rows go to corrections, and the dataset is shown again: the grid shows candidate as it is now, with the
+    # corrections, and no cell is edited any more. then dbt build takes the corrections through to audit and silver,
+    # and when it ends on_run_end shows the dataset again
+    async def submit(rows: list[dict]) -> None:
+        dataset = dataset_select.value
+        await run.io_bound(upsert_corrections, dataset, rows, REVIEWER)
+        await show_dataset(dataset)
+        building = ui.notification(
+            f"Submitted {rows_text(len(rows))}: dbt build is running", spinner=True, timeout=None
+        )
+        try:
+            passed = await run_dbt_build()
+        finally:
+            building.dismiss()
+        # rows with errors are told by on_run_end. without any, the failure is elsewhere: dbt could not run, and then
+        # no end is announced, or another dataset failed
+        if not passed and not grid.has_errors:
+            ui.notify("dbt build did not pass: see the webapps log", type="warning")
 
     # a dbt command has ended, so candidate and audit may have changed. a page without edits shows the dataset again at
     # once, and tells whether it still has errors; a page with edits keeps them, and marks the reload button instead
