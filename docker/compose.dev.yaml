@@ -12,7 +12,6 @@ services:
   dbt:
     build:
       target: dev # runtime plus sqlfmt
-    env_file: .env.transformer
     volumes:
       # the whole repo, live: edits apply without a rebuild, and sqlfmt finds pyproject.toml at /usr/app.
       # hides the project copied at build time, at the same path, so the working directory stays /usr/app/DataWarehouseDbt.
@@ -22,7 +21,6 @@ services:
   loader:
     build:
       target: dev # runtime plus pytest, pytest-cov and ruff
-    env_file: .env.loader
     volumes:
       # the whole repo, live: edits apply without a rebuild, and pytest and ruff find tests and pyproject.toml at
       # /usr/app. hides the package copied at build time, at the same path, so PYTHONPATH stays /usr/app/src
@@ -39,12 +37,9 @@ services:
   webapps:
     build:
       target: dev # runtime plus ruff
-    env_file: .env.webapps
     # a save on windows sends no change event into the container, so the reload of ui.run checks the files on a timer
     environment:
       WATCHFILES_FORCE_POLLING: "true"
-    ports:
-      - "8080:8080"
     volumes:
       # the whole repo, live: the app reloads on every save, and ruff finds pyproject.toml at /usr/app.
       # hides the code copied at build time, at the same path

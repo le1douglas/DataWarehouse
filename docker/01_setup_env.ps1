@@ -1,4 +1,4 @@
-# creates the eight env files of dev and prod in this folder, next to compose.yaml
+# creates the two env files, dev and prod, in this folder, next to compose.yaml
 # when some exist, one question: yes overwrites them all, no keeps them and creates only the missing ones
 # asks for the postgres password of each environment, only when its project env file (.env or .env.prod) is written
 # the input folders are hardcoded: temporary locations until the day-to-day ones are decided
@@ -28,7 +28,7 @@ function Get-LatestRelease {
     return $tags[0]
 }
 
-$names = '.env', '.env.prod', '.env.loader', '.env.prod.loader', '.env.transformer', '.env.prod.transformer', '.env.webapps', '.env.prod.webapps'
+$names = '.env', '.env.prod'
 $existing = @($names | Where-Object { Test-Path (Join-Path $PSScriptRoot $_) })
 $overwrite = $false
 if ($existing.Count -gt 0) {
@@ -49,10 +49,6 @@ function Save-EnvFile([string]$name, [string]$content) {
     Write-Host "written  $name"
 }
 
-function Write-EnvFile([string]$name, [string]$content) {
-    if (Confirm-Write $name) { Save-EnvFile $name $content }
-}
-
 if (Confirm-Write '.env') {
     $devPassword = Read-Password 'dev'
     Save-EnvFile '.env' @"
@@ -61,10 +57,14 @@ POSTGRES_DB=DataWarehouse
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$devPassword
 POSTGRES_PORT=5432
+# the port of the web apps, published to Windows
+NICEGUI_PORT=8080
 RELEASE=dev
 # windows folder mounted read only into the loader container. it can move: change the line, no rebuild needed
 # the root of the csv exports, mounted at /inbox/exports. SampleData until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
+# the journal entries, relative to EXPORTS_DIR
+JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
 # windows folder mounted into the datastreamer container, at /daily_raw_csv: where the csv of a part of the day is saved
 # TODO placeholder (2026-10-22): align with the .env on the other machine
 DAILY_RAW_CSV_DIR=../user_input/journal_entries
@@ -83,90 +83,18 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$prodPassword
 # published to Windows: dev is on 5432
 POSTGRES_PORT=5433
+# the port of the web apps, published to Windows: dev is on 8080
+NICEGUI_PORT=8081
 # the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
 RELEASE=$release
 # windows folder mounted read only into the loader container
 # TODO placeholder (2026-10-22): the same folder as dev until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
+# the journal entries, relative to EXPORTS_DIR
+JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
 # windows folder mounted into the datastreamer container, at /daily_raw_csv
 # TODO placeholder (2026-10-22): compose.yaml requires it even though prod does not run the datastreamer yet
 DAILY_RAW_CSV_DIR=../user_input/journal_entries
 
 "@
 }
-
-Write-EnvFile '.env.loader' @'
-# connection and inputs for the loader container, read by src/datawarehouse/config.py. not in git
-# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
-POSTGRESQL_SERVER=postgres
-# the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
-POSTGRESQL_PORT=5432
-# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
-# env file (.env or .env.prod), set in compose.yaml: written once per environment
-# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR)
-JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
-
-'@
-
-Write-EnvFile '.env.prod.loader' @'
-# connection and inputs for the prod loader container, read by src/datawarehouse/config.py. not in git
-# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
-POSTGRESQL_SERVER=postgres
-# the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env.prod, which is the port published to Windows
-POSTGRESQL_PORT=5432
-# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
-# env file (.env or .env.prod), set in compose.yaml: written once per environment
-# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR)
-JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
-
-'@
-
-Write-EnvFile '.env.transformer' @'
-# connection for the dbt container, read by DataWarehouseDbt/profiles.yml. not in git
-# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
-DBT_HOST=postgres
-# the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
-DBT_PORT=5432
-# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
-# env file (.env or .env.prod), set in compose.yaml: written once per environment
-
-'@
-
-Write-EnvFile '.env.prod.transformer' @'
-# connection for the prod dbt container, read by DataWarehouseDbt/profiles.yml. not in git
-# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
-DBT_HOST=postgres
-# the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env.prod, which is the port published to Windows
-DBT_PORT=5432
-# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
-# env file (.env or .env.prod), set in compose.yaml: written once per environment
-
-'@
-
-Write-EnvFile '.env.webapps' @'
-# connection for the webapps container, read by src/webapps/main.py. not in git
-# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
-POSTGRESQL_SERVER=postgres
-# the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env, which is the port published to Windows and changes per environment
-POSTGRESQL_PORT=5432
-# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
-# env file (.env or .env.prod), set in compose.yaml: written once per environment
-
-'@
-
-Write-EnvFile '.env.prod.webapps' @'
-# connection for the prod webapps container, read by src/webapps/main.py. not in git
-# host is the postgres service name in compose.yaml: containers of one compose project reach each other by service name
-POSTGRESQL_SERVER=postgres
-# the port inside the docker network, where the postgres container always listens (5432).
-# not POSTGRES_PORT from .env.prod, which is the port published to Windows
-POSTGRESQL_PORT=5432
-# the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
-# env file (.env or .env.prod), set in compose.yaml: written once per environment
-
-'@

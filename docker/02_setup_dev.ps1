@@ -1,7 +1,7 @@
-# dev setup: starts postgres, builds the dbt, loader and webapps images, installs the dbt packages and checks dbt's connection.
+# dev setup: builds the dbt, loader and webapps images, starts postgres and the web apps, installs the dbt packages and checks dbt's connection.
 # safe to run again: up and build change only what changed, dbt deps reinstalls the same versions.
 # loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
-# needs the env files (01_setup_env.ps1) and Docker Desktop running. from the repo root:
+# needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
 $ErrorActionPreference = 'Stop'
 
@@ -23,14 +23,18 @@ $dev = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.dev.yaml"
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    $missing = @('.env', '.env.loader', '.env.transformer', '.env.webapps' | Where-Object { -not (Test-Path "docker\$_") })
-    if ($missing.Count -gt 0) {
-        throw "missing in docker\: $($missing -join ', '). run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1"
+    if (-not (Test-Path 'docker\.env')) {
+        throw 'missing: docker\.env. run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1'
     }
 
     if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
 
-    Write-Host 'starting postgres'
+    # before up, so up starts the web apps on the new image, not on the one of the last build
+    Write-Host 'building the dbt, loader and webapps images'
+    & docker @dev build dbt loader webapps
+    Assert-Ok 'the build'
+
+    Write-Host 'starting postgres and the web apps'
     & docker @dev up -d
     Assert-Ok 'docker compose up'
 
@@ -43,10 +47,6 @@ try {
         Start-Sleep -Seconds 2
     }
     if (-not $ready) { throw 'postgres is not ready after 2 minutes: see the logs of dw-dev-postgres-1 in Docker Desktop' }
-
-    Write-Host 'building the dbt, loader and webapps images'
-    & docker @dev build dbt loader webapps
-    Assert-Ok 'the build'
 
     # the repo mount hides the packages installed in the image, so dev keeps its own in DataWarehouseDbt/dbt_packages
     Write-Host 'installing the dbt packages'
