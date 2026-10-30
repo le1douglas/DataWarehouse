@@ -13,9 +13,8 @@ class Loader:
     Produces one fully validated RecordSet from what a reader returns, for a given row model.
     Validates row wise (against the provided RecordT) and between rows.
 
-    The same for every layer and every reader: the metadata is made by the reader (CSVReader
-    stamps the source and the extract date-time, ExcelReader reads what the reviewer filled in)
-    and is attached to each row as MetaRecords.
+    The same for every reader: the metadata is made by the reader (CSVReader stamps the source
+    and the extract date-time) and is attached to each row as MetaRecords.
 
     Static for now, revisit if a looping use case (many files) needs to share state (a reused
     reader instance, aggregated errors across files, etc.) across calls.

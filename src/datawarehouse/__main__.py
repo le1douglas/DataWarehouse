@@ -1,22 +1,17 @@
-"""Entry point of the package: run with `python -m datawarehouse bronze` or `python -m datawarehouse corrections`."""
+"""Entry point of the package: run with `python -m datawarehouse bronze`."""
 
 import argparse
 
 from datawarehouse.config import (
-    CORRECTIONS_SHEET,
-    CORRECTIONS_WORKBOOK,
     JOURNAL_ENTRIES_CSV,
     POSTGRES_CONFIG,
     TBL_BRNZ_JOURNAL_ENTRIES,
-    TBL_CORR_JOURNAL_ENTRIES,
     TIMEZONE,
 )
 from datawarehouse.databases.sql_postgres_database import PostgreSQLDatabase
 from datawarehouse.loaders.loader import Loader
 from datawarehouse.readers.reader_csv import CSVReader
-from datawarehouse.readers.reader_excel import ExcelReader
 from datawarehouse.records.brnz_record_journal_entries import BrnzRecordJournalEntries
-from datawarehouse.records.corr_record_journal_entries import CorrRecordJournalEntries
 
 
 # csv -> bronze
@@ -30,34 +25,14 @@ def load_bronze() -> None:
     postgres.load_to_bronze(TBL_BRNZ_JOURNAL_ENTRIES, record_set)
 
 
-# excel -> corrections
-def load_corrections() -> None:
-    df_excel = ExcelReader.read(CORRECTIONS_WORKBOOK, sheet=CORRECTIONS_SHEET)
-    record_set = Loader.load(df_excel, CorrRecordJournalEntries)
-    print(record_set.rows[0])
-
-    postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
-    postgres.connect()
-    postgres.load_to_corrections(TBL_CORR_JOURNAL_ENTRIES, record_set)
-
-
-
-
-
-
-
-
-
-
 LOADS = {
     "bronze": load_bronze,
-    "corrections": load_corrections,
 }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m datawarehouse", description="Load one input of the warehouse.")
-    parser.add_argument("load", choices=LOADS, help="bronze: csv -> bronze, corrections: excel -> corrections")
+    parser.add_argument("load", choices=LOADS, help="bronze: csv -> bronze")
     args = parser.parse_args()
     LOADS[args.load]()
 

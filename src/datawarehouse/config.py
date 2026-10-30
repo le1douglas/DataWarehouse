@@ -16,27 +16,19 @@ POSTGRES_CONFIG = {
 # taken from the container's clock, which falls back to UTC without an error: an empty or unknown TZ stops the loader
 TIMEZONE = ZoneInfo(os.environ["TZ"])
 
-# the schemas that python loads into, everything else is created by dbt
+# the schema that python loads into, everything else is created by dbt or written by the web apps
 DB_SCHEMA_BRONZE = "dw_bronze"
-DB_SCHEMA_CORRECTIONS = "dw_corrections"
 
 TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
-TBL_CORR_JOURNAL_ENTRIES = "corr_journal_entries"
 
 # the meta table of a layer holds the metadata of every dataset of that layer
 TBL_META_BRONZE = "meta_bronze"
-TBL_META_CORRECTIONS = "meta_corrections"
 
-# the sheet of the corrections workbook that is uploaded: the corrections, then their metadata in the last two columns
-CORRECTIONS_SHEET = "corrected"
-
-# the inputs. compose mounts two windows folders read only at these paths in the loader container (EXPORTS_DIR and
-# CORRECTIONS_DIR in the environment's env file), and .env.loader names each file relative to its folder
+# the input. compose mounts a windows folder read only at this path in the loader container (EXPORTS_DIR in the
+# environment's env file), and .env.loader names each file relative to it
 INBOX_EXPORTS = Path("/inbox/exports")
-INBOX_CORRECTIONS = Path("/inbox/corrections")
 
 JOURNAL_ENTRIES_CSV = INBOX_EXPORTS / os.environ["JOURNAL_ENTRIES_CSV"]
-CORRECTIONS_WORKBOOK = INBOX_CORRECTIONS / os.environ["CORRECTIONS_WORKBOOK"]
 
 
 # the name of a dataset, as used in table names (brnz_journal_entries)

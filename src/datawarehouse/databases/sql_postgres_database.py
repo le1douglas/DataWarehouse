@@ -3,12 +3,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError, ProgrammingError
 
-from datawarehouse.config import (
-    DB_SCHEMA_BRONZE,
-    DB_SCHEMA_CORRECTIONS,
-    TBL_META_BRONZE,
-    TBL_META_CORRECTIONS,
-)
+from datawarehouse.config import DB_SCHEMA_BRONZE, TBL_META_BRONZE
 from datawarehouse.records.record_set import RecordSet
 
 
@@ -41,14 +36,10 @@ class PostgreSQLDatabase:
 
     # bronze only ever appends: row_id is assigned by the database, so a row is never already there
     def load_to_bronze(self, table_name: str, record_set: RecordSet):
-        self._load(DB_SCHEMA_BRONZE, table_name, TBL_META_BRONZE, record_set, upsert=False)
-
-    # a correction replaces the earlier correction of the same row_id
-    def load_to_corrections(self, table_name: str, record_set: RecordSet):
-        self._load(DB_SCHEMA_CORRECTIONS, table_name, TBL_META_CORRECTIONS, record_set, upsert=True)
+        self._load(DB_SCHEMA_BRONZE, table_name, TBL_META_BRONZE, record_set)
 
     # meta_table_name is the meta table of the layer, i.e. "meta_bronze"
-    def _load(self, layer: str, table_name: str, meta_table_name: str, record_set: RecordSet, upsert: bool):
+    def _load(self, layer: str, table_name: str, meta_table_name: str, record_set: RecordSet):
 
         try:
             # reads the columns of the tables from the database
@@ -59,17 +50,11 @@ class PostgreSQLDatabase:
             # Convert them to a list of dictionaries
             rows = [row.model_dump() for row in record_set.rows]
 
+            # every row is inserted, a primary key that already exists fails the load
             statement = insert(table)
             meta_statement = insert(meta_table)
 
-            # upsert: a row whose primary key is already in the table replaces the existing row
-            # otherwise every row is inserted, and a primary key that already exists fails the load
-            if upsert:
-                statement = self._update_on_primary_key(statement, table)
-                meta_statement = self._update_on_primary_key(meta_statement, meta_table)
-
-            # row_id is assigned by the database in bronze, and sent with the row in corrections.
-            # either way the database hands it back. sort_by_parameter_order hands the ids back
+            # row_id is assigned by the database and handed back. sort_by_parameter_order hands the ids back
             # in the order the rows were sent, so the n-th id belongs to the n-th row
             # this also means every row is inserted individually and not as a batch operation. should be fine for the volume of data
             statement = statement.returning(table.c.row_id, sort_by_parameter_order=True)
@@ -107,17 +92,3 @@ class PostgreSQLDatabase:
         except Exception as e:
             print(f"Unexpected database error during load:\n\r{e}")
             raise
-
-    # the primary key is read from the table, so the caller never names key columns
-    @staticmethod
-    def _update_on_primary_key(statement, table: Table):
-        key_columns = [column.name for column in table.primary_key.columns]
-
-        return statement.on_conflict_do_update(
-            index_elements=key_columns,
-            set_={
-                column.name: statement.excluded[column.name]
-                for column in table.columns
-                if column.name not in key_columns
-            },
-        )
