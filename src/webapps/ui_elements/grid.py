@@ -1,7 +1,10 @@
 import json
+from collections.abc import Callable
 
-from webapps.errors_tooltip import ErrorsTooltip
-from webapps.logic import column_errors, is_error_row, is_locked_column, row_errors
+from nicegui import ui
+
+from webapps.ui_elements.error_jump_buttons import ErrorJumpButtons
+from webapps.ui_elements.errors_tooltip import ErrorsTooltip
 
 # pixels
 MIN_COLUMN_WIDTH = 120
@@ -51,17 +54,41 @@ function markEdited(params) {
 """
 
 
+# the grid where a reviewer corrects a dataset, with its errors tooltip and its error jump buttons. on_row_edited gets
+# the whole row after each edit
+class Grid(ui.aggrid):
+    def __init__(self, on_row_edited: Callable[[dict], None]) -> None:
+        errors_tooltip = ErrorsTooltip()
+        super().__init__(_grid_options([], [], errors_tooltip))
+        self.classes("w-full flex-grow")
+        self._errors_tooltip = errors_tooltip
+        self._error_jump_buttons = ErrorJumpButtons(self, ERROR_BUTTON_STYLE)
+        self.on("cellValueChanged", lambda e: on_row_edited(e.args["data"]))
+        ui.add_css(GRID_CSS)
+        ui.add_body_html(GRID_JS)
+
+    @property
+    def has_errors(self) -> bool:
+        return self._error_jump_buttons.has_errors
+
+    # the grid is updated in place: the columns change with the dataset, so all its options are replaced
+    def show_rows(self, columns: list[str], rows: list[dict], aud_errors: dict[str, list[dict]]) -> None:
+        row_data = [_row_data(row, aud_errors) for row in rows]
+        error_indexes = [index for index, row in enumerate(row_data) if row["is_error_row"]]
+        self._error_jump_buttons.set_error_indexes(error_indexes)
+        self.options.update(_grid_options(columns, row_data, self._errors_tooltip))
+        self.update()
+
+
 # the options of ui.aggrid
-def grid_options(
-    columns: list[str], rows: list[dict], aud_errors: dict[str, list[dict]], errors_tooltip: ErrorsTooltip
-) -> dict:
+def _grid_options(columns: list[str], row_data: list[dict], errors_tooltip: ErrorsTooltip) -> dict:
     return {
-        "columnDefs": [column_def(column) for column in columns],
+        "columnDefs": [_column_def(column) for column in columns],
         # flex: the columns share the window width, down to MIN_COLUMN_WIDTH, then the grid scrolls sideways
         "defaultColDef": {"resizable": True, "sortable": False, "flex": 1, "minWidth": MIN_COLUMN_WIDTH},
         **errors_tooltip.grid_handlers(),
         ":onCellValueChanged": "params => markEdited(params)",
-        "rowData": [row_data(row, aud_errors) for row in rows],
+        "rowData": row_data,
         ":getRowId": "params => params.data.row_id",
         ":getRowStyle": f"params => params.data.is_error_row ? {ERROR_ROW_STYLE} : null",
     }
@@ -69,10 +96,10 @@ def grid_options(
 
 # a locked column is not editable and grayed out, every other cell is editable and outlined once edited. a cell that
 # an error names is red on top: a locked one keeps its gray text and cursor
-def column_def(column: str) -> dict:
+def _column_def(column: str) -> dict:
     is_error_cell = f"({json.dumps(column)} in params.data.column_errors)"
     error_style = f"...({is_error_cell} ? {ERROR_CELL_STYLE} : {{}})"
-    if is_locked_column(column):
+    if _is_locked_column(column):
         locked_style = f"...{LOCKED_CELL_STYLE}"
         return {"field": column, "editable": False, ":cellStyle": f"params => ({{{locked_style}, {error_style}}})"}
     is_edited_cell = f"params.data.edited_columns.includes({json.dumps(column)})"
@@ -83,11 +110,31 @@ def column_def(column: str) -> dict:
 # the row and cell rules and the errors are decided once here and sent with the row: is_error_row, row_errors,
 # column_errors and edited_columns have no column, so the grid does not show them. ErrorsTooltip shows a cell the
 # row_errors and the column_errors of its column, and markEdited fills edited_columns
-def row_data(row: dict, aud_errors: dict[str, list[dict]]) -> dict:
+def _row_data(row: dict, aud_errors: dict[str, list[dict]]) -> dict:
     errors = aud_errors.get(row["row_id"], [])
     return row | {
-        "is_error_row": is_error_row(errors),
-        "row_errors": row_errors(errors),
-        "column_errors": column_errors(errors),
+        "is_error_row": bool(errors),
+        "row_errors": _row_errors(errors),
+        "column_errors": _column_errors(errors),
         "edited_columns": [],
     }
+
+
+# the column rule: a locked column is never editable, whatever the row
+def _is_locked_column(column: str) -> bool:
+    return column in {"row_id", "date_time"}
+
+
+# the descriptions of the errors in the whole row, those that name no column: every cell of the row shows them
+def _row_errors(errors: list[dict]) -> list[str]:
+    return [error["description"] for error in errors if not error["target_column"]]
+
+
+# the cell rule: a column of the row that an error names is shown in a stronger red, and only its cells show the
+# descriptions of its errors
+def _column_errors(errors: list[dict]) -> dict[str, list[str]]:
+    by_column: dict[str, list[str]] = {}
+    for error in errors:
+        if error["target_column"]:
+            by_column.setdefault(error["target_column"], []).append(error["description"])
+    return by_column
