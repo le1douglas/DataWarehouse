@@ -112,8 +112,9 @@ CREATE TABLE IF NOT EXISTS dw_gold.dim_rooms (
     room_time VARCHAR(50) NOT NULL,
     floor_number INTEGER NOT NULL,
     assigned_stage VARCHAR(50) NOT NULL,
+    tables_number INTEGER NOT NULL,
     CONSTRAINT pk_dim_rooms PRIMARY KEY (room),
-    CONSTRAINT ck_dim_rooms_room_time CHECK (room_time IN ('morning', 'afternoon'))
+    CONSTRAINT ck_dim_rooms_room_time CHECK (room_time IN ('morning', 'afternoon', 'all_day'))
 );
 
 
