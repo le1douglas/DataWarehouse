@@ -3,7 +3,7 @@
 Unfinished business. The user parks these deliberately: mention the relevant one when work gets near it, do not start it unprompted.
 
 - **Test suite for the pipeline.** The loops of 2026-10-09 were run by hand. `.scratch/pipeline-test-suite/spec.md` lists every scenario that was run with its observed result, and the ones that were not run with their expected result, as the specification of a suite that runs them on a scratch database.
-- **Corrections loader rules:** reject an upload whose `row_id`s are not in `dw_audit.aud_journal_entries`, reject an upload based on a workbook refreshed before the last corrections load. The audit table does not say when it was taken, and after a partial run it mixes fresh results with older ones.
+- **Corrections submit rules:** reject a submit whose `row_id`s are not in `dw_audit.aud_journal_entries`, reject a submit based on rows loaded before the last corrections were submitted. The audit table does not say when it was taken, and after a partial run it mixes fresh results with older ones.
 - **Leftovers after a delete or rename:** dbt does not drop the relation of a deleted model or data test. After the 2026-10-14 rebuild the database is clean, but every later delete or rename leaves one behind.
 - **Duplicate keys inside one file** are not checked in `RecordSet`; the database index rejects them. The user accepted failing in SQL for now.
 - **Bronze re-load:** bronze has no unique index on the content of a row, so loading the same CSV twice silently duplicates every journal entry under new `row_id`s, and the corrections stay on the old ones. "Skip identical rows, abort on same content with different values" is not implemented.
@@ -16,7 +16,6 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Same room twice in a row:** with the new position logic two consecutive rounds in the same room merge into one group of 8, and a correction cannot split them.
 - **Corrections behaviour to revisit:** every flagged row is uploaded and gets a correction even if untouched; an empty cell overwrites with null; there is no way to withdraw a correction except SQL.
 - **Subject cleaning** (stripping ` - Measurement`) was removed while `subject` was part of the key. It no longer is (the key is `row_id`), so nothing blocks it now. The user will decide on a strategy later.
-- **Python gaps:** `ExcelReader` has no error handling (a workbook open in Excel gives a raw `PermissionError`), and there is no test for the upsert. On 2026-10-14, 30 of the Python tests failed because they call APIs that have since changed (the CSV and Excel readers, `Loader.load`, `MetaRecord`, `load_to_corrections`).
-- **Loader still expects corrections (branch `niceGUI`):** on 2026-10-29 `CORRECTIONS_DIR` was removed from `docker/compose.yaml`, so `/inbox/corrections` is no longer mounted. `src/datawarehouse/config.py` still reads `os.environ["CORRECTIONS_WORKBOOK"]` at import, which the current `docker/.env.loader` does not set, so `loader bronze` fails with a `KeyError` and `loader corrections` has no workbook to read. The fix is to remove the corrections load from the Python package.
-- **Hardcoded values:** the reviewer name in the workbook's Power Query.
+- **Python gaps:** there is no test for the upsert of the web app. On 2026-10-30, 32 of the Python tests failed because they call APIs that have since changed (the CSV reader, `Loader.load`, `MetaRecord`).
+- **Hardcoded values:** the reviewer name, `REVIEWER` in `src/webapps/main.py`, until the app knows who is logged in.
 - **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.

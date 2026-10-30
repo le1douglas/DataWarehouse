@@ -28,7 +28,7 @@ How code in this repository is named and written. Domain terms are defined in `d
 - dbt singular tests: `tests/aud_<dataset>/aud_<dataset>__<rule>.sql`, pointing at the candidate model. Severity `error`, `store_failures` and the `audit` schema are set for every data test in `dbt_project.yml`, not per file. The file name is the name of the failure table in `dw_audit`, and relation names are limited to 63 characters.
 - A data test returns three columns, `row_id`, `target_column` and `description`: `select row_id, <column or null::text> as target_column, <reason> as description from {{ ref("cand_<dataset>") }} where ...`, on one candidate model, at most one row per `row_id` and `target_column`. `target_column` is the column the error is in, null when it is in the whole row. `description` is what only the test knows (why the value cannot be cast, the offending value); the row's values are candidate's and are not copied.
 - Audit table: `aud_<dataset>` (`dw_audit.aud_journal_entries`), one per candidate model, next to the failure tables `aud_<dataset>__<rule>`. It is created by the `create_audit_table` macro in `on-run-end`, one call per dataset in `dbt_project.yml`, not by a model, as the union of the failure tables: `row_id, kind, target_column, description`, one row per failed rule and column, where `kind` is the `<rule>` part of the data test's name and `target_column` and `description` are those the data test returned. Its columns and constraints are those of the meta tables: `UUID`, `VARCHAR(50)`, `VARCHAR(400)`, all not null, foreign key `fk_aud_<dataset>_row_id` to the dataset's bronze table, plus `target_column VARCHAR(63)`, nullable. The key is the unique constraint `uq_aud_<dataset>` on `(row_id, kind, target_column)` with `NULLS NOT DISTINCT`, not a primary key, which cannot hold the null of a whole-row error.
-- Metadata columns start with `meta_` (`meta_reviewed_by` and `meta_reviewed_date_time` in the workbook, and `meta_failed_tests`, which the workbook builds from the audit table's `kind`s). The Excel side filters on this prefix, so a non-`meta_` column of candidate that also exists in staging is treated as correctable.
+- Metadata columns start with `meta_` (`meta_reviewed_by`, `meta_reviewed_date_time`).
 - The columns and types of silver are declared only in `models/silver/slvr_<dataset>.yml`, every column with its `data_type`, with `contract: {enforced: true}`. `slvr_<dataset>.sql` is `{{ silver_select("<dataset>") }}` and `aud_<dataset>__castable.sql` is `{{ aud_castable("<dataset>") }}`; both read the yml. Every column except `row_id` is cast from text to its `data_type`, a `timestamptz` column also gets the `timezone` var. There are no per-column rules: a candidate column has the name of the silver column it becomes, and a candidate column that is not in the yml is not published.
 - From staging onwards the bronze column `tags` is called `room_raw`, the room as recorded (and as corrected). Candidate derives `room`, the room of the room group, which is what silver publishes. Names and comments use "room", "room group" and `room_index`.
 - Python: one class per file, file in snake case (`brnz_record_journal_entries.py`, `reader_csv.py`), classes `<Prefix>Record<Dataset>` (`BrnzRecordJournalEntries`), `<Format>Reader` (`CSVReader`). There is one `Loader`, the same for every layer and every reader. Test files are `test_<module>.py`, with a name that is unique across `tests/unit` and `tests/integration`.
@@ -38,7 +38,7 @@ How code in this repository is named and written. Domain terms are defined in `d
 
 ## SQL style
 
-- The column order of a select is deliberate (it matches the corrections table and the Excel upload) and must not be rearranged.
+- The column order of a select is deliberate (it matches the corrections table) and must not be rearranged.
 - dbt models: a chain of CTEs named with a verb (`identify_room_index`, `assign_position`), each doing one thing, with a lowercase `--` comment saying why. The final select lists columns explicitly so helper columns are not exposed.
 - Do not repeat logic across CTEs: compute a value once and reuse it.
 - Repeated column lists go in a Jinja `{% set %}` list and a loop.
@@ -49,8 +49,8 @@ How code in this repository is named and written. Domain terms are defined in `d
 ## Python style
 
 - Comments are lowercase `# ` lines above the code they explain.
-- Every row model inherits `Record` (`extra="forbid"`, empty string becomes `None`, a pandas NaN is refused). `Record` has no fields; each model declares its own. The metadata of a row is not a field: `BrnzRecord` and `CorrRecord` carry it as `meta_records`, excluded from `model_dump`.
-- Turning missing values into `None` is the reader's job, not the model's. A dataframe from CSV and one from Excel must look the same where cells are empty.
+- Every row model inherits `Record` (`extra="forbid"`, empty string becomes `None`, a pandas NaN is refused). `Record` has no fields; each model declares its own. The metadata of a row is not a field: `BrnzRecord` carries it as `meta_records`, excluded from `model_dump`.
+- Turning missing values into `None` is the reader's job, not the model's.
 - A row model mirrors its SQL table as closely as possible: same column names, order, lengths and nullability.
 - Database errors are caught per exception type, printed with context, and re-raised. Loads run in one transaction.
 - A function used only inside its module starts with `_`.

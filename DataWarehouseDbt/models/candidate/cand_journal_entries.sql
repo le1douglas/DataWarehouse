@@ -26,7 +26,7 @@ with
     ),
 
     -- date_time is text, sorted as text: it sorts in time order while every row of a dataset has the same format, as
-    -- one source writes them. a correction must keep the format of its source (the corrections workbook's job).
+    -- one source writes them. a correction must keep the format of its source (the reviewer's job).
     -- date_time and subject are not unique, row_id at the end of every ordering keeps the order of ties stable
     identify_room_entry_index as (
         select

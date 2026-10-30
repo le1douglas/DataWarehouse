@@ -57,7 +57,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
   - `git clone https://github.com/le1douglas/DataWarehouse.git`
   - `cd DataWarehouse`
 - If the repo is inside OneDrive: right-click the repo folder → **Always keep on this device**
-  - A cloud-only file is empty for a container (workbook, CSV, env files)
+  - A cloud-only file is empty for a container (CSV, env files)
 
 ---
 
@@ -137,19 +137,7 @@ Start → **ODBC Data Sources (64-bit)** → **System DSN** → **Add** → `Pos
 | Password | from `docker/.env` | from `docker/.env.prod` |
 
 - **Test** → **Connection successful** → **Save**
-- The names must match exactly: the workbooks' Power Query refers to them
-
-### Workbooks
-
-- Prod: `user_input/corrections_prod/journal_entries_corrections.xlsx`, in git, already on DSN
-  `PostgreSQL_DataWarehouse_Prod`
-- Dev: not in git, made from the prod one:
-  - `mkdir user_input\corrections_dev`
-  - `copy user_input\corrections_prod\journal_entries_corrections.xlsx user_input\corrections_dev\`
-  - Open the copy → **Data** → **Get Data** → **Launch Power Query Editor**: in every query, change
-    `dsn=PostgreSQL_DataWarehouse_Prod` to `dsn=PostgreSQL_DataWarehouse` → **Close & Load** → save
-  - Never edit the prod workbook for dev: it is released with each tag
-- Check, in each workbook: **Data** → **Refresh All**, no errors
+- Excel reads the database through these data sources
   - Asked for credentials: **Database** → user `postgres` and the password → **Connect**
   - Change them later: **Data** → **Get Data** → **Data Source Settings**
 
@@ -184,7 +172,7 @@ Setup is done.
 - Each step runs either from PowerShell (repo root) or in the VS Code terminal of a dev container (opens at `/usr/app`)
 - Stick to one of the two in a session: switching recreates postgres and drops Excel's connection (see pitfalls)
 - Prod: the same PowerShell commands with `-f docker/compose.prod.yaml --env-file docker/.env.prod` instead of
-  `-f docker/compose.dev.yaml`, and the prod workbook
+  `-f docker/compose.dev.yaml`, and the web app on port 8081
 
 **1. Load bronze, once per CSV** (a second run duplicates every row)
 
@@ -217,27 +205,11 @@ Setup is done.
 
 - Rows that need a correction: tests `FAIL` and silver is `SKIP`
 
-**3. Review in Excel**
+**3. Review in the web app**
 
-- Workbook → **Data** → **Refresh All** → fill the corrections → save → **close Excel**
-
-**4. Load the corrections**
-
-- PowerShell:
-
-  ```powershell
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm loader corrections
-  ```
-
-- `loader` container:
-
-  ```sh
-  python -m datawarehouse corrections
-  ```
-
-**5. Build again**
-
-- Same command as step 2: tests `PASS`, `OK created sql table model dw_silver.slvr_journal_entries`
+- http://localhost:8080 → pick the dataset → fix the cells → submit
+- The submit saves the corrections and runs `dbt build`: a notification says when it ends, and whether rows still have
+  errors. With none left, silver is built
 
 ### Dev tools (optional)
 
@@ -259,7 +231,7 @@ Setup is done.
 
 - **`docker` fails with `Docker Desktop is unable to start`, or a setup script with `docker does not answer`:** open
   Docker Desktop and wait until the engine runs; tick autostart (section 1).
-- **`set EXPORTS_DIR / CORRECTIONS_DIR / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
+- **`set EXPORTS_DIR / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
 - **Prod `up` fails with `pull access denied for dbt` / `loader`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
@@ -279,8 +251,7 @@ Setup is done.
 - **DDL changed, nothing happens:** `01_create_schemas_and_tables.sql` runs only on an empty volume. Reset dev.
 - **`loader bronze` twice:** duplicates every row. Reset dev and load once.
 - **Never `down -v` on prod:** it deletes the database.
-- **`loader corrections` fails with `PermissionError`:** the workbook is open in Excel. Close it.
-- **Workbook or CSV empty in the container:** a cloud-only OneDrive file. **Always keep on this device**.
+- **CSV empty in the container:** a cloud-only OneDrive file. **Always keep on this device**.
 - **Excel query shows "no visible columns":** wrong credentials in Power Query, not a database problem.
   **Data Source Settings** → edit the credentials.
 - **`dbt run`:** use `dbt build`. `dbt run` on a view drops every view on top of it (`CASCADE`).

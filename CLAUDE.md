@@ -16,7 +16,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver, and a human 
 - On `dev` or a hotfix branch, in a dev container, any command that affects the database is allowed. On `prod` or in the prod stack, the database is not touched in any way.
 - Use `dbt build`, not `dbt run`: dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone silently drops every view on top of it.
 - A package added to `packages.yml` means updating `package-lock.yml` too.
-- A full loop is: DDL, `load_bronze()`, `dbt build` (tests fail, silver skipped), review in Excel, `load_corrections()`, `dbt build` (silver built).
+- A full loop is: DDL, `load_bronze()`, `dbt build` (tests fail, silver skipped), review in the web app, whose submit runs `dbt build` (silver built).
 
 ## Data rules
 - `row_id` is the primary key and the only column shared between datasets, carried unchanged through the pipeline.

@@ -92,7 +92,7 @@ A value, received or corrected, that cannot be converted to its type. Its journa
 A fact about how a journal entry was handled rather than what was measured, such as where it came from or who reviewed it.
 
 **Meta column**:
-Metadata kept on the journal entry itself, such as who reviewed it in the workbook. Which data tests it failed is not stored as one: the audit holds one entry per failed rule, and the workbook combines them into a meta column. Whether a journal entry was corrected is not one: it is read by joining `row_id` to the corrections. The inputs have none: their metadata is in their meta table.
+Metadata kept on the journal entry itself, such as who reviewed it. Which data tests it failed is not stored as one: the audit holds one entry per failed rule. Whether a journal entry was corrected is not one: it is read by joining `row_id` to the corrections. The inputs have none: their metadata is in their meta table.
 
 **Kind**:
 Which fact a piece of metadata records, such as the source or the reviewer.

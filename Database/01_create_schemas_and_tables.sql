@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS dw_bronze.brnz_journal_entries (
     CONSTRAINT pk_brnz_journal_entries PRIMARY KEY (row_id)
 );
 
--- manual corrections made in excel, typed like staging. written by the python corrections loader.
+-- manual corrections made in the web app, typed like staging. written by src/webapps/queries.py.
 -- one row per row_id, the other columns override the staging values in the candidate view.
 -- row_id is the bronze row_id of the corrected row: it comes from the upload and is never generated here.
 -- every column except row_id is text, like in staging: it is cast in silver, after the castable test on candidate,
