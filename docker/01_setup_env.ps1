@@ -62,11 +62,9 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$devPassword
 POSTGRES_PORT=5432
 RELEASE=dev
-# windows folders mounted read only into the loader container. each can move: change the line, no rebuild needed
+# windows folder mounted read only into the loader container. it can move: change the line, no rebuild needed
 # the root of the csv exports, mounted at /inbox/exports. SampleData until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
-# the folder of the corrections workbook, mounted at /inbox/corrections. the dev workbook, not in git
-CORRECTIONS_DIR=../user_input/corrections_dev
 # windows folder mounted into the datastreamer container, at /daily_raw_csv: where the csv of a part of the day is saved
 # TODO placeholder (2026-10-22): align with the .env on the other machine
 DAILY_RAW_CSV_DIR=../user_input/journal_entries
@@ -87,11 +85,9 @@ POSTGRES_PASSWORD=$prodPassword
 POSTGRES_PORT=5433
 # the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
 RELEASE=$release
-# windows folders mounted read only into the loader container
+# windows folder mounted read only into the loader container
 # TODO placeholder (2026-10-22): the same folder as dev until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
-# the prod corrections workbook, in git and released with each tag
-CORRECTIONS_DIR=../user_input/corrections_prod
 # windows folder mounted into the datastreamer container, at /daily_raw_csv
 # TODO placeholder (2026-10-22): compose.yaml requires it even though prod does not run the datastreamer yet
 DAILY_RAW_CSV_DIR=../user_input/journal_entries
@@ -108,9 +104,8 @@ POSTGRESQL_SERVER=postgres
 POSTGRESQL_PORT=5432
 # the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
 # env file (.env or .env.prod), set in compose.yaml: written once per environment
-# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR) and /inbox/corrections (CORRECTIONS_DIR)
+# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR)
 JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
-CORRECTIONS_WORKBOOK=journal_entries_corrections.xlsx
 
 '@
 
@@ -123,9 +118,8 @@ POSTGRESQL_SERVER=postgres
 POSTGRESQL_PORT=5432
 # the database, user and password come from POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD in the project
 # env file (.env or .env.prod), set in compose.yaml: written once per environment
-# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR) and /inbox/corrections (CORRECTIONS_DIR)
+# each input file, relative to its mounted folder: /inbox/exports (EXPORTS_DIR)
 JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
-CORRECTIONS_WORKBOOK=journal_entries_corrections.xlsx
 
 '@
 

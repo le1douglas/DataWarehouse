@@ -6,7 +6,6 @@ FROM python:3.14-slim AS runtime
 # only what the loader needs. no dbt: it has its own image
 RUN pip install --no-cache-dir \
     pandas==3.0.6 \
-    openpyxl==3.1.5 \
     pydantic==2.13.5 \
     SQLAlchemy==2.0.54 \
     "psycopg[binary]==3.3.6"
