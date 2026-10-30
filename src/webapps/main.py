@@ -1,8 +1,8 @@
 from nicegui import events, run, ui
 
 from webapps.errors_tooltip import ErrorsTooltip
-from webapps.grid import GRID_CSS, GRID_JS, grid_options
-from webapps.logic import rows_text
+from webapps.grid import ERROR_BUTTON_STYLE, GRID_CSS, GRID_JS, grid_options
+from webapps.logic import error_rows_out_of_view, is_error_row, rows_text
 from webapps.queries import select_aud_errors, select_cand_as_corr, select_datasets, upsert_corrections
 
 # a placeholder until the app knows who is logged in
@@ -44,7 +44,63 @@ async def index():
             submit_button = ui.button("Submit", on_click=lambda: submit())
     errors_tooltip = ErrorsTooltip()
     grid = ui.aggrid(grid_options([], [], {}, errors_tooltip)).classes("w-full flex-grow")
+    # over the grid, a button at the top and one at the bottom count the error rows out of view on that side. they are
+    # teleported into the grid's .ag-root-wrapper, for the colors of its theme. the grid makes a new wrapper with every
+    # dataset, so the teleport is updated once the rows are shown. color=None: the default primary is a quasar class
+    # that is !important, and would cover the red of the style
+    with ui.teleport(f"#{grid.html_id} .ag-root-wrapper") as buttons_teleport:
+        above_button = (
+            ui.button(icon="arrow_upward", color=None, on_click=lambda: jump_to(error_above[-1]))
+            .props("rounded")
+            .classes("absolute top-14 left-1/2 -translate-x-1/2 z-10")
+            .style(ERROR_BUTTON_STYLE)
+        )
+        below_button = (
+            ui.button(icon="arrow_downward", color=None, on_click=lambda: jump_to(error_below[0]))
+            .props("rounded")
+            .classes("absolute bottom-4 left-1/2 -translate-x-1/2 z-10")
+            .style(ERROR_BUTTON_STYLE)
+        )
+    above_button.visible = False
+    below_button.visible = False
     grid.on("cellValueChanged", on_cell_edited)
+
+    # the indexes of the error rows of the dataset shown, and of those out of view above and below it
+    error_indexes: list[int] = []
+    error_above: list[int] = []
+    error_below: list[int] = []
+
+    # the buttons follow what the grid shows: after a scroll, a resize, or a new dataset
+    async def show_out_of_view() -> None:
+        pixels = await grid.run_grid_method("getVerticalPixelRange")
+        sizes = await grid.run_grid_method("getSizesForCurrentTheme")
+        above, below = error_rows_out_of_view(error_indexes, pixels["top"], pixels["bottom"], sizes["rowHeight"])
+        error_above[:] = above
+        error_below[:] = below
+        above_button.set_text(f"{rows_text(len(above))} with errors above")
+        below_button.set_text(f"{rows_text(len(below))} with errors below")
+        above_button.visible = bool(above)
+        below_button.visible = bool(below)
+
+    # the nearest error row out of view is scrolled to the middle of the grid; the scroll updates the buttons
+    def jump_to(index: int) -> None:
+        grid.run_grid_method("ensureIndexVisible", index, "middle")
+
+    # a new dataset opens on its first error row, in the middle of the grid as a jump puts it
+    async def on_first_data_rendered() -> None:
+        buttons_teleport.update()
+        if error_indexes:
+            jump_to(error_indexes[0])
+        await show_out_of_view()
+
+    grid.on("firstDataRendered", on_first_data_rendered)
+    grid.on("gridSizeChanged", show_out_of_view)
+    grid.on(
+        "bodyScroll",
+        lambda e: show_out_of_view() if e.args["direction"] == "vertical" else None,
+        ["direction"],
+        throttle=0.2,
+    )
     ui.add_css(GRID_CSS)
     ui.add_body_html(GRID_JS)
 
@@ -55,6 +111,7 @@ async def index():
         aud_errors = await run.io_bound(select_aud_errors, dataset)
         edited_rows.clear()
         show_edited_count()
+        error_indexes[:] = [index for index, row in enumerate(rows) if is_error_row(aud_errors.get(row["row_id"], []))]
         grid.options.update(grid_options(columns, rows, aud_errors, errors_tooltip))
         grid.update()
 

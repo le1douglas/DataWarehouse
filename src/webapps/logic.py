@@ -23,6 +23,17 @@ def column_errors(errors: list[dict]) -> dict[str, list[str]]:
     return by_column
 
 
+# the error rows out of view, as indexes in the grid: those above the shown pixels and those below. a row partly in
+# view counts as in view. the rows are as high as each other and in the order they were sent: the grid neither sorts
+# nor filters
+def error_rows_out_of_view(
+    error_indexes: list[int], top: float, bottom: float, row_height: float
+) -> tuple[list[int], list[int]]:
+    above = [index for index in error_indexes if (index + 1) * row_height <= top]
+    below = [index for index in error_indexes if index * row_height >= bottom]
+    return above, below
+
+
 # a count of rows as text: 1 row, 2 rows
 def rows_text(count: int) -> str:
     return f"{count} {'row' if count == 1 else 'rows'}"

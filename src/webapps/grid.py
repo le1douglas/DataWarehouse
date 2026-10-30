@@ -13,12 +13,19 @@ LOCKED_CELL_STYLE = (
     "color: 'var(--ag-subtle-text-color)', cursor: 'not-allowed'}"
 )
 
-# a row with a known error is tinted with the theme's invalid color, the red of an invalid cell, light enough to read
-# the text in both modes
-ERROR_ROW_STYLE = "{backgroundColor: 'color-mix(in srgb, var(--ag-invalid-color) 20%, transparent)'}"
+# a row with a known error has the theme's background of a row edited with an invalid value: its invalid color mixed
+# onto the background, light enough to read the text in both modes
+ERROR_ROW_STYLE = "{backgroundColor: 'var(--ag-full-row-edit-invalid-background-color)'}"
 
-# a cell that an error names is tinted with the same red, stronger, so it stands out in its red row
-ERROR_CELL_STYLE = "{backgroundColor: 'color-mix(in srgb, var(--ag-invalid-color) 50%, transparent)'}"
+# a cell that an error names has the theme's invalid color at half strength, so it stands out in its red row and its
+# text stays readable. it is mixed onto the background, as the theme mixes its own tints, so it is solid: the full
+# color is never a background in the theme, and it has no text color to go on it
+ERROR_CELL_COLOR = "color-mix(in srgb, var(--ag-invalid-color) 60%, var(--ag-background-color))"
+ERROR_CELL_STYLE = f"{{backgroundColor: '{ERROR_CELL_COLOR}'}}"
+
+# a button over the grid has the red of an error cell. the vars are only defined inside the grid's .ag-root-wrapper,
+# so the button has to be in it
+ERROR_BUTTON_STYLE = f"background-color: {ERROR_CELL_COLOR}; color: var(--ag-text-color)"
 
 # a cell edited since the dataset was shown or last submitted has a dashed outline in the theme's range selection
 # color, the accent. an outline, not a border: it takes no room and leaves the cell's own border to the grid's focus.
