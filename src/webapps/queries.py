@@ -1,5 +1,10 @@
+import asyncio
+import json
+import logging
 import os
+from collections.abc import Callable
 
+import psycopg
 from sqlalchemy import MetaData, Table, column, create_engine, func, select, table
 from sqlalchemy.dialects.postgresql import Insert, insert
 
@@ -8,6 +13,9 @@ engine = create_engine(
     f"postgresql+psycopg://{os.environ['POSTGRESQL_USER']}:{os.environ['POSTGRESQL_PASSWORD']}"
     f"@{os.environ['POSTGRESQL_SERVER']}:{os.environ['POSTGRESQL_PORT']}/{os.environ['POSTGRESQL_DB']}"
 )
+
+# seconds
+RECONNECT_SECONDS = 5
 
 # the columns of information_schema.tables that select_datasets reads
 information_schema_tables = table("tables", column("table_schema"), column("table_name"), schema="information_schema")
@@ -62,6 +70,23 @@ def upsert_corrections(dataset: str, rows: list[dict], reviewer: str) -> None:
     with engine.begin() as connection:
         connection.execute(_corr_upsert(dataset, rows))
         connection.execute(_meta_corr_upsert(row_ids, reviewer))
+
+
+# the dbt commands as they end: dbt notifies on dbt_run_end at the end of every command
+# (DataWarehouseDbt/macros/notify_run_end.sql), and on_run_end gets the command of each: build, test.
+# one connection for the whole app, listening as long as the app runs. when it drops, it connects again after
+# RECONNECT_SECONDS; a command that ends while it is down is missed, postgres keeps no notifies
+async def listen_run_end(on_run_end: Callable[[str], None]) -> None:
+    conninfo = engine.url.set(drivername="postgresql").render_as_string(hide_password=False)
+    while True:
+        try:
+            async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as connection:
+                await connection.execute("LISTEN dbt_run_end")
+                async for notify in connection.notifies():
+                    on_run_end(json.loads(notify.payload)["command"])
+        except psycopg.OperationalError as error:
+            logging.warning(f"listening to dbt_run_end: connecting again in {RECONNECT_SECONDS} s: {error}")
+        await asyncio.sleep(RECONNECT_SECONDS)
 
 
 # the upsert of the rows into corrections, matched by row_id

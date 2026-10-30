@@ -55,6 +55,8 @@ data_tests:
     +store_failures: true
     +schema: audit
 
-# the audit table, one per dataset: every flagged row once, for the review in excel. see macros/create_audit_table.sql
+# the audit table, one per dataset: every flagged row once, for the review in excel. see macros/create_audit_table.sql.
+# then, last, a notify on the channel dbt_run_end, for anyone listening to the database. see macros/notify_run_end.sql
 on-run-end:
   - "{{ create_audit_table('journal_entries', results) }}"
+  - "{{ notify_run_end() }}"

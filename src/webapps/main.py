@@ -1,12 +1,25 @@
-from nicegui import events, run, ui
+from nicegui import Event, app, background_tasks, events, run, ui
 
 from webapps.errors_tooltip import ErrorsTooltip
 from webapps.grid import ERROR_BUTTON_STYLE, GRID_CSS, GRID_JS, grid_options
 from webapps.logic import error_rows_out_of_view, is_error_row, rows_text
-from webapps.queries import select_aud_errors, select_cand_as_corr, select_datasets, upsert_corrections
+from webapps.queries import (
+    listen_run_end,
+    select_aud_errors,
+    select_cand_as_corr,
+    select_datasets,
+    upsert_corrections,
+)
 
 # a placeholder until the app knows who is logged in
 REVIEWER = "Claude"
+
+# a dbt command has ended, with the command: build, test. one event for the whole app, on purpose: every open page
+# subscribes to it, and is unsubscribed when it closes
+run_ended = Event[str]()
+
+# the app listens to dbt as long as it runs. a task, not the startup handler itself, which would never return
+app.on_startup(lambda: background_tasks.create(listen_run_end(run_ended.emit), name="listen-run-end"))
 
 
 @ui.page("/")
@@ -36,11 +49,17 @@ async def index():
     ui.query(".nicegui-content").classes("h-screen")
 
     # the dataset on the left, the dark mode switch and the submit button on the right. the grid follows the page's
-    # dark mode by itself
+    # dark mode by itself. the reload button shows only when dbt has changed the data under edits not submitted
     with ui.row().classes("w-full justify-between items-center"):
         dataset_select = ui.select(datasets, label="Dataset", on_change=lambda e: show_dataset(e.value)).classes("w-64")
         with ui.row().classes("items-center"):
             ui.switch("Dark mode").bind_value(ui.dark_mode(True))
+            reload_button = ui.button(
+                "Reload", icon="refresh", color="warning", on_click=lambda: show_dataset(dataset_select.value)
+            )
+            with reload_button:
+                ui.tooltip("dbt has updated the data. Reloading drops the edits not submitted")
+            reload_button.visible = False
             submit_button = ui.button("Submit", on_click=lambda: submit())
     errors_tooltip = ErrorsTooltip()
     grid = ui.aggrid(grid_options([], [], {}, errors_tooltip)).classes("w-full flex-grow")
@@ -111,6 +130,7 @@ async def index():
         aud_errors = await run.io_bound(select_aud_errors, dataset)
         edited_rows.clear()
         show_edited_count()
+        reload_button.visible = False
         error_indexes[:] = [index for index, row in enumerate(rows) if is_error_row(aud_errors.get(row["row_id"], []))]
         grid.options.update(grid_options(columns, rows, aud_errors, errors_tooltip))
         grid.update()
@@ -124,6 +144,19 @@ async def index():
         await run.io_bound(upsert_corrections, dataset_select.value, list(edited_rows.values()), REVIEWER)
         ui.notify(f"Submitted {rows_text(len(edited_rows))}", type="positive")
         await show_dataset(dataset_select.value)
+
+    # a dbt command has ended, so candidate and audit may have changed. a page without edits shows the dataset again at
+    # once; a page with edits keeps them, and shows the reload button instead
+    async def on_run_end(command: str) -> None:
+        if not dataset_select.value:
+            return
+        if edited_rows:
+            reload_button.visible = True
+            return
+        await show_dataset(dataset_select.value)
+        ui.notify(f"dbt {command} has ended: the data is up to date")
+
+    run_ended.subscribe(on_run_end)
 
     # the first dataset is shown when the page opens. setting the value calls show_dataset
     if datasets:
