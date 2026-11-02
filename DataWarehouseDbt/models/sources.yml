@@ -1,17 +1,28 @@
 
 sources:
   - name: dw_bronze
-    description: An input layer. The store of all raw data, exactly as received from the sources, one table per source.
+    description: The main source of data. The store of all raw data, exactly as received from the sources, one table per source.
                 It has meaning on its own. Everything is stored as text and almost nothing is asserted about it.
-                It has no "meta_" columns, the metadata created at ingestion is in the meta table of the layer.
     tables:
       - name: brnz_journal_entries
-        description: csv data coming from the app "edenic" developed by bluelab.
-  - name: dw_corrections
-    description: An input layer. The latest correction of each journal entry, as submitted by reviewers in the web app.
-                It has meaning only for journal entries already in the warehouse.
-                Earlier corrections are in dw_snapshots.
-    tables:
-      - name: corr_journal_entries
-      - name: meta_corrections
-        description: The reviewer and review date-time of the latest correction, one row per row_id and kind.
+        description: csv of drip and drain measurements, one row per spot.
+        data_tests:
+          # the presence of columns is checked before loading, and not_null in staging
+
+          #test rows amount. TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
+          - dbt_expectations.expect_table_row_count_to_be_between:
+              arguments:
+                min_value: 20 # at least 5 rooms, 4 measurements per room
+                max_value: 40 # at most 10 rooms, 4 measurements per room
+                # the latest load only: there is no load column, so the rows within 30 seconds of the newest row_id, a
+                # uuidv7 that holds the time of its insert. two files loaded within 30 seconds count as one load
+                # TODO change this when a extract solution is found, and use some sort of load_id 
+                row_condition: >-
+                  uuid_extract_timestamp(row_id) >= (
+                    select max(uuid_extract_timestamp(row_id)) - interval '10 seconds'
+                    from {{ source("dw_bronze", "brnz_journal_entries") }}
+                  )
+              config:
+                meta:
+                  description: the file must have 20 to 40 rows
+          

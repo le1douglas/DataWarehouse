@@ -1,0 +1,9 @@
+seeds:
+  - name: seed_devices
+    description: The measuring devices, kept by hand in seed_devices.csv and reloaded by every dbt build. Published by dim_devices.
+    config:
+      # every type is written, so dbt never infers one
+      column_types:
+        device: varchar(50)
+        manufacturer: varchar(50)
+        is_working: boolean

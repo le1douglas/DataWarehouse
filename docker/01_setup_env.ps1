@@ -64,7 +64,7 @@ RELEASE=dev
 # the root of the csv exports, mounted at /inbox/exports. SampleData until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
 # the journal entries, relative to EXPORTS_DIR
-JOURNAL_ENTRIES_CSV=drip_drain_csv/journal-entries.csv
+JOURNAL_ENTRIES_CSV=drip_drain_csv/synthetic/valid-morning.csv
 # windows folder mounted into the datastreamer container, at /daily_raw_csv: where the csv of a part of the day is saved
 # TODO placeholder (2026-10-22): align with the .env on the other machine
 DAILY_RAW_CSV_DIR=../user_input/journal_entries

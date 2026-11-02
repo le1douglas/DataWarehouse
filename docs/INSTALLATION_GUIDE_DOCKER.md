@@ -89,12 +89,11 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SELECT now();"` → Amsterdam offset (`+01`
   winter, `+02` summer)
-- `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → `brnz_journal_entries`,
-  `meta_bronze`, `corr_journal_entries`, `meta_corrections`
+- `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → `brnz_journal_entries`
 - `docker image ls` → `dbt` and `loader`, tag `dev`
 - `Test-Path DataWarehouseDbt\dbt_packages\dbt_utils` → `True`
-- `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → `Completed successfully`
-  on the empty bronze
+- `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → creates Elementary's tables
+  and `aud_failures`. On the empty bronze the row count data test fails and silver is skipped: that is expected
 
 ---
 
@@ -173,9 +172,9 @@ Setup is done.
 - Prod: the same PowerShell commands with `-f docker/compose.prod.yaml --env-file docker/.env.prod` instead of
   `-f docker/compose.dev.yaml`, and the web app on port 8081
 
-**1. Load bronze, once per CSV** (a second run duplicates every row)
+**Upload a file**
 
-- PowerShell:
+- PowerShell (the file is `JOURNAL_ENTRIES_CSV` in `docker/.env`):
 
   ```powershell
   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm loader bronze
@@ -187,33 +186,24 @@ Setup is done.
   python -m datawarehouse bronze
   ```
 
-**2. Build**
+- The file is inserted into bronze and `dbt build` runs on its dataset, which takes a few seconds
+- Passed: `Upload accepted`, and silver is built
+- Failed: `Upload refused`, with each failing line, its value and the message. Nothing stays in bronze and silver keeps
+  its last good version. Fix the file where it came from and upload it again
+- `Upload refused, but its rows are STILL IN BRONZE`: the database went away during the upload. Run the `delete` it
+  prints
+- Leave 30 seconds between two uploads: files closer together are judged as one by the row count data test
 
-- PowerShell:
+**See what failed in any run**
 
-  ```powershell
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build
-  ```
-
-- `dbt` container:
-
-  ```sh
-  cd DataWarehouseDbt
-  dbt build
-  ```
-
-- Rows that need a correction: tests `FAIL` and silver is `SKIP`
-
-**3. Review in the web app**
-
-- http://localhost:8080 → pick the dataset → fix the cells → submit
-- The submit saves the corrections and runs `dbt build`: a notification says when it ends, and whether rows still have
-  errors. With none left, silver is built
+```sql
+select * from dw_audit.aud_failures where invocation_id = '<the run>';
+```
 
 ### Dev tools (optional)
 
 - `loader` container: `pytest` (some tests are known to fail, see `docs/REMINDERS.md`), `ruff check`, `ruff format`
-- `dbt` container, from `/usr/app`: `sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests`
+- `dbt` container, from `/usr/app`: `sqlfmt DataWarehouseDbt/models`
 
 ### Dev as a copy of prod
 
@@ -256,7 +246,7 @@ Setup is done.
 - **`dbt run`:** use `dbt build`. `dbt run` on a view drops every view on top of it (`CASCADE`).
 - **`dbt build` in the `dbt` container fails with `No dbt_project.yml found`:** `cd DataWarehouseDbt` first.
 - **`dbt_utils` not found in dev:** run `02_setup_dev.ps1` (section 4), or open the `dbt` dev container once.
-- **`psql -c` from PowerShell loses double quotes** (`"DataWarehouse"`, `"position"`): pipe the SQL through stdin,
+- **`psql -c` from PowerShell loses double quotes** (`"DataWarehouse"`): pipe the SQL through stdin,
   `"SELECT ...;" | docker exec -i dw-dev-postgres-1 psql -U postgres -d DataWarehouse`, or use Git Bash.
 - **Excel / VS Code SQL tabs disconnect after a compose command:** running compose from Windows after a Dev Container
   (or the other way round) recreates postgres (`C:\` vs `c:\` in the path). Data is kept; reconnect. For jobs that
