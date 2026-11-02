@@ -32,6 +32,14 @@ models:
     silver:              # casts, rebuilt only when all candidate tests pass
       +materialized: table
       +schema: silver
+    gold:                # the modeled tables
+      +materialized: table
+      +schema: gold
+
+# reference data kept by hand in a csv, reloaded by every dbt build. types in the seed's own yml
+seeds:
+  DataWarehouseDbt:
+    +schema: seeds
 
 # every version of the rows of one table, see docs/CODING_STANDARDS.md. a snapshot mirrors its table exactly,
 # so every one is configured the same: key in its own yml, every column compared, a deleted row is a version too

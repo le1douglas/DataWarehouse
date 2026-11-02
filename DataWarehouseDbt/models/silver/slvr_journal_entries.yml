@@ -13,7 +13,6 @@ models:
         description: The key, assigned by bronze when the journal entry was received.
         constraints:
           - type: primary_key
-            name: pk_slvr_journal_entries
       - name: date_time
         data_type: timestamptz(0)
         description: When the journal entry was measured. The time zone is the one the source wrote, or the timezone

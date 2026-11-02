@@ -14,7 +14,7 @@ BEGIN
     END IF;
 END $$;
 -- Creates only what dbt does not: the schemas and tables that python loads into, with their meta tables.
--- dbt creates dw_staging, dw_candidate, dw_audit, dw_silver and dw_snapshots, and everything inside them.
+-- dbt creates dw_staging, dw_candidate, dw_audit, dw_silver, dw_snapshots, dw_seeds and dw_gold, and everything inside them.
 
 CREATE SCHEMA IF NOT EXISTS dw_bronze;
 CREATE SCHEMA IF NOT EXISTS dw_corrections;
@@ -102,19 +102,6 @@ CREATE TABLE IF NOT EXISTS dw_corrections.meta_corrections (
         OR (description ~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$'
             AND pg_input_is_valid(description, 'timestamptz'))
     )
-);
-
-
-
-CREATE SCHEMA IF NOT EXISTS dw_gold;
-CREATE TABLE IF NOT EXISTS dw_gold.dim_rooms (
-    room VARCHAR(50) NOT NULL,
-    room_time VARCHAR(50) NOT NULL,
-    floor_number INTEGER NOT NULL,
-    assigned_stage VARCHAR(50) NOT NULL,
-    tables_number INTEGER NOT NULL,
-    CONSTRAINT pk_dim_rooms PRIMARY KEY (room),
-    CONSTRAINT ck_dim_rooms_room_time CHECK (room_time IN ('morning', 'afternoon', 'all_day'))
 );
 
 
