@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 # every setting comes from docker/compose.yaml, which passes them to the loader container. no defaults: a missing variable
 # stops the loader with a KeyError naming it, instead of silently connecting or reading somewhere else
@@ -12,17 +11,14 @@ POSTGRES_CONFIG = {
     "db_port": int(os.environ["POSTGRESQL_PORT"]),
 }
 
-# the time zone of the date-times the loader stamps, from TZ, set once in docker/compose.yaml. read here instead of
-# taken from the container's clock, which falls back to UTC without an error: an empty or unknown TZ stops the loader
-TIMEZONE = ZoneInfo(os.environ["TZ"])
-
-# the schema that python loads into, everything else is created by dbt or written by the web apps
+# the schema that python loads into, everything else is created by dbt
 DB_SCHEMA_BRONZE = "dw_bronze"
 
-TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
+# what failed in a dbt run, created by dbt
+DB_SCHEMA_AUDIT = "dw_audit"
+VW_AUD_FAILURES = "aud_failures"
 
-# the meta table of a layer holds the metadata of every dataset of that layer
-TBL_META_BRONZE = "meta_bronze"
+TBL_BRNZ_JOURNAL_ENTRIES = "brnz_journal_entries"
 
 # the input. compose mounts a windows folder read only at this path in the loader container (EXPORTS_DIR in the
 # environment's env file), and JOURNAL_ENTRIES_CSV in the same file names the csv relative to it
@@ -30,6 +26,12 @@ INBOX_EXPORTS = Path("/inbox/exports")
 
 JOURNAL_ENTRIES_CSV = INBOX_EXPORTS / os.environ["JOURNAL_ENTRIES_CSV"]
 
+
+# the dbt project in the image, in dev the one of the mounted repo, at the same path
+DBT_PROJECT_DIR = "/usr/app/DataWarehouseDbt"
+
+# what a load of the journal entries builds: silver, all it needs, and what reads it
+DBT_SELECT_JOURNAL_ENTRIES = "+slvr_journal_entries+"
 
 # the name of a dataset, as used in table names (brnz_journal_entries)
 DATASET_JOURNAL_ENTRIES = "journal_entries"

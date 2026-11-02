@@ -2,6 +2,8 @@ models:
   - name: dim_rooms
     description: The growing rooms. Change a room in seed_rooms.csv, not here.
     config:
+      # a table, not incremental, so it always equals the seed: incremental would keep a row in table that is removed from the seed.
+      # the price: the foreign key is is lost until the next successful build, so ther might me an unituitive error during this gap. see docs/CODING_STANDARDS.md for the reasoning.
       contract:
         enforced: true
     columns:
