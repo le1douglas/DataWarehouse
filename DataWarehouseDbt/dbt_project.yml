@@ -35,6 +35,8 @@ models:
     gold:                # the modeled tables
       +materialized: table
       +schema: gold
+  elementary:
+    +schema: elementary
 
 # reference data kept by hand in a csv, reloaded by every dbt build. types in the seed's own yml
 seeds:
