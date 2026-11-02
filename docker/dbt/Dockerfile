@@ -18,7 +18,7 @@ ENV DBT_PROFILES_DIR=/usr/app/DataWarehouseDbt
 
 COPY DataWarehouseDbt/ ./
 
-# installs dbt_utils at the version in package-lock.yml. needs no database connection
+# installs dbt libraries
 RUN dbt deps
 
 # the container runs dbt: "docker compose run dbt build" runs "dbt build", with no arguments it runs "dbt build"

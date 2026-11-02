@@ -30,7 +30,7 @@ ENV PYTHONPATH=/usr/app/src \
 COPY src/webapps/ ./src/webapps/
 COPY DataWarehouseDbt/ ./DataWarehouseDbt/
 
-# installs dbt_utils at the version in package-lock.yml, as the dbt image does. needs no database connection
+# installs dbt libraries at the version in package-lock.yml, as the dbt image does. needs no database connection
 RUN cd DataWarehouseDbt && dbt deps
 
 # the container serves the web apps until it is stopped, on 0.0.0.0:8080 (the defaults of ui.run)
