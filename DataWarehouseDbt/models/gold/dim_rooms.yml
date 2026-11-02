@@ -1,0 +1,31 @@
+models:
+  - name: dim_rooms
+    description: The growing rooms. Change a room in seed_rooms.csv, not here.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: room
+        data_type: varchar(50)
+        description: The room, as text so 1.30 keeps its zero.
+        constraints:
+          - type: primary_key
+      - name: room_time
+        data_type: varchar(50)
+        description: The part of the day the room is measured in.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "room_time in ('morning', 'afternoon', 'all_day')"
+      - name: floor_number
+        data_type: integer
+        constraints:
+          - type: not_null
+      - name: assigned_stage
+        data_type: varchar(50)
+        constraints:
+          - type: not_null
+      - name: tables_number
+        data_type: integer
+        constraints:
+          - type: not_null
