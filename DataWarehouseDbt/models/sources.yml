@@ -14,13 +14,16 @@ sources:
               arguments:
                 min_value: 20 # at least 5 rooms, 4 measurements per room
                 max_value: 40 # at most 10 rooms, 4 measurements per room
-                # the latest load only: there is no load column, so the rows within 30 seconds of the newest row_id, a
-                # uuidv7 that holds the time of its insert. two files loaded within 30 seconds count as one load
-                # TODO change this when a extract solution is found, and use some sort of load_id 
+
+                # the latest load only: load_id is meltano's run_id, a uuidv7, so the highest one is the newest load.
+                # postgres has no max() of a uuid, so the first in descending order
+                # TODO check if load_time is more reliable than load_id
                 row_condition: >-
-                  uuid_extract_timestamp(row_id) >= (
-                    select max(uuid_extract_timestamp(row_id)) - interval '10 seconds'
+                  load_id = (
+                    select load_id
                     from {{ source("dw_bronze", "brnz_journal_entries") }}
+                    order by load_id desc
+                    limit 1
                   )
               config:
                 meta:
