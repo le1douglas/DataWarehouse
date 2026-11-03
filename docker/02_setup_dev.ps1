@@ -1,5 +1,6 @@
-# dev setup: builds the dbt, loader and webapps images, starts postgres and the web apps, installs the dbt packages and checks dbt's connection.
-# safe to run again: up and build change only what changed, dbt deps reinstalls the same versions.
+# dev setup: builds the dbt, loader, webapps and meltano images, starts postgres and the web apps, installs the dbt
+# packages and the meltano plugins and checks dbt's connection.
+# safe to run again: up and build change only what changed, dbt deps and meltano install reinstall the same versions.
 # loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
@@ -30,8 +31,8 @@ try {
     if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
 
     # before up, so up starts the web apps on the new image, not on the one of the last build
-    Write-Host 'building the dbt, loader and webapps images'
-    & docker @dev build dbt loader webapps
+    Write-Host 'building the dbt, loader, webapps and meltano images'
+    & docker @dev build dbt loader webapps meltano
     Assert-Ok 'the build'
 
     Write-Host 'starting postgres and the web apps'
@@ -52,6 +53,11 @@ try {
     Write-Host 'installing the dbt packages'
     & docker @dev run --rm dbt deps
     Assert-Ok 'dbt deps'
+
+    # the same for meltano: dev keeps its own plugins in the meltano-plugins volume (docker/compose.dev.yaml)
+    Write-Host 'installing the meltano plugins'
+    & docker @dev run --rm meltano install
+    Assert-Ok 'meltano install'
 
     Write-Host 'checking the dbt connection'
     & docker @dev run --rm dbt debug

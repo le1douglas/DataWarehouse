@@ -1,0 +1,28 @@
+// the meltano dev container: docker/meltano/Dockerfile, with the whole repo at /usr/app.
+// open with "Dev Containers: Reopen in Container" (or "Switch Container") and pick meltano
+{
+  "name": "meltano",
+  // paths are relative to this file. docker/compose.dev.yaml sets the project name (dw-dev) and the mount
+  "dockerComposeFile": ["../../docker/compose.yaml", "../../docker/compose.dev.yaml"],
+  "service": "meltano",
+  // only this service, and postgres through depends_on
+  "runServices": ["meltano"],
+  "workspaceFolder": "/usr/app",
+  // the image runs one meltano command and exits: keep the container running instead, for as long as the window is open
+  "overrideCommand": true,
+  // closing the window leaves the containers running: postgres is shared with Excel and the other containers
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": ["redhat.vscode-yaml"],
+      "settings": {
+        // a new terminal opens in the meltano project, where meltano commands are run
+        "terminal.integrated.cwd": "/usr/app/DataWarehouseMeltano",
+        // completion and validation of meltano.yml, from the schema of the meltano version in the Dockerfile
+        "yaml.schemas": {
+          "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "DataWarehouseMeltano/meltano.yml"
+        }
+      }
+    }
+  }
+}

@@ -26,6 +26,15 @@ services:
       # /usr/app. hides the package copied at build time, at the same path, so PYTHONPATH stays /usr/app/src
       - ..:/usr/app
 
+  meltano:
+    volumes:
+      # the whole repo, live: edits to meltano.yml apply without a rebuild. hides the project copied at build time, at
+      # the same path, with its plugins
+      - ..:/usr/app
+      # dev's own plugins, in a volume instead of the repo folder: their venvs hold linux symlinks that windows and
+      # onedrive cannot read, and that break the build context. filled from the image when new, meltano install updates it
+      - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
+
   datastreamer:
     build:
       target: dev # runtime plus ruff
@@ -44,3 +53,6 @@ services:
       # the whole repo, live: the app reloads on every save, and ruff finds pyproject.toml at /usr/app.
       # hides the code copied at build time, at the same path
       - ..:/usr/app
+
+volumes:
+  meltano-plugins:

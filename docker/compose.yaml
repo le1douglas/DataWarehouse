@@ -26,6 +26,7 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+      - ../Database/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
       - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
       # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
       # in the repo, ignored by git. a convenience for development, not the backups of prod
@@ -74,6 +75,35 @@ services:
       JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
     volumes:
       # the input, read only (:ro), so the loader can never change an export
+      - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
+    depends_on:
+      - postgres
+    profiles: ["job"] # not started by "up", only by "run"
+
+  # a job: "docker compose run --rm meltano <command>" runs one meltano command, then the container exits
+  meltano:
+    build:
+      context: .. # the repo root, one up from this folder. docker/meltano/Dockerfile.dockerignore keeps only what the image needs
+      dockerfile: docker/meltano/Dockerfile
+      target: runtime
+    image: meltano:${RELEASE}
+    environment:
+      TZ: *timezone
+      # the system database: meltano's own state and run history, in the meltano database of the postgres service
+      # (Database/00_create_meltano_database.sql) instead of the default sqlite file.
+      # the password is not in the uri, where an @ or / would break it: psycopg reads it from PGPASSWORD
+      MELTANO_DATABASE_URI: postgresql+psycopg://${POSTGRES_USER}@postgres:5432/meltano
+      PGPASSWORD: *postgres_password
+      # the warehouse, where target-postgres loads
+      TARGET_POSTGRES_HOST: *postgres_host
+      TARGET_POSTGRES_PORT: *postgres_port
+      TARGET_POSTGRES_DATABASE: *postgres_db
+      TARGET_POSTGRES_USER: *postgres_user
+      TARGET_POSTGRES_PASSWORD: *postgres_password
+      # relative to /inbox/exports, read by tap-csv in DataWarehouseMeltano/meltano.yml
+      JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
+    volumes:
+      # the input, read only (:ro), so meltano can never change an export
       - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
     depends_on:
       - postgres
