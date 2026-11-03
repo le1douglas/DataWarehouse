@@ -7,7 +7,7 @@ sources:
       - name: brnz_journal_entries
         description: csv of drip and drain measurements, one row per spot.
         data_tests:
-          # the presence of columns is checked before loading, and not_null in staging
+          # nothing is checked before loading: a missing column arrives null and fails not_null in staging
 
           #test rows amount. TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
           - dbt_expectations.expect_table_row_count_to_be_between:
@@ -15,16 +15,11 @@ sources:
                 min_value: 20 # at least 5 rooms, 4 measurements per room
                 max_value: 40 # at most 10 rooms, 4 measurements per room
 
-                # the latest load only: load_id is meltano's run_id, a uuidv7, so the highest one is the newest load.
-                # postgres has no max() of a uuid, so the first in descending order
+                # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
                 # TODO check if load_time is more reliable than load_id
+                # TODO check if it sbetter to test every load that has not been tested, according to aud
                 row_condition: >-
-                  load_id = (
-                    select load_id
-                    from {{ source("dw_bronze", "brnz_journal_entries") }}
-                    order by load_id desc
-                    limit 1
-                  )
+                  load_id = '{{ var("load_id") }}'::uuid
               config:
                 meta:
                   description: the file must have 20 to 40 rows
