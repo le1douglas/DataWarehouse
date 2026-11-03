@@ -19,4 +19,5 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Silver references dimensions in `dw_gold`,** against the layer order. Revisit when modeling gold.
 - **Test results are append-only:** `test_result_rows` and `elementary_test_results` keep growing, which is fine at this volume.
 - **Python gaps:** there is no test of `delete_from_bronze`, `read_failures` or `run_dbt_build` against a real database or dbt: they were checked by hand on 2026-11-02.
+- **Python packages are not installed:** each image finds its package through `PYTHONPATH=/usr/app/src`, and its libraries are pinned in its Dockerfile. Revisit when two images share a package, or when the libraries should be declared once in `pyproject.toml` with a lock file: then `pip install .` in runtime and `pip install -e .` in dev.
 - **Later layers:** gold and `experiments` are postponed, a prod target was removed on purpose and will come back later.

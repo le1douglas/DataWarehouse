@@ -1,28 +1,33 @@
 """Entry point of the package: run with `python -m datawarehouse bronze`."""
 
 import argparse
+import sys
 
 from datawarehouse.config import (
+    DBT_SELECT_JOURNAL_ENTRIES,
     JOURNAL_ENTRIES_CSV,
     POSTGRES_CONFIG,
     TBL_BRNZ_JOURNAL_ENTRIES,
-    TIMEZONE,
 )
 from datawarehouse.databases.sql_postgres_database import PostgreSQLDatabase
-from datawarehouse.loaders.loader import Loader
+from datawarehouse.loaders.loader import Loader, UploadRefused
+from datawarehouse.loaders.upload import upload
 from datawarehouse.readers.reader_csv import CSVReader
 from datawarehouse.records.brnz_record_journal_entries import BrnzRecordJournalEntries
 
 
-# csv -> bronze
+# csv -> bronze -> dbt build, or the file is refused and nothing stays in bronze
 def load_bronze() -> None:
-    df_csv = CSVReader.read(JOURNAL_ENTRIES_CSV, TIMEZONE)
-    record_set = Loader.load(df_csv, BrnzRecordJournalEntries)
-    print(record_set.rows[0])
+    try:
+        df_csv = CSVReader.read(JOURNAL_ENTRIES_CSV)
+        record_set = Loader.load(df_csv, BrnzRecordJournalEntries)
 
-    postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
-    postgres.connect()
-    postgres.load_to_bronze(TBL_BRNZ_JOURNAL_ENTRIES, record_set)
+        postgres = PostgreSQLDatabase(**POSTGRES_CONFIG)
+        postgres.connect()
+        upload(postgres, TBL_BRNZ_JOURNAL_ENTRIES, record_set, DBT_SELECT_JOURNAL_ENTRIES)
+    except UploadRefused as refused:
+        print(refused)
+        sys.exit(1)
 
 
 LOADS = {

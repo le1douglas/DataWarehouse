@@ -1,6 +1,16 @@
 # the time zone of every container (its clock and date), written only here: a time without a zone is assumed to be amsterdam
 x-timezone: &timezone Europe/Amsterdam
 
+# the connection to postgres, written once here. the host is the service name below, and the port the one postgres listens
+# on inside the docker network: not POSTGRES_PORT, which is published to windows and changes per environment.
+# the database, user and password come from the project env file (.env or .env.prod), so each is written once per
+# environment. until the roles exist every service is postgres
+x-postgres-host: &postgres_host postgres
+x-postgres-port: &postgres_port "5432"
+x-postgres-db: &postgres_db ${POSTGRES_DB}
+x-postgres-user: &postgres_user ${POSTGRES_USER}
+x-postgres-password: &postgres_password ${POSTGRES_PASSWORD}
+
 services:
   postgres:
     image: postgres:18
@@ -9,9 +19,9 @@ services:
     command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\""]
     environment:
       TZ: *timezone
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: *postgres_db
+      POSTGRES_USER: *postgres_user
+      POSTGRES_PASSWORD: *postgres_password
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
@@ -29,17 +39,13 @@ services:
       dockerfile: docker/dbt/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: dbt:${RELEASE}
-    # the host is the service name above, and the port the one postgres listens on inside the docker network: not
-    # POSTGRES_PORT, which is published to windows and changes per environment.
-    # the database, user and password of postgres above, from the project env file (.env or .env.prod), so each is
-    # written once per environment. until the roles exist every service is postgres
     environment:
       TZ: *timezone # dbt itself always logs in UTC, whatever this says
-      DBT_HOST: postgres
-      DBT_PORT: "5432"
-      DBT_DBNAME: ${POSTGRES_DB}
-      DBT_USER: ${POSTGRES_USER}
-      DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
+      DBT_HOST: *postgres_host
+      DBT_PORT: *postgres_port
+      DBT_DBNAME: *postgres_db
+      DBT_USER: *postgres_user
+      DBT_ENV_SECRET_PASSWORD: *postgres_password
     depends_on:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
@@ -51,14 +57,19 @@ services:
       dockerfile: docker/loader/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: loader:${RELEASE}
-    # the connection to postgres above, as for dbt
     environment:
-      TZ: *timezone # CSVReader stamps meta_extract_date_time in it, read by src/datawarehouse/config.py
-      POSTGRESQL_SERVER: postgres
-      POSTGRESQL_PORT: "5432"
-      POSTGRESQL_DB: ${POSTGRES_DB}
-      POSTGRESQL_USER: ${POSTGRES_USER}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: *timezone
+      POSTGRESQL_SERVER: *postgres_host
+      POSTGRESQL_PORT: *postgres_port
+      POSTGRESQL_DB: *postgres_db
+      POSTGRESQL_USER: *postgres_user
+      POSTGRESQL_PASSWORD: *postgres_password
+      # the same connection for the dbt build that tests a load
+      DBT_HOST: *postgres_host
+      DBT_PORT: *postgres_port
+      DBT_DBNAME: *postgres_db
+      DBT_USER: *postgres_user
+      DBT_ENV_SECRET_PASSWORD: *postgres_password
       # relative to /inbox/exports
       JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
     volumes:
@@ -92,14 +103,13 @@ services:
       dockerfile: docker/webapps/Dockerfile
       target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
     image: webapps:${RELEASE}
-    # the connection to postgres above, as for dbt
     environment:
       TZ: *timezone
-      POSTGRESQL_SERVER: postgres
-      POSTGRESQL_PORT: "5432"
-      POSTGRESQL_DB: ${POSTGRES_DB}
-      POSTGRESQL_USER: ${POSTGRES_USER}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_SERVER: *postgres_host
+      POSTGRESQL_PORT: *postgres_port
+      POSTGRESQL_DB: *postgres_db
+      POSTGRESQL_USER: *postgres_user
+      POSTGRESQL_PASSWORD: *postgres_password
     # one port per environment, so dev and prod can run side by side (as postgres does)
     ports:
       - "${NICEGUI_PORT:?set NICEGUI_PORT in the env file}:8080"

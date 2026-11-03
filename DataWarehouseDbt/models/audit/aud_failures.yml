@@ -1,0 +1,17 @@
+models:
+  - name: aud_failures
+    description: What failed in every run, read from Elementary. Filter on invocation_id for one run. It depends only on
+                Elementary's models, so a failed data test does not skip it.
+    columns:
+      - name: invocation_id
+        description: The dbt run.
+      - name: dataset
+        description: The dataset of the tested table, journal_entries for stg_journal_entries.
+      - name: row_id
+        description: The failing row, null for a failure of the whole file.
+      - name: kind
+        description: The data test.
+      - name: target_column
+        description: The column the error is in, null when it is in the whole row or file.
+      - name: description
+        description: The message the user sees.
