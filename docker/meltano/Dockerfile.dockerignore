@@ -1,0 +1,9 @@
+# build context of the meltano image (the repo root): only the meltano project goes in.
+# paths are relative to the repo root, not to this file
+*
+!DataWarehouseMeltano
+
+# written by meltano on Windows: the image runs meltano install itself
+DataWarehouseMeltano/.meltano
+DataWarehouseMeltano/output
+DataWarehouseMeltano/.env

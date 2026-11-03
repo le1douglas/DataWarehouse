@@ -1,0 +1,31 @@
+default_environment: dev
+project_id: 01a1a092-fb86-7349-a6ae-ffc686e2b184
+environments:
+- name: dev
+- name: staging
+- name: prod
+send_anonymous_usage_stats: false
+plugins:
+  extractors:
+  - name: tap-csv
+    variant: meltanolabs
+    # not on pypi: pinned to a git tag
+    pip_url: git+https://github.com/MeltanoLabs/tap-csv.git@v1.3.2
+    config:
+      # the entity is the table name in dw_bronze. the export folder is mounted read only at /inbox/exports
+      # (EXPORTS_DIR in docker/compose.yaml), the file in it is JOURNAL_ENTRIES_CSV from the env file
+      files:
+      - entity: brnz_journal_entries
+        path: /inbox/exports/${JOURNAL_ENTRIES_CSV}
+        keys: []
+  loaders:
+  - name: target-postgres
+    variant: meltanolabs
+    pip_url: meltanolabs-target-postgres==0.8.1
+    # host, port, database, user and password come from TARGET_POSTGRES_* in docker/compose.yaml
+    config:
+      default_target_schema: dw_bronze
+      load_method: append-only
+      # bronze keeps the columns of its DDL: no _sdc_* metadata columns, and so no activate version either
+      add_record_metadata: false
+      activate_version: false
