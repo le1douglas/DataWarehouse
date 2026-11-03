@@ -1,16 +1,24 @@
-# only data tests: the columns and types are declared in slvr_journal_entries.yml. the names repeat on purpose: a data test
-# reports every bad row with a message, a constraint of silver is the last guard.
+# only data tests: the columns and types and unique constraints are declared in slvr_journal_entries.yml.
 # an uncastable value is null here, so not_null reports both. range and relationship tests ignore nulls, so a bad value
 # gives one error. the description of a data test is the message the user sees.
 models:
   - name: stg_journal_entries
     data_tests:
-      - elementary.expect_compound_columns_to_be_unique_with_context:
+      # the key is unique_key in slvr_journal_entries.yml
+      - unique_within_upload:
           arguments:
-            column_list: [date_time, device]
+            dataset: journal_entries
           config:
             meta:
               description: this device already has a measurement at this moment
+      # a warning, not a refusal: a newer upload of a measurement overrides the older one in silver, and this lists it
+      - unique_across_accepted_uploads:
+          arguments:
+            dataset: journal_entries
+          config:
+            severity: warn
+            meta:
+              description: this measurement replaces the one of an earlier upload
     columns:
       - name: row_id
         data_tests:

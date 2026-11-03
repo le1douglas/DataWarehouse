@@ -1,5 +1,5 @@
 # CLAUDE.md
-A bronze/silver/gold data warehouse. Bad data never reaches silver: a file that fails its data tests is refused and nothing stays in bronze, so it is fixed where it came from. Gold is where the data modeling happens.
+A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that fails its data tests is refused, and the file is fixed where it came from. Bronze is append-only, so a refused load stays there as a record of what arrived. Gold is where the data modeling happens.
 
 ## How to work
 - One step at a time: make the change that was asked, report, and wait. Large multi-file changes in one go are not wanted.
@@ -16,8 +16,9 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a file that 
 - On `dev` or a hotfix branch, in a dev container, any command that affects the database is allowed. On `prod` or in the prod stack, the database is not touched in any way.
 - Use `dbt build`, not `dbt run`: dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone silently drops every view on top of it.
 - A package added to `packages.yml` means updating `package-lock.yml` too.
-- A new database needs the DDL, then one whole `dbt build`, which creates Elementary's tables and `aud_failures`. From then on a load is the whole loop: `python -m datawarehouse bronze` inserts the file, runs `dbt build` on its dataset, and deletes the rows again if it is refused.
-- Meltano (`DataWarehouseMeltano/`, the `meltano` service) will replace that loader, but it inserts only: no `dbt build`, no refusal. Loads go through the loader until Meltano refuses (`docs/REMINDERS.md`).
+- A load is two commands, until an orchestrator runs them: `meltano run tap-csv target-postgres` with a new uuidv7 (`select uuidv7()`) in `MELTANO_RUN_ID`, which every bronze row gets as `load_id`, then `dbt build --select source:dw_bronze.<table>+ --vars "{load_id: <the same id>}"`. Staging holds only that load, so its data tests judge it alone, and a file without rows is refused. Without the var, a build that compiles staging fails on purpose. Silver adds it only when they pass, and a row replaces the one with the same `unique_key`, with a warning.
+- A new database needs the DDL, then the first load and its build. A whole `dbt build` on an empty bronze fails the row-count test and skips staging and silver.
+- The python loader (`python -m datawarehouse bronze`) no longer runs: it writes no `load_id`. Its removal is pending.
 
 ## Data rules
 - `row_id` is the primary key and the only column shared between datasets, carried unchanged through the pipeline.

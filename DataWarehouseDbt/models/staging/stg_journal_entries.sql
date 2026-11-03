@@ -7,6 +7,7 @@ with
             row_id,
             -- the csv writes date_time without a time zone, so the timezone var is appended. a name, not an offset such
             -- as +02:00: the offset changes with daylight saving, the cast works it out for each date
+            -- TODO change so it gets the source timezone from the csv.
             nullif(date_time, '') || ' {{ var("timezone") }}' as date_time,
             nullif(device, '') as device,
             nullif(spot, '') as spot,
@@ -16,6 +17,8 @@ with
             nullif(temperature, '') as temperature,
             nullif(room, '') as room
         from {{ source("dw_bronze", "brnz_journal_entries") }}
+        -- one load only, the load_id var, so every data test judges that load alone. without the var, compilation fails
+        where load_id = '{{ var("load_id") }}'::uuid
     )
 
     {{ cast_select("mapped", "journal_entries") }}
