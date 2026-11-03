@@ -22,8 +22,11 @@ CREATE SCHEMA IF NOT EXISTS dw_bronze;
 -- is reported with its row instead of refused by the load. written by the python bronze loader.
 -- row_id is the only key. it is assigned here, once, when the row is inserted: python does not send it.
 -- it is unique across all datasets and follows the row unchanged through every layer.
+-- load_id is the upload the row came in with: meltano's run_id, which the caller sets with MELTANO_RUN_ID and meltano
+-- writes onto every row (DataWarehouseMeltano/meltano.yml). no default: a run started without it is refused here
 CREATE TABLE IF NOT EXISTS dw_bronze.brnz_journal_entries (
     row_id UUID NOT NULL DEFAULT uuidv7(),
+    load_id UUID NOT NULL,
     date_time TEXT,
     device TEXT,
     spot TEXT,
