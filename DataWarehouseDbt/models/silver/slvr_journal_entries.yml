@@ -1,12 +1,16 @@
 models:
   - name: slvr_journal_entries
-    description: The published journal entries, the candidate with its values converted to their types.
-                It is rebuilt only when the candidate passes every data test.
-                The columns and types below are the only place they are declared, silver_select and the castable
-                test are generated from them, and the contract checks that the table has exactly these.
+    description: The published journal entries, one row per measured spot.
+                It is rebuilt only when staging passes every data test.
+                The columns and types below are the only place they are declared, cast_select macro is generated from them,
+                and the contract checks that the table has exactly these. The constraints are the last guard, the data
+                tests of stg_journal_entries.yml are what reports a bad row. If the two disagree the build fails.
     config:
       contract:
         enforced: true
+    constraints:
+      - type: unique
+        columns: [date_time, device]
     columns:
       - name: row_id
         data_type: uuid
@@ -15,29 +19,56 @@ models:
           - type: primary_key
       - name: date_time
         data_type: timestamptz(0)
-        description: When the journal entry was measured. The time zone is the one the source wrote, or the timezone
-                    var when it wrote none.
-      - name: subject
+        description: When the journal entry was measured, in the timezone var.
+        constraints:
+          - type: not_null
+      - name: device
         data_type: text
-        description: The sensor that took the journal entry.
-      - name: type
-        data_type: text
-      - name: ml
-        data_type: numeric
-        description: The volume, the leading number of the notes in the app.
-      - name: ec
-        data_type: numeric
-      - name: ph
-        data_type: numeric
-      - name: temp
-        data_type: numeric
-        description: The temperature.
-      - name: notes
-        data_type: text
-        description: The notes without their leading number.
-      - name: room
-        data_type: text
-        description: The room of the room group, on its first four journal entries.
-      - name: position
+        description: The device that took the measurement.
+        constraints:
+          - type: not_null
+          # the foreign keys also make silver depend on the dimensions, so a failed relationship test skips silver
+          - type: foreign_key
+            to: ref('dim_devices')
+            to_columns: [device]
+      - name: spot
         data_type: text
         description: Drip left, drip right, drain left or drain right.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "spot ~ '^(drip|drain)_(left|right)$'"
+      - name: ml
+        data_type: integer
+        description: The volume.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "ml between 0 and 5000"
+      # plain numeric on purpose: numeric(4,2) would silently round 22.355 and hide a failure
+      - name: ec
+        data_type: numeric
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "ec between 0 and 10 and ec = round(ec, 2)"
+      - name: ph
+        data_type: numeric
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "ph between 0 and 14 and ph = round(ph, 2)"
+      - name: temperature
+        data_type: numeric
+        description: The temperature.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "temperature between 0 and 50 and temperature = round(temperature, 2)"
+      - name: room
+        data_type: text
+        constraints:
+          - type: not_null
+          - type: foreign_key
+            to: ref('dim_rooms')
+            to_columns: [room]

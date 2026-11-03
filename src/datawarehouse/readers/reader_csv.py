@@ -1,16 +1,12 @@
 import csv
-from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 
 class CSVReader:
-    # returns two dataframes with the same rows in the same order:
-    # the data, and the metadata of the read (from where and when every row was read, in timezone)
     @staticmethod
-    def read(source: Path, timezone: ZoneInfo) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def read(source: Path) -> pd.DataFrame:
         print(f"Loading CSV file: {source}")
 
         CSVReader._validate_is_csv_file(source)
@@ -34,19 +30,7 @@ class CSVReader:
 
             print(f"Loaded {len(df)} rows")
 
-            # the file has no metadata of its own, so it is made here.
-            # the date and time is taken in timezone and written with its offset, exact even in the repeated hour in
-            # october: 2026-10-22T14:42:08+02:00. it is cut to the second and is the same for every row of the read
-            meta_df = pd.DataFrame(
-                {
-                    "meta_source": str(source),
-                    "meta_extract_date_time": datetime.now(timezone).isoformat(timespec="seconds"),
-                },
-                index=df.index,
-                dtype=object,
-            )
-
-            return df, meta_df
+            return df
 
         except (FileNotFoundError, PermissionError, IsADirectoryError) as e:
             print(
