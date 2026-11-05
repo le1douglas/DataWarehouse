@@ -57,35 +57,6 @@ services:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
 
-  # a job: "docker compose run --rm loader bronze" runs one load, then the container exits
-  loader:
-    build:
-      context: .. # the repo root, one up from this folder. docker/loader/Dockerfile.dockerignore keeps only src
-      dockerfile: docker/loader/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
-    image: loader:${RELEASE}
-    environment:
-      TZ: *timezone
-      POSTGRESQL_SERVER: *postgres_host
-      POSTGRESQL_PORT: *postgres_port
-      POSTGRESQL_DB: *postgres_db
-      POSTGRESQL_USER: *postgres_user
-      POSTGRESQL_PASSWORD: *postgres_password
-      # the same connection for the dbt build that tests a load
-      DBT_HOST: *postgres_host
-      DBT_PORT: *postgres_port
-      DBT_DBNAME: *postgres_db
-      DBT_USER: *postgres_user
-      DBT_ENV_SECRET_PASSWORD: *postgres_password
-      # relative to /inbox/exports
-      JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
-    volumes:
-      # the input, read only (:ro), so the loader can never change an export
-      - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
-    depends_on:
-      - postgres
-    profiles: ["job"] # not started by "up", only by "run"
-
   # a job: "docker compose run --rm meltano <command>" runs one meltano command, then the container exits
   meltano:
     build:

@@ -1,4 +1,4 @@
-# dev setup: builds the dbt, loader, webapps and meltano images, starts postgres and the web apps, installs the dbt
+# dev setup: builds the dbt, webapps and meltano images, starts postgres and the web apps, installs the dbt
 # packages and the meltano plugins and checks dbt's connection.
 # safe to run again: up and build change only what changed, dbt deps and meltano install reinstall the same versions.
 # loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
@@ -31,8 +31,8 @@ try {
     if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
 
     # before up, so up starts the web apps on the new image, not on the one of the last build
-    Write-Host 'building the dbt, loader, webapps and meltano images'
-    & docker @dev build dbt loader webapps meltano
+    Write-Host 'building the dbt, webapps and meltano images'
+    & docker @dev build dbt webapps meltano
     Assert-Ok 'the build'
 
     Write-Host 'starting postgres and the web apps'
@@ -63,7 +63,7 @@ try {
     & docker @dev run --rm dbt debug
     Assert-Ok 'dbt debug'
 
-    Write-Host 'dev setup done. next: docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm loader bronze'
+    Write-Host 'dev setup done. next: a load (meltano run tap-csv target-postgres, then its dbt build), see docs/INSTALLATION_GUIDE_DOCKER.md'
 }
 finally {
     Pop-Location

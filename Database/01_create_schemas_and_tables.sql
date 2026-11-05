@@ -13,14 +13,14 @@ BEGIN
         RAISE EXCEPTION 'Wrong database: connected to %, expected DataWarehouse', current_database();
     END IF;
 END $$;
--- Creates only what dbt does not: the schema and tables that python loads into.
+-- Creates only what dbt does not: the schema and tables that meltano loads into.
 -- dbt creates dw_audit, dw_silver, dw_snapshots, dw_seeds and dw_gold, and everything inside them, and the staging views in dw_bronze.
 
 CREATE SCHEMA IF NOT EXISTS dw_bronze;
 
 -- raw data as provided by the source, all text and nullable: every rule on the data is a dbt data test, so a bad value
--- is reported with its row instead of refused by the load. written by the python bronze loader.
--- row_id is the only key. it is assigned here, once, when the row is inserted: python does not send it.
+-- is reported with its row instead of refused by the load. written by meltano (target-postgres).
+-- row_id is the only key. it is assigned here, once, when the row is inserted: meltano does not send it.
 -- it is unique across all datasets and follows the row unchanged through every layer.
 -- load_id is the upload the row came in with: meltano's run_id, which the caller sets with MELTANO_RUN_ID and meltano
 -- writes onto every row (DataWarehouseMeltano/meltano.yml). no default: a run started without it is refused here

@@ -60,7 +60,7 @@ POSTGRES_PORT=5432
 # the port of the web apps, published to Windows
 NICEGUI_PORT=8080
 RELEASE=dev
-# windows folder mounted read only into the loader container. it can move: change the line, no rebuild needed
+# windows folder mounted read only into the meltano container. it can move: change the line, no rebuild needed
 # the root of the csv exports, mounted at /inbox/exports. SampleData until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
 # the journal entries, relative to EXPORTS_DIR
@@ -87,7 +87,7 @@ POSTGRES_PORT=5433
 NICEGUI_PORT=8081
 # the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
 RELEASE=$release
-# windows folder mounted read only into the loader container
+# windows folder mounted read only into the meltano container
 # TODO placeholder (2026-10-22): the same folder as dev until the day-to-day location is decided
 EXPORTS_DIR=../SampleData
 # the journal entries, relative to EXPORTS_DIR
