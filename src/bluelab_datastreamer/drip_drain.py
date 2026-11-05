@@ -13,21 +13,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 CSV_PATH = Path(__file__).with_name("drip_drain.csv")
-CSV_COLUMNS = (
-    "date_time",
-    "subject",
-    "notes",
-    "type",
-    "ec",
-    "ec_pore",
-    "ec_bulk",
-    "ph",
-    "mc",
-    "temp",
-    "device",
-    "media",
-    "tags",
-)
+CSV_COLUMNS = ("date_time", "device", "spot", "ml", "ec", "ph", "temperature", "room")
 # the rooms of each part of the day, in the order they are taken
 ROOMS = {
     "morning": ("1.30", "1.29", "1.28", "1.27", "1.26", "1.25", "1.24", "0.31", "0.32", "0.33"),
@@ -57,8 +43,13 @@ def line_names(room_name: str) -> tuple[str, ...]:
     return ROOM_LINE_NAMES.get(room_name, LINE_NAMES)
 
 
+def spot(line_name: str) -> str:
+    """The line as the csv stores it, such as drip_left for Drip Left. drip_1 stays drip_1."""
+    return line_name.lower().replace(" ", "_")
+
+
 def now() -> str:
-    """The time of a reading, in TIMEZONE but written without it, as in a journal entries export."""
+    """The time of a reading, in TIMEZONE but written without it."""
     return datetime.now(TIMEZONE).replace(tzinfo=None).isoformat(timespec="microseconds")
 
 
@@ -66,11 +57,11 @@ def csv_values(ec: float | None, ph: float | None, temperature: float | None) ->
     """The values as the csv stores them, an empty string for none."""
     # a dry probe has no ec, and its ph and temperature are not of the water either
     if ec is None:
-        return {"ec": "", "ph": "", "temp": ""}
+        return {"ec": "", "ph": "", "temperature": ""}
     return {
         "ec": f"{ec:.2f}",
         "ph": "" if ph is None else f"{ph:.2f}",
-        "temp": "" if temperature is None else f"{temperature:.1f}",
+        "temperature": "" if temperature is None else f"{temperature:.1f}",
     }
 
 
@@ -168,19 +159,11 @@ class Room:
         self.saving = True
 
     def rows(self, pen_name: str) -> list[dict]:
-        """The room as rows of the csv, in the shape of a journal entries export."""
-        rows = []
-        for ml, reading in zip(self.ml, self.readings):
-            row = dict.fromkeys(CSV_COLUMNS, "")
-            row.update(
-                subject=f"{pen_name} - Measurement",
-                notes=str(int(ml)),
-                type="measurement",
-                tags=self.name,
-                **reading,
-            )
-            rows.append(row)
-        return rows
+        """The room as rows of the csv, one per line."""
+        return [
+            {"device": pen_name, "spot": spot(line_name), "ml": str(int(ml)), "room": self.name, **reading}
+            for line_name, ml, reading in zip(self.line_names, self.ml, self.readings)
+        ]
 
     def _advance(self, values: list) -> None:
         """After a line is filled: goes to the next empty line of values.
@@ -227,19 +210,19 @@ def next_room(rows: list[dict], part_of_day: str, skipped: frozenset[str] = froz
     done. Every row must be of the part of the day: a csv of the other one is not continued.
     """
     rooms = ROOMS[part_of_day]
-    others = sorted({row["tags"] for row in rows} - set(rooms))
+    others = sorted({row["room"] for row in rows} - set(rooms))
     if others:
         raise ValueError(
-            f"{CSV_PATH.name} has rows with tags {', '.join(others)}, which are not rooms of this part of the day"
+            f"{CSV_PATH.name} has rows of rooms {', '.join(others)}, which are not rooms of this part of the day"
         )
     start = 0
     if rows:
-        last = rows[-1]["tags"]
+        last = rows[-1]["room"]
         index = rooms.index(last)
-        # the rows of the last room are the ones at the end with its tags
+        # the rows of the last room are the ones at the end with its room
         in_room = 0
         for row in reversed(rows):
-            if row["tags"] != last:
+            if row["room"] != last:
                 break
             in_room += 1
         if in_room < len(line_names(last)) and last not in skipped:
