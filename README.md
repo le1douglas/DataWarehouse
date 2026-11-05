@@ -32,7 +32,7 @@ find data loss tolerance
 ## Role	Permissions
 todo decide on the roles to use
 postgres ---> superuser responsable for permissions and owns bronze layer
-extract_load_user	----> the Python load script	INSERT and DELETE on bronze
+extract_load_user	----> Meltano (target-postgres)	INSERT and SELECT on bronze
 transform_user	---> what dbt connects as.	owns the  silver/gold schemas, with CREATE on the database, only select needed in bronze
 read_only_user	-----> Excel, Power BI, Tableau, Grafana	USAGE on gold, SELECT on gold, nothing on bronze or silver
 

@@ -79,7 +79,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ## 4. Dev stack: `02_setup_dev.ps1`
 
 - `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
-  - Builds the `dbt`, `loader`, `webapps` and `meltano` images, starts postgres and the web app, runs `dbt deps`,
+  - Builds the `dbt`, `webapps` and `meltano` images, starts postgres and the web app, runs `dbt deps`,
     `meltano install` and `dbt debug`
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
@@ -93,7 +93,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → `brnz_journal_entries`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d meltano -c "\dt"` → `alembic_version`, `plugin_settings`, `runs`,
   `state`: Meltano's own tables, created by `meltano install`
-- `docker image ls` → `dbt`, `loader`, `webapps` and `meltano`, tag `dev`
+- `docker image ls` → `dbt`, `webapps` and `meltano`, tag `dev`
 - `Test-Path DataWarehouseDbt\dbt_packages\dbt_utils` → `True`
 - `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → creates Elementary's tables
   and `aud_issues`. On the empty bronze the row count data test fails and silver is skipped: that is expected
@@ -104,7 +104,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - No uncommitted changes (commit or stash first): the build switches the repo to the tag
 - `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1`
-  - Builds the `dbt`, `loader`, `webapps` and `meltano` images of `RELEASE` from the tag's code, then switches the
+  - Builds the `dbt`, `webapps` and `meltano` images of `RELEASE` from the tag's code, then switches the
     repo back
   - Images of `RELEASE` that exist are not rebuilt
   - Starts postgres, runs `dbt debug`
@@ -117,7 +117,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → the same four tables as dev
 - `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse` and `meltano`
-- `docker image ls` → `dbt`, `loader`, `webapps` and `meltano`, tag = `RELEASE`
+- `docker image ls` → `dbt`, `webapps` and `meltano`, tag = `RELEASE`
 - `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod run --rm dbt debug`
   → `All checks passed!`
 
@@ -164,7 +164,6 @@ Start → **ODBC Data Sources (64-bit)** → **System DSN** → **Add** → `Pos
 - `Ctrl + Shift + P` → **Dev Containers: Reopen in Container** → pick `dbt`
   - First open installs the extensions in the container and runs `dbt deps`
   - Back to Windows: **Dev Containers: Reopen Folder Locally**
-- The same for `loader`
 - The same for `meltano`
   - The terminal opens in `/usr/app/DataWarehouseMeltano`, where `meltano` commands run
   - `meltano.yml` gets completion and validation from Meltano's schema (YAML extension)
@@ -182,43 +181,27 @@ Setup is done.
 - Prod: the same PowerShell commands with `-f docker/compose.prod.yaml --env-file docker/.env.prod` instead of
   `-f docker/compose.dev.yaml`, and the web app on port 8081
 
-**Upload a file**
+**Load a file**
 
-- PowerShell (the file is `JOURNAL_ENTRIES_CSV` in `docker/.env`):
-
-  ```powershell
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm loader bronze
-  ```
-
-- `loader` container:
-
-  ```sh
-  python -m datawarehouse bronze
-  ```
-
-- The file is inserted into bronze and `dbt build` runs on its dataset, which takes a few seconds
-- Passed: `Upload accepted`, and silver is built
-- Failed: `Upload refused`, with each failing line, its value and the message. Nothing stays in bronze and silver keeps
-  its last good version. Fix the file where it came from and upload it again
-- `Upload refused, but its rows are STILL IN BRONZE`: the database went away during the upload. Run the `delete` it
-  prints
-- Leave 30 seconds between two uploads: files closer together are judged as one by the row count data test
-
-**Load a file with Meltano (on trial, dev only)**
-
-- Meltano is set to replace the upload above, but does not refuse a bad file yet: a file loaded this way stays in
-  bronze whatever its data tests say, and loading it twice duplicates every row. Until that is built, upload with the
-  loader
-- PowerShell:
+- A load is two commands with the same id, until an orchestrator runs them: Meltano appends the file to bronze, then
+  `dbt build` judges that load alone and adds it to silver only when its data tests pass
+- The file is `JOURNAL_ENTRIES_CSV` in `EXPORTS_DIR` (`docker/.env`), as read by `tap-csv` in
+  `DataWarehouseMeltano/meltano.yml`
+- PowerShell, a new id for every load:
 
   ```powershell
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm meltano run tap-csv target-postgres
+  $id = docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -tAc "select uuidv7();"
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm -e MELTANO_RUN_ID=$id meltano run tap-csv target-postgres
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: $id}"
   ```
 
-- `meltano` container: `meltano run tap-csv target-postgres`
-- What it reads and where it writes is in `DataWarehouseMeltano/meltano.yml`: `tap-csv` reads `JOURNAL_ENTRIES_CSV`
-  in `EXPORTS_DIR`, `target-postgres` appends to the bronze table named by the `entity`
-- Each run is a row in `runs` of the `meltano` database
+- Dev containers: `MELTANO_RUN_ID=<id> meltano run tap-csv target-postgres` in the `meltano` container, then
+  `dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: <id>}"` in the `dbt` container
+- Every bronze row gets the id as `load_id`. Without `MELTANO_RUN_ID` nothing is loaded
+- Passed: silver holds the load. A row with the same key as one already in silver replaces it, with a warning
+- Failed: the build reports the failing data tests, the load stays in bronze as a record of what arrived, and silver
+  keeps what it had. Fix the file where it came from and load it again, with a new id
+- Each Meltano run is a row in `runs` of the `meltano` database
 
 **See what failed, warned or errored in any run**
 
@@ -228,7 +211,7 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
 
 ### Dev tools (optional)
 
-- `loader` container: `pytest` (some tests are known to fail, see `docs/REMINDERS.md`), `ruff check`, `ruff format`
+- `webapps` container: `pytest` (no tests yet), `ruff check`, `ruff format`
 - `dbt` container, from `/usr/app`: `sqlfmt DataWarehouseDbt/models`
 - `meltano` container: `meltano config print tap-csv` shows a plugin's config as the run sees it, env vars filled in
 
@@ -256,7 +239,7 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
 - **`set EXPORTS_DIR / JOURNAL_ENTRIES_CSV / NICEGUI_PORT / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
-- **Prod `up` fails with `pull access denied for dbt` / `loader`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
+- **Prod `up` fails with `pull access denied for dbt` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
 - **`03_setup_prod.ps1` fails on `docker/meltano/Dockerfile` not found:** `RELEASE` is a tag from before Meltano. Tag
   a release that has it.
 - **`03_setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
@@ -269,14 +252,14 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
   ```
 
-  - Without `--profile job`, `down` leaves the `dbt`, `loader` and `meltano` dev containers running on the old network
+  - Without `--profile job`, `down` leaves the `dbt`, `meltano` and `datastreamer` dev containers running on the old network
   - Also deletes the `meltano` database (Meltano's run history) and dev's Meltano plugins: the setup script makes both
     again
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
   `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.
 - **DDL changed, nothing happens:** `00_create_meltano_database.sql` and `01_create_schemas_and_tables.sql` run only on
   an empty volume. Reset dev.
-- **`loader bronze` or `meltano run` twice:** duplicates every row. Reset dev and load once.
+- **The same `MELTANO_RUN_ID` for two runs:** both land in one load, which the row count data test refuses. Take a new id for every run.
 - **A Meltano plugin added or changed in `meltano.yml`, the run does not see it:** `meltano install` in the `meltano`
   container. In dev the plugins live in the `dw-dev_meltano-plugins` volume, not in the repo: their venvs hold linux
   symlinks that Windows and OneDrive cannot read, and that broke the image build when they were in

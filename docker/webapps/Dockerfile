@@ -3,7 +3,7 @@
 # runtime: only what it needs to run. prod uses it as is, dev (and later ci) adds its own tools on top
 FROM python:3.14-slim AS runtime
 
-# only what the web apps need. the database libraries are the loader's versions
+# only what the web apps need
 RUN pip install --no-cache-dir \
     nicegui==3.18.0 \
     SQLAlchemy==2.0.54 \
@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /usr/app
 
-# python finds the webapps package in src without installing it, so in dev the mounted src is what runs (as the loader).
+# python finds the webapps package in src without installing it, so in dev the mounted src is what runs.
 # print output shows in the logs right away, and no __pycache__ is written into the mounted repo folder
 ENV PYTHONPATH=/usr/app/src \
     PYTHONUNBUFFERED=1 \
@@ -31,4 +31,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir ruff==0.16.10
+# pytest finds the tests in tests/ at the repo root (pyproject.toml)
+RUN pip install --no-cache-dir \
+    pytest==9.1.1 \
+    pytest-cov==7.1.0 \
+    ruff==0.16.10

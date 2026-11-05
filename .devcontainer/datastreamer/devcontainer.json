@@ -14,7 +14,6 @@
   "shutdownAction": "none",
   "customizations": {
     "vscode": {
-      // the same as the loader's
       "extensions": ["ms-python.python", "charliermarsh.ruff"],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",

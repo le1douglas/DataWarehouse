@@ -15,10 +15,13 @@
   "shutdownAction": "none",
   "customizations": {
     "vscode": {
-      // the same as the datastreamer's
+      // the same as the datastreamer's, plus pytest in the testing panel
       "extensions": ["ms-python.python", "charliermarsh.ruff"],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": ["tests"],
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
         }
