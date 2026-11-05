@@ -29,10 +29,17 @@ models:
         description: The device that took the measurement.
         constraints:
           - type: not_null
-          # the foreign keys also make silver depend on the dimensions, so a failed relationship test skips silver
-          - type: foreign_key
-            to: ref('dim_devices')
-            to_columns: [device]
+        # a data test, not a foreign key: rebuilding the dimension drops a foreign key with CASCADE, and an incremental
+        # silver never adds it again. staging tests the load, this tests every row, so a device removed from the seed
+        # is reported
+        data_tests:
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('dim_devices')
+                field: device
+              config:
+                meta:
+                  description: device is not in dim_devices
       - name: spot
         data_type: text
         description: Drip left, drip right, drain left or drain right.
@@ -71,6 +78,12 @@ models:
         data_type: text
         constraints:
           - type: not_null
-          - type: foreign_key
-            to: ref('dim_rooms')
-            to_columns: [room]
+        # a data test, not a foreign key: see device
+        data_tests:
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('dim_rooms')
+                field: room
+              config:
+                meta:
+                  description: room is not in dim_rooms

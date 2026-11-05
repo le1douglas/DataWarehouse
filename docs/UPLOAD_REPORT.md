@@ -30,7 +30,7 @@ run (a resend, a rebuild, two builds at once, a crash, a setting).
 - Two builds at the same time swap their loads (6.5, 6.6).
 - Rebuilding an old `load_id` rolls silver back (4.2); a resent file overrides (4.1).
 - Exit codes do not tell accepted from refused (7.2, 12.2); a crash blocks loads for 5 minutes (7.3).
-- Silver's foreign keys are lost after a whole `dbt build` (9.1).
+- A seed change rebuilt with `seed_<name>+` inserts staging's last load into silver (9.3).
 - A file cut at a line end, or a folder of files, is accepted (13.1, 14.1).
 - New database (0.1), the audit gaps (8.8, 8.9, 12.1), retries (12.4).
 
@@ -56,7 +56,8 @@ About 75 scenarios. Numbers point to the log below.
 **The pipeline breaks or lies about its result**
 
 8. **Bronze capped for good** (11.2, 11.3): a file with about 1585 extra columns is accepted. Dropping those columns afterwards does not help: Postgres still counts them toward its 1600-column limit, so any later file with a new column fails.
-9. **Foreign keys gone for good after a whole `dbt build`** (9.1): the dims are rebuilt with `CASCADE`, and an incremental silver never adds its constraints again.
+9. ~~**Foreign keys gone for good after a whole `dbt build`** (9.1)~~ **Fixed**: silver has no foreign keys any more, it runs the same relationship tests as staging and declares the dims with `depends_on`.
+9b. **`dbt build --select seed_<name>+` inserts staging's last load into silver** (9.3), also a refused one. A seed change needs a whole `dbt build` without the var.
 10. **Exit codes do not tell accepted from refused** (7.2, 12.2): meltano can fail after bronze has committed, and dbt can fail after silver has committed. A crashed build loses its override warnings for good.
 11. **One crashed meltano run blocks every load for ~5 minutes** (7.3): it stays `RUNNING` in meltano's `runs` table.
 
@@ -185,8 +186,9 @@ The csv is written by a program of ours, so staging says anything unusual is an 
 
 | # | Scenario | Result | Verdict | Valid files |
 |---|---|---|---|---|
-| 9.1 | Accept a load, then a whole `dbt build` (with the var), then another load | Silver's foreign keys to `dim_devices` and `dim_rooms` exist after the first load; **after the whole build both are gone and never come back** (constraints `cccccffnnnnnnnnnpu` → `cccccnnnnnnnnnpu`) | **BUG** — rebuilding a dim table drops it with `CASCADE`, and an incremental silver only gets its constraints when it is created, which `full_refresh=false` prevents. The dims' yml says the key "is lost until the next successful build": it is lost for good. Silver keeps rows of a room removed from the seed | **Yes, process** (a whole `dbt build`) |
-| 9.2 | (from reading) a room added to `seed_rooms.csv` | The load build (`source:...+`) never reloads seeds or dims; only a whole build does, which also triggers 9.1 | SURPRISE | Yes, process (a seed change) |
+| 9.1 | Accept a load, then a whole `dbt build` (with the var), then another load | Silver's foreign keys to `dim_devices` and `dim_rooms` exist after the first load; **after the whole build both are gone and never come back** (constraints `cccccffnnnnnnnnnpu` → `cccccnnnnnnnnnpu`) | **BUG** — rebuilding a dim table drops it with `CASCADE`, and an incremental silver only gets its constraints when it is created, which `full_refresh=false` prevents. The dims' yml says the key "is lost until the next successful build": it is lost for good. Silver keeps rows of a room removed from the seed. **Fixed**: the foreign keys are replaced by relationship tests on silver, and `-- depends_on:` the dims in `slvr_journal_entries.sql` keeps a failed staging relationship test skipping silver (without it, an unknown device reached silver: retested, now skipped) | **Yes, process** (a whole `dbt build`) |
+| 9.2 | (from reading) a room added to `seed_rooms.csv` | The load build (`source:...+`) never reloads seeds or dims; only a whole build does | SURPRISE | Yes, process (a seed change) |
+| 9.3 | `dbt build --select seed_devices+ seed_rooms+` after a seed change | Rebuilds seeds and dims, runs only the relationship tests of staging, then rebuilds silver from staging (`INSERT 0 40`): whatever load staging last held is inserted, without its other data tests | **BUG** — if the last built load was refused (for example on the row count), it reaches silver. Use a whole `dbt build` without the var, which fails on staging and skips silver (CODING_STANDARDS.md, Seeds) | Yes, process (a seed change) |
 
 ### 10. Header shapes from spreadsheet tools
 
@@ -241,4 +243,4 @@ The csv is written by a program of ours, so staging says anything unusual is an 
 
 - A OneDrive "online-only" placeholder file read through the bind mount (could not be made on purpose).
 - The prod stack: not touched.
-- Data tests that disagree with silver's constraints: none found. Every staging test except the row count has a matching constraint, so the race in 6.5/6.6 mixes accepted loads but cannot let a bad value into silver.
+- Data tests that disagree with silver's constraints: none found. Every staging test except the row count and, since the fix of 9.1, the relationship tests has a matching constraint. The race in 6.5/6.6 mixes accepted loads; an unknown device or room it lets in would be reported by silver's relationship tests, not stopped (not retested).

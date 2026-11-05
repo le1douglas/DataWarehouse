@@ -2,8 +2,9 @@ models:
   - name: dim_devices
     description: The measuring devices. Change a device in seed_devices.csv, not here.
     config:
-      # a table, not incremental, so it always equals the seed: incremental would keep a row in table that is removed from the seed.
-      # the price: the foreign key is is lost until the next successful build, so ther might me an unituitive error during this gap. see docs/CODING_STANDARDS.md for the reasoning.
+      # a table, not incremental, so it always equals the seed: incremental would keep a row that is removed from the seed.
+      # no foreign key points here, a rebuild would drop it: silver checks devices with a relationship test.
+      # see docs/CODING_STANDARDS.md
       contract:
         enforced: true
     columns:
