@@ -96,7 +96,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker image ls` → `dbt`, `loader`, `webapps` and `meltano`, tag `dev`
 - `Test-Path DataWarehouseDbt\dbt_packages\dbt_utils` → `True`
 - `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → creates Elementary's tables
-  and `aud_failures`. On the empty bronze the row count data test fails and silver is skipped: that is expected
+  and `aud_issues`. On the empty bronze the row count data test fails and silver is skipped: that is expected
 
 ---
 
@@ -220,10 +220,10 @@ Setup is done.
   in `EXPORTS_DIR`, `target-postgres` appends to the bronze table named by the `entity`
 - Each run is a row in `runs` of the `meltano` database
 
-**See what failed in any run**
+**See what failed, warned or errored in any run**
 
 ```sql
-select * from dw_audit.aud_failures where invocation_id = '<the run>';
+select * from dw_audit.aud_issues where invocation_id = '<the run>';
 ```
 
 ### Dev tools (optional)

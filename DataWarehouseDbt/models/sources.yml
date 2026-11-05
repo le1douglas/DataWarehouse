@@ -11,10 +11,9 @@ sources:
           #test rows amount.
 
           #TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
-          - dbt_expectations.expect_table_row_count_to_be_between:
+          - dbt_expectations.expect_table_row_count_to_equal:
               arguments:
-                min_value: 20 # at least 5 rooms, 4 measurements per room
-                max_value: 40 # at most 10 rooms, 4 measurements per room
+                value: 40 # 10 rooms, 4 measurements per room. a file cut at a line end has fewer
 
                 # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
                 # TODO check if it sbetter to test every load that has not been tested, according to aud
@@ -22,5 +21,5 @@ sources:
                   load_id = '{{ var("load_id") }}'::uuid
               config:
                 meta:
-                  description: the file must have 20 to 40 rows
+                  description: the file must have 40 rows
           
