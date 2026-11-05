@@ -1,16 +1,18 @@
 models:
   - name: slvr_journal_entries
     description: The published journal entries, one row per measured spot.
-                It is rebuilt only when staging passes every data test.
+                The latest load is added only when staging passes every data test, and replaces the rows with the same
+                date_time and device.
                 The columns and types below are the only place they are declared, cast_select macro is generated from them,
                 and the contract checks that the table has exactly these. The constraints are the last guard, the data
                 tests of stg_journal_entries.yml are what reports a bad row. If the two disagree the build fails.
     config:
       contract:
         enforced: true
+      unique_key: &measurement_key [date_time, device]  #this is for dbt
     constraints:
       - type: unique
-        columns: [date_time, device]
+        columns: *measurement_key  #this is for postgres
     columns:
       - name: row_id
         data_type: uuid
