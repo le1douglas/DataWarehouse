@@ -19,8 +19,10 @@ services:
   postgres:
     image: postgres:18
     # the server's time zone from TZ, so the zone stays written once. compose would replace $TZ itself, $$ leaves it to sh.
-    # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would
-    command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\""]
+    # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would.
+    # datestyle YMD: initdb takes MDY from the en_US locale, which reads 03/11/2026 as 11 March. YMD refuses a date in
+    # day or month first order with a four digit year, instead of guessing. ISO dates read the same under any datestyle
+    command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\" -c datestyle=\"ISO, YMD\""]
     environment:
       TZ: *timezone
       POSTGRES_DB: *postgres_db
