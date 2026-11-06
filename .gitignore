@@ -500,3 +500,7 @@ $RECYCLE.BIN/
 
 # the daily csv written by the datastreamer (DAILY_RAW_CSV_DIR in docker/.env): data, not code
 user_input/journal_entries/
+
+# claude code's own permissions for this project, per machine: never committed. on windows a global git ignore
+# does the same, but the dev container does not have it
+.claude/settings.local.json

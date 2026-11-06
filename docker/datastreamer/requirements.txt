@@ -1,0 +1,4 @@
+# the libraries of the datastreamer image, the only place their versions are written. installed by the runtime stage of
+# docker/datastreamer/Dockerfile, and into its own venv by docker/dev/Dockerfile, so dev runs the same versions.
+# none for now: the readings use only the standard library. the bridge to the pen (onepen_bridge.py) needs bleak,
+# but it runs on windows and is not in the image

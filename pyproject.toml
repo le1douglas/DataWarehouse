@@ -1,4 +1,5 @@
-# config of the dev tools only. the libraries and their versions are in the Dockerfiles under docker/
+# config of the dev tools only. the libraries and their versions are in the requirements files under docker/:
+# docker/<image>/requirements.txt for each image, docker/dev/requirements*.txt for the dev tools
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

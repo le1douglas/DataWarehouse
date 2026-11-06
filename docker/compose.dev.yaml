@@ -1,7 +1,17 @@
 # dev only, on top of compose.yaml: "docker compose -f docker/compose.yaml -f docker/compose.dev.yaml ...". prod never loads it
 
-# the project name, so "docker compose run" and the Dev Containers use the same postgres container and volume
+# the project name, so "docker compose run" and the Dev Container use the same postgres container and volumes
 name: dw-dev
+
+# what dbt writes, in the dbt-state volume instead of the repo folder: every build rewrites target and logs, which
+# onedrive would sync, and writes through the windows mount are slow. one volume, mounted at /dbt-state, and dbt pointed
+# there: DBT_TARGET_PATH and DBT_LOG_PATH dbt reads by itself, DBT_PACKAGES_INSTALL_PATH DataWarehouseDbt/dbt_project.yml
+# reads. the volume starts empty: dbt deps (also run by dbt Power User on open) fills the packages.
+# written once here, for the dbt service and the dev service
+x-dbt-state-env: &dbt_state_env
+  DBT_TARGET_PATH: /dbt-state/target
+  DBT_LOG_PATH: /dbt-state/logs
+  DBT_PACKAGES_INSTALL_PATH: /dbt-state/dbt_packages
 
 services:
   postgres:
@@ -9,14 +19,16 @@ services:
       # replaces the mount of compose.yaml at the same path (/dumps): dev only reads the prod dumps, never changes one
       - ../Database/dumps:/dumps:ro
 
+  # the services build their runtime stage (compose.yaml), as prod does, with the repo mounted on top so edits apply
+  # without a rebuild. the dev tools are in the dev service only
   dbt:
-    build:
-      target: dev # runtime plus sqlfmt
     volumes:
-      # the whole repo, live: edits apply without a rebuild, and sqlfmt finds pyproject.toml at /usr/app.
-      # hides the project copied at build time, at the same path, so the working directory stays /usr/app/DataWarehouseDbt.
-      # dbt_packages too: dbt deps installs it into the repo folder (gitignored), and dbt Power User runs dbt deps on open
+      # the whole repo, live. hides the project copied at build time, at the same path, so the working directory stays
+      # /usr/app/DataWarehouseDbt
       - ..:/usr/app
+      - dbt-state:/dbt-state
+    environment:
+      <<: *dbt_state_env
 
   meltano:
     volumes:
@@ -28,23 +40,75 @@ services:
       - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
 
   datastreamer:
-    build:
-      target: dev # runtime plus ruff
     volumes:
-      # the whole repo, live: edits apply without a rebuild, ruff finds pyproject.toml at /usr/app, and the csv of
-      # the readings is written into the repo folder on windows. hides the code copied at build time, at the same path
+      # the whole repo, live: edits apply without a rebuild. hides the code copied at build time, at the same path
       - ..:/usr/app
 
   webapps:
-    build:
-      target: dev # runtime plus pytest, pytest-cov and ruff
     # a save on windows sends no change event into the container, so the reload of ui.run checks the files on a timer
     environment:
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
-      # the whole repo, live: the app reloads on every save, and ruff finds pyproject.toml at /usr/app.
-      # hides the code copied at build time, at the same path
+      # the whole repo, live: the app reloads on every save. hides the code copied at build time, at the same path
       - ..:/usr/app
+
+  # the dev container: every tool of the four images at the same versions, plus the dev tools and Claude Code.
+  # opened by .devcontainer/dev, which starts it (with postgres). "up" does not
+  dev:
+    build:
+      context: .. # the repo root. docker/dev/Dockerfile.dockerignore keeps only the requirements files
+      dockerfile: docker/dev/Dockerfile
+    image: dev:dev
+    # the same mounts as the services, so a load, a build or a reading behaves here as it does there
+    volumes:
+      - ..:/usr/app
+      - dbt-state:/dbt-state
+      - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
+      # the exports, read only, at the path of x-exports-mount in compose.yaml
+      - type: bind
+        source: ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}
+        target: /inbox/exports
+        read_only: true
+      - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
+      # Claude Code's login, settings, skills and memory (CLAUDE_CONFIG_DIR below), tied to docker, not to windows:
+      # they survive every rebuild, and are lost only with the volume. to move machines, export this volume
+      # (docs/agents/dev-container.md)
+      - claude-config:/claude-config
+    # the env vars of the services, the same names as in compose.yaml: a yaml anchor cannot reach across files.
+    # the values come from the env file, so each is still written once
+    environment:
+      <<: *dbt_state_env
+      TZ: Europe/Amsterdam # x-timezone in compose.yaml
+      # dbt
+      DBT_HOST: postgres
+      DBT_PORT: "5432"
+      DBT_DBNAME: ${POSTGRES_DB}
+      DBT_USER: ${POSTGRES_USER}
+      DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
+      # meltano
+      MELTANO_DATABASE_URI: postgresql+psycopg://${POSTGRES_USER}@postgres:5432/meltano
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      TARGET_POSTGRES_HOST: postgres
+      TARGET_POSTGRES_PORT: "5432"
+      TARGET_POSTGRES_DATABASE: ${POSTGRES_DB}
+      TARGET_POSTGRES_USER: ${POSTGRES_USER}
+      TARGET_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      EXPORTS_MOUNT: /inbox/exports
+      JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
+      # webapps
+      POSTGRESQL_SERVER: postgres
+      POSTGRESQL_PORT: "5432"
+      POSTGRESQL_DB: ${POSTGRES_DB}
+      POSTGRESQL_USER: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      WATCHFILES_FORCE_POLLING: "true"
+      # Claude Code keeps everything in the claude-config volume, its .claude.json too
+      CLAUDE_CONFIG_DIR: /claude-config
+    depends_on:
+      - postgres
+    profiles: ["dev"] # not started by "up", only by the Dev Container
 
 volumes:
   meltano-plugins:
+  dbt-state:
+  claude-config:

@@ -1,7 +1,8 @@
-# build context of the webapps image (the repo root): only the web apps folder goes in, whatever the file type.
+# build context of the webapps image (the repo root): only the web apps folder, whatever the file type, and its requirements file go in.
 # paths are relative to the repo root, not to this file
 *
 !src/webapps
+!docker/webapps/requirements.txt
 
 # written by python on Windows
 **/__pycache__

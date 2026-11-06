@@ -8,8 +8,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-# the postgres extra: the driver for the system database, the meltano database of the postgres service
-RUN pip install --no-cache-dir "meltano[postgres]==4.4.1"
+# the versions are in the requirements file, the one place they are written (docker/dev/Dockerfile reads it too)
+COPY docker/meltano/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app/DataWarehouseMeltano
 

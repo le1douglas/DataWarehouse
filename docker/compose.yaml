@@ -44,7 +44,7 @@ services:
     build:
       context: .. # the repo root, one up from this folder. docker/dbt/Dockerfile.dockerignore keeps only DataWarehouseDbt
       dockerfile: docker/dbt/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
     image: dbt:${RELEASE}
     environment:
       TZ: *timezone # dbt itself always logs in UTC, whatever this says
@@ -98,7 +98,7 @@ services:
     build:
       context: .. # the repo root, one up from this folder. docker/datastreamer/Dockerfile.dockerignore keeps only src/bluelab_datastreamer
       dockerfile: docker/datastreamer/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
     image: datastreamer:${RELEASE}
     environment:
       TZ: *timezone # stamps each reading and names the daily csv, read by src/bluelab_datastreamer/drip_drain.py
@@ -113,7 +113,7 @@ services:
     build:
       context: .. # the repo root, one up from this folder. docker/webapps/Dockerfile.dockerignore keeps only src/webapps
       dockerfile: docker/webapps/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
     image: webapps:${RELEASE}
     environment:
       TZ: *timezone

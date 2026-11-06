@@ -1,0 +1,4 @@
+# the libraries of the dbt image, the only place their versions are written. installed by the runtime stage of
+# docker/dbt/Dockerfile, and into its own venv by docker/dev/Dockerfile, so dev runs the same versions
+dbt-core==1.12.5
+dbt-postgres==1.11.0
