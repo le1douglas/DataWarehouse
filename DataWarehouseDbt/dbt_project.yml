@@ -31,9 +31,13 @@ models:
     silver:              # no logic, rebuilt only when all staging tests pass
       +materialized: table
       +schema: silver
-    gold:                # the modeled tables
-      +materialized: table
+      +contract:
+        enforced: true    # every column declared with its type in the yml
+    gold:                # the modeled views over silver and the seeds: no copy of the data, no constraints
+      +materialized: view
       +schema: gold
+      +contract:
+        enforced: true
     audit:               # what failed, read from elementary
       +materialized: view
       +schema: audit

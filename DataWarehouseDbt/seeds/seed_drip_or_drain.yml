@@ -1,0 +1,7 @@
+seeds:
+  - name: seed_drip_or_drain
+    description: Which solution a journal entry measured, drip or drain, kept by hand in seed_drip_or_drain.csv and reloaded by every dbt build.
+    config:
+      # every type is written, so dbt never infers one
+      column_types:
+        drip_or_drain: varchar(50)

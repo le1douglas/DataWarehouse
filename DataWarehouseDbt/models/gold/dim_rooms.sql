@@ -1,2 +1,2 @@
--- the seed as a table with a contract: a seed cannot have constraints, so they are declared on this model
+-- the seed as a view with a contract, so gold presents it with checked types; its data tests are in the yml
 select * from {{ ref("seed_rooms") }}
