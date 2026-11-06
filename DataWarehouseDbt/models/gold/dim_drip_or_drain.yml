@@ -1,0 +1,18 @@
+models:
+  - name: dim_drip_or_drain
+    description: Which solution a journal entry measured, drip or drain. Change a value in seed_drip_or_drain.csv, not here.
+    # a view, so it always equals the seed. a view has no constraints: its key is checked by data tests.
+    # see docs/CODING_STANDARDS.md
+    columns:
+      - name: drip_or_drain
+        data_type: varchar(50)
+        description: drip, the solution given to the plants, or drain, the solution that ran off them.
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: drip_or_drain must be unique
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: drip_or_drain is missing

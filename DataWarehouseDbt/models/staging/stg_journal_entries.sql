@@ -10,7 +10,10 @@ with
             -- TODO change so it gets the source timezone from the csv.
             nullif(date_time, '') || ' {{ var("timezone") }}' as date_time,
             nullif(device, '') as device,
-            nullif(spot, '') as spot,
+            -- the csv sends spot as drip_or_drain and side joined by _, such as drip_left. a value without its two
+            -- parts gives an empty part, which is null here and fails not_null. so does a value with a third part
+            nullif(split_part(spot, '_', 1), '') as drip_or_drain,
+            case when split_part(spot, '_', 3) = '' then nullif(split_part(spot, '_', 2), '') end as side,
             nullif(ml, '') as ml,
             nullif(ec, '') as ec,
             nullif(ph, '') as ph,

@@ -20,9 +20,13 @@ _Avoid_: Natural key. The date and time and the device are unique together, but 
 **Room**:
 The growing room a journal entry was measured in.
 
-**Spot**:
-The place in a room where a journal entry was measured: drip left, drip right, drain left or drain right.
-_Avoid_: Position, location
+**Drip or drain**:
+Which solution a journal entry measured: `drip`, the solution given to the plants, or `drain`, the solution that ran off them.
+_Avoid_: Spot, flow, which combined it with the side
+
+**Side**:
+The side of the room a journal entry was measured on: `left` or `right`. Empty where a side does not apply.
+_Avoid_: Spot, position, location
 
 ### Layers
 

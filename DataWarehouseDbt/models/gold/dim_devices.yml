@@ -1,22 +1,31 @@
 models:
   - name: dim_devices
     description: The measuring devices. Change a device in seed_devices.csv, not here.
-    config:
-      # a table, not incremental, so it always equals the seed: incremental would keep a row that is removed from the seed.
-      # no foreign key points here, a rebuild would drop it: silver checks devices with a relationship test.
-      # see docs/CODING_STANDARDS.md
-      contract:
-        enforced: true
+    # a view, so it always equals the seed. a view has no constraints: its key is checked by data tests.
+    # see docs/CODING_STANDARDS.md
     columns:
       - name: device
         data_type: varchar(50)
-        constraints:
-          - type: primary_key
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: device must be unique
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: device is missing
       - name: manufacturer
         data_type: varchar(50)
-        constraints:
-          - type: not_null
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: manufacturer is missing
       - name: is_working
         data_type: boolean
-        constraints:
-          - type: not_null
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: is_working is missing
