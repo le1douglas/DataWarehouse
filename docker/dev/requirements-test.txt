@@ -1,0 +1,4 @@
+# the test tools, the only place their versions are written. installed by docker/dev/Dockerfile into the webapps venv,
+# not the tools venv: pytest has to import the code it tests, with its libraries
+pytest==9.1.1
+pytest-cov==7.1.0

@@ -42,7 +42,8 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
   - **Dev Containers** (Microsoft)
   - **Container Tools** (Microsoft), optional: containers and images in the sidebar
   - **PostgreSQL** (Microsoft)
-- The Python, ruff, dbt Power User extensions are **not** installed on Windows: the dev containers install them
+- The Python, ruff, dbt Power User and Claude Code extensions are **not** installed on Windows: the dev container
+  installs them
 
 ### psqlODBC (for Excel)
 
@@ -79,7 +80,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ## 4. Dev stack: `02_setup_dev.ps1`
 
 - `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
-  - Builds the `dbt`, `webapps` and `meltano` images, starts postgres and the web app, runs `dbt deps`,
+  - Builds the `dbt`, `webapps`, `meltano` and `dev` images, starts postgres and the web app, runs `dbt deps`,
     `meltano install` and `dbt debug`
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
@@ -93,8 +94,9 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → `brnz_journal_entries`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d meltano -c "\dt"` → `alembic_version`, `plugin_settings`, `runs`,
   `state`: Meltano's own tables, created by `meltano install`
-- `docker image ls` → `dbt`, `webapps` and `meltano`, tag `dev`
-- `Test-Path DataWarehouseDbt\dbt_packages\dbt_utils` → `True`
+- `docker image ls` → `dbt`, `webapps`, `meltano` and `dev`, tag `dev`
+- `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages are in it, not
+  in the repo folder)
 - `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → creates Elementary's tables
   and `aud_issues`. On the empty bronze the row count data test fails and silver is skipped: that is expected
 
@@ -158,15 +160,16 @@ Start → **ODBC Data Sources (64-bit)** → **System DSN** → **Add** → `Pos
 - Meltano's own database, `meltano`, is on the same server: the same connection with **Database:** `meltano`, if the
   sidebar does not list it next to `DataWarehouse`
 
-### Dev containers
+### The dev container
 
 - `code .` from the repo root
-- `Ctrl + Shift + P` → **Dev Containers: Reopen in Container** → pick `dbt`
-  - First open installs the extensions in the container and runs `dbt deps`
-  - Back to Windows: **Dev Containers: Reopen Folder Locally**
-- The same for `meltano`
-  - The terminal opens in `/usr/app/DataWarehouseMeltano`, where `meltano` commands run
+- `Ctrl + Shift + P` → **Dev Containers: Reopen in Container**
+  - One container, `dev`, with every tool: `dbt`, `meltano`, `python`, `ruff`, `sqlfmt`, `pytest`, from any folder
+  - First open installs the extensions and Claude Code in the container
+  - Claude Code: sign in once. Its login, settings and memory are kept in the `dw-dev_claude-config` volume
   - `meltano.yml` gets completion and validation from Meltano's schema (YAML extension)
+  - Back to Windows: **Dev Containers: Reopen Folder Locally**
+- What is where, and how to move Claude's volume to another machine: `docs/agents/dev-container.md`
 
 Setup is done.
 
@@ -176,7 +179,7 @@ Setup is done.
 
 ### The loop
 
-- Each step runs either from PowerShell (repo root) or in the VS Code terminal of a dev container (opens at `/usr/app`)
+- Each step runs either from PowerShell (repo root) or in the VS Code terminal of the dev container (opens at `/usr/app`)
 - Stick to one of the two in a session: switching recreates postgres and drops Excel's connection (see pitfalls)
 - Prod: the same PowerShell commands with `-f docker/compose.prod.yaml --env-file docker/.env.prod` instead of
   `-f docker/compose.dev.yaml`, and the web app on port 8081
@@ -195,8 +198,8 @@ Setup is done.
   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: $id}"
   ```
 
-- Dev containers: `MELTANO_RUN_ID=<id> meltano run tap-csv target-postgres` in the `meltano` container, then
-  `dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: <id>}"` in the `dbt` container
+- Dev container, from any folder: `MELTANO_RUN_ID=<id> meltano run tap-csv target-postgres`, then
+  `dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: <id>}"`
 - Every bronze row gets the id as `load_id`. Without `MELTANO_RUN_ID` nothing is loaded
 - Passed: silver holds the load. A row with the same key as one already in silver replaces it, with a warning
 - Failed: the build reports the failing data tests, the load stays in bronze as a record of what arrived, and silver
@@ -211,9 +214,11 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
 
 ### Dev tools (optional)
 
-- `webapps` container: `pytest` (no tests yet), `ruff check`, `ruff format`
-- `dbt` container, from `/usr/app`: `sqlfmt DataWarehouseDbt/models`
-- `meltano` container: `meltano config print tap-csv` shows a plugin's config as the run sees it, env vars filled in
+All in the dev container, from `/usr/app`:
+
+- `pytest` (no tests yet), `ruff check`, `ruff format`
+- `sqlfmt DataWarehouseDbt/models`
+- `meltano config print tap-csv` shows a plugin's config as the run sees it, env vars filled in
 
 ### Dev as a copy of prod
 
@@ -245,22 +250,24 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
 - **`03_setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
 - **Port 5432 already in use:** a PostgreSQL installed on Windows (old setup). Stop it: `Get-Service *postgres*`,
   then `Stop-Service <name>` and set it to **Manual** in Services.
-- **Reset dev** (deletes dev's database; the fix for the next three pitfalls): close the dev container windows, then
+- **Reset dev** (deletes dev's database; the fix for the next three pitfalls): close the dev container window, then
 
   ```powershell
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job down -v
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job --profile dev down
+  docker volume rm dw-dev_pgdata dw-dev_meltano-plugins dw-dev_dbt-state
   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
   ```
 
-  - Without `--profile job`, `down` leaves the `dbt`, `meltano` and `datastreamer` dev containers running on the old network
-  - Also deletes the `meltano` database (Meltano's run history) and dev's Meltano plugins: the setup script makes both
-    again
+  - Without the two `--profile`, `down` leaves the job and dev containers running on the old network
+  - Also deletes the `meltano` database (Meltano's run history), dev's Meltano plugins and dbt packages: the setup
+    script makes them again
+  - Not `down -v`: it would also delete `dw-dev_claude-config`, Claude Code's login, settings and memory
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
   `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.
 - **DDL changed, nothing happens:** `00_create_meltano_database.sql` and `01_create_schemas_and_tables.sql` run only on
   an empty volume. Reset dev.
 - **The same `MELTANO_RUN_ID` for two runs:** both land in one load, which the row count data test refuses. Take a new id for every run.
-- **A Meltano plugin added or changed in `meltano.yml`, the run does not see it:** `meltano install` in the `meltano`
+- **A Meltano plugin added or changed in `meltano.yml`, the run does not see it:** `meltano install` in the dev
   container. In dev the plugins live in the `dw-dev_meltano-plugins` volume, not in the repo: their venvs hold linux
   symlinks that Windows and OneDrive cannot read, and that broke the image build when they were in
   `DataWarehouseMeltano/.meltano`.
@@ -271,8 +278,10 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
 - **Excel query shows "no visible columns":** wrong credentials in Power Query, not a database problem.
   **Data Source Settings** → edit the credentials.
 - **`dbt run`:** use `dbt build`. `dbt run` on a view drops every view on top of it (`CASCADE`).
-- **`dbt build` in the `dbt` container fails with `No dbt_project.yml found`:** `cd DataWarehouseDbt` first.
-- **`dbt_utils` not found in dev:** run `02_setup_dev.ps1` (section 4), or open the `dbt` dev container once.
+- **`dbt_utils` not found in dev:** `dbt deps` in the dev container (or run `02_setup_dev.ps1`, section 4). The
+  packages live in the `dw-dev_dbt-state` volume, which starts empty.
+- **`dbt clean` in dev refuses the folders:** they are in `/dbt-state`, outside the project. Run
+  `dbt clean --no-clean-project-files-only`.
 - **`psql -c` from PowerShell loses double quotes** (`"DataWarehouse"`): pipe the SQL through stdin,
   `"SELECT ...;" | docker exec -i dw-dev-postgres-1 psql -U postgres -d DataWarehouse`, or use Git Bash.
 - **Git Bash turns a container path into a Windows one** (`--workdir /usr/app` becomes `C:/.../Git/usr/app`): put
@@ -281,4 +290,5 @@ select * from dw_audit.aud_issues where invocation_id = '<the run>';
   (or the other way round) recreates postgres (`C:\` vs `c:\` in the path). Data is kept; reconnect. For jobs that
   do not need the database, add `--no-deps`.
 - **A script is blocked by the execution policy:** run it with `powershell -ExecutionPolicy Bypass -File <script>`.
-- **Libraries:** never `pip install` in a dev container terminal; add the library to the Dockerfile and rebuild.
+- **Libraries:** never `pip install` in the dev container terminal. Add the library to the image's
+  `docker/<image>/requirements.txt` (or `docker/dev/requirements*.txt` for a dev tool) and rebuild.

@@ -1,0 +1,56 @@
+// the dev container: docker/dev/Dockerfile, every tool of the four images at the same versions plus the dev tools,
+// with the whole repo at /usr/app. open with "Dev Containers: Reopen in Container".
+// Claude Code runs in here too, with the same terminal: one window for everything
+{
+  "name": "dev",
+  // paths are relative to this file. docker/compose.dev.yaml sets the project name (dw-dev), the mounts and the env vars
+  "dockerComposeFile": ["../../docker/compose.yaml", "../../docker/compose.dev.yaml"],
+  "service": "dev",
+  // only this service, and postgres through depends_on. the webapps service keeps serving the dev web apps on its own
+  "runServices": ["dev"],
+  // fixed: Claude Code files its memory under this path, a new path would start an empty memory
+  "workspaceFolder": "/usr/app",
+  // keep the container running for as long as the window is open
+  "overrideCommand": true,
+  // closing the window leaves the containers running: postgres is shared with Excel
+  "shutdownAction": "none",
+  // Claude Code's command line, which needs node. its login, settings and memory are in the claude-config volume
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // python, and pytest in the testing panel. dbt Power User needs it too
+        "ms-python.python",
+        "charliermarsh.ruff",
+        // dbt, and the colours of the jinja in the sql
+        "innoverio.vscode-dbt-power-user",
+        "samuelcolvin.jinjahtml",
+        // meltano.yml
+        "redhat.vscode-yaml",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        // the web apps' python, where pytest is. dbt Power User uses the dbt venv's python instead
+        "python.defaultInterpreterPath": "/opt/venvs/webapps/bin/python",
+        "dbt.dbtPythonPathOverride": "/opt/venvs/dbt/bin/python",
+        "dbt.perspectiveTheme": "Vintage",
+        "dbt.lineage.defaultExpansion": 13,
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": ["tests"],
+        // the ruff of docker/dev/requirements.txt, not the one bundled with the extension
+        "ruff.path": ["/opt/venvs/tools/bin/ruff"],
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        // completion and validation of meltano.yml, from the schema of the meltano version in docker/meltano/requirements.txt
+        "yaml.schemas": {
+          "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "DataWarehouseMeltano/meltano.yml"
+        }
+      }
+    }
+  }
+}

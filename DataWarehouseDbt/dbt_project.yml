@@ -18,9 +18,15 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
-  - "target"
-  - "dbt_packages"
+# where dbt deps installs the packages. dev sets the env var to the dbt-state volume (docker/compose.dev.yaml), as it
+# sets DBT_TARGET_PATH and DBT_LOG_PATH, which dbt reads by itself. prod sets none of them: the folders next to this file
+packages-install-path: "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
+
+# directories to be removed by `dbt clean`, wherever the env vars put them. in dev they are outside the project, so
+# dbt clean needs --no-clean-project-files-only there
+clean-targets:
+  - "{{ env_var('DBT_TARGET_PATH', 'target') }}"
+  - "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
 
 # the folder of a model decides its materialisation and schema
 models:

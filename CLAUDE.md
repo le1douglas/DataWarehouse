@@ -7,9 +7,9 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 
 ## Environment
 - Windows tooling is minimal: most of the work happens inside docker containers.
-- Usual setup: Window 1 is Claude Code, with an overview of the whole repo; Window 2 is a Dev Container opened on the relevant container.
-- A library goes into the Dockerfile, never installed by hand (`pip install` in the dev container terminal).
-- In PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` arrives unquoted and fail or hit the wrong object. Run such statements through the Bash tool. In Bash, a container path (`--workdir /usr/app`) needs `MSYS_NO_PATHCONV=1` in front of the docker command.
+- Usual setup: one window, the dev container (`.devcontainer/dev`), with Claude Code running inside it. Every tool (`dbt`, `meltano`, `python`, `ruff`, `sqlfmt`, `pytest`) is on `PATH` and works from any folder. There is no Docker inside: commands that need Docker are for the user to run on Windows. Core, dev and prod images and volumes: `docs/agents/dev-container.md`.
+- A library goes into its requirements file, never installed by hand (`pip install` in the dev container terminal): `docker/<image>/requirements.txt` for an image, `docker/dev/requirements.txt` (or `requirements-test.txt`) for a dev tool.
+- Only when working from Windows: in PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` arrives unquoted and fail or hit the wrong object. Run such statements through the Bash tool. In Bash, a container path (`--workdir /usr/app`) needs `MSYS_NO_PATHCONV=1` in front of the docker command.
 - Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
 
 ## Database and dbt

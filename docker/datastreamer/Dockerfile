@@ -1,10 +1,14 @@
 # the datastreamer: the drip and drain readings of the OnePen, taken on the terminal, until q.
 # built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
-# runtime: only what it needs to run. prod uses it as is, dev (and later ci) adds its own tools on top
+# runtime: only what it needs to run. prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml).
+# the dev tools are not here: they are in the dev image, docker/dev/Dockerfile
 FROM python:3.14-slim AS runtime
 
-# no libraries: the readings use only the standard library. the bridge to the pen (onepen_bridge.py), which
+# the libraries, from the requirements file, the one place their versions are written (docker/dev/Dockerfile reads
+# it too). none for now: the readings use only the standard library. the bridge to the pen (onepen_bridge.py), which
 # needs bleak, runs on windows, where the bluetooth adapter is, and is not in this image
+COPY docker/datastreamer/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app
 
@@ -17,14 +21,3 @@ COPY src/bluelab_datastreamer/ ./src/bluelab_datastreamer/
 # "docker compose run --rm datastreamer" takes the readings. the csv of the readings is written next to the code,
 # in src/bluelab_datastreamer: without the repo mounted (dev), it is lost with the container
 ENTRYPOINT ["python", "src/bluelab_datastreamer/drip_drain_cli.py"]
-
-# dev only (target: dev in docker/compose.dev.yaml): runtime plus the tools for the python code.
-# their config is in pyproject.toml at the repo root
-FROM runtime AS dev
-
-# git: the source control panel of the dev container runs git inside it. the apt lists are removed after the install
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install --no-cache-dir ruff==0.16.10

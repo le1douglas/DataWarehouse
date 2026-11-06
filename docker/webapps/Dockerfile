@@ -1,13 +1,13 @@
 # the web apps: the NiceGUI pages of the warehouse, the home of the data collection programs, served on port 8080.
 # built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
-# runtime: only what it needs to run. prod uses it as is, dev (and later ci) adds its own tools on top
+# runtime: only what it needs to run. prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml).
+# the dev tools are not here: they are in the dev image, docker/dev/Dockerfile
 FROM python:3.14-slim AS runtime
 
-# only what the web apps need
-RUN pip install --no-cache-dir \
-    nicegui==3.18.0 \
-    SQLAlchemy==2.0.54 \
-    "psycopg[binary]==3.3.6"
+# only what the web apps need. the versions are in the requirements file, the one place they are written
+# (docker/dev/Dockerfile reads it too)
+COPY docker/webapps/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app
 
@@ -21,18 +21,3 @@ COPY src/webapps/ ./src/webapps/
 
 # the container serves the web apps until it is stopped, on 0.0.0.0:8080 (the defaults of ui.run)
 ENTRYPOINT ["python", "src/webapps/main.py"]
-
-# dev only (target: dev in docker/compose.dev.yaml): runtime plus the tools for the python code.
-# their config is in pyproject.toml at the repo root
-FROM runtime AS dev
-
-# git: the source control panel of the dev container runs git inside it. the apt lists are removed after the install
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-
-# pytest finds the tests in tests/ at the repo root (pyproject.toml)
-RUN pip install --no-cache-dir \
-    pytest==9.1.1 \
-    pytest-cov==7.1.0 \
-    ruff==0.16.10
