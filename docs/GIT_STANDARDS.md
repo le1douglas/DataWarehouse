@@ -459,7 +459,7 @@ The script is safe to run again: each ruleset is matched by its name and replace
 | Release tag | `vX.Y.0`, annotated | `v4.0.0` |
 | Hotfix tag | `vX.Y.Z`, annotated (patch +1) | `v4.0.1` |
 
-Tags follow [semantic versioning](https://semver.org) and end in `-alpha` while the warehouse is not in real use: the next release is `v0.3.0-alpha`, a hotfix on it `v0.3.1-alpha`. Set `V` in `release-to-prod` and `merge-hotfix` with the suffix.
+Tags follow [semantic versioning](https://semver.org) and end in `-alpha` while the warehouse is not in real use
 
 ## 7. Remember
 
