@@ -28,6 +28,8 @@
         // dbt, and the colours of the jinja in the sql
         "innoverio.vscode-dbt-power-user",
         "samuelcolvin.jinjahtml",
+        // the ERD of the dbt models
+        "datnguye.dbterd-vscode",
         // meltano.yml
         "redhat.vscode-yaml",
         // the database in a sidebar. its backup and restore use the pg_dump and pg_restore of docker/dev/Dockerfile,
@@ -46,6 +48,12 @@
         "dbt.dbtPythonPathOverride": "/opt/venvs/dbt/bin/python",
         "dbt.perspectiveTheme": "Vintage",
         "dbt.lineage.defaultExpansion": 13,
+        // the ERD reads <this path>/target/manifest.json and catalog.json, a folder name it does not let change. dbt
+        // writes them to the dbt-state volume (DBT_TARGET_PATH, docker/compose.dev.yaml), so the path is the volume, not
+        // the project: clicking a model does not open its .sql file. dbt docs generate refreshes both files.
+        // its server lives in a venv the extension makes on first use, outside the image: a container rebuild loses it
+        // and the extension makes it again
+        "dbterd.dbtProjectPath": "/dbt-state",
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
         "python.testing.pytestArgs": ["tests"],
