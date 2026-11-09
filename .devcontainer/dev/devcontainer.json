@@ -30,6 +30,11 @@
         "samuelcolvin.jinjahtml",
         // meltano.yml
         "redhat.vscode-yaml",
+        // the database in a sidebar. its backup and restore use the pg_dump and pg_restore of docker/dev/Dockerfile,
+        // at the server's major version
+        "cweijan.vscode-postgresql-client2",
+        // csv files as a table
+        "ReprEng.csv",
         "anthropic.claude-code"
       ],
       "settings": {
