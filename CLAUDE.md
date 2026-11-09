@@ -13,7 +13,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 - Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
 
 ## Database and dbt
-- On `dev` or a hotfix branch, in a dev container, any command that affects the database is allowed. On `prod` or in the prod stack, the database is not touched in any way.
+- On `dev` or a `feature-*` or `hotfix-*` branch, in a dev container, any command that affects the database is allowed. On `main` or in the prod stack, the database is not touched in any way.
 - Use `dbt build`, not `dbt run`: dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone silently drops every view on top of it.
 - A package added to `packages.yml` means updating `package-lock.yml` too.
 - A load is two commands, until an orchestrator runs them: `meltano run tap-csv target-postgres` with a new uuidv7 (`select uuidv7()`) in `MELTANO_RUN_ID`, which every bronze row gets as `load_id`, then `dbt build --select source:dw_bronze.<table>+ --vars "{load_id: <the same id>}"`. Staging holds only that load, so its data tests judge it alone, and a file without rows is refused. Without the var, a build that compiles staging fails on purpose. Silver adds it only when they pass, and a row replaces the one with the same `unique_key`, with a warning.
@@ -33,7 +33,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 `docs/NICEGUI_STANDARDS.md` holds the rules for the NiceGUI interface. The full NiceGUI documentation is one JSON file, https://nicegui.io/static/sitewide_index.json: look an API up there, do not guess it.
 
 ### Git standards
-`docs/GIT_STANDARDS.md` holds the branches (`dev`, `prod`), releases, hotfixes and commit messages.
+`docs/GIT_STANDARDS.md` holds the branches (`main`, `dev`, `feature-*`, `hotfix-*`), the actions that move changes between them (features, releases, hotfixes) and the guardrails (git config, hooks, GitHub rulesets).
 
 ### Issue tracker
 Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this repo.

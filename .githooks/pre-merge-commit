@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs before a merge that completes without conflicts creates its merge commit.
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+case "$branch" in
+    feature-*|hotfix-*)
+        echo "Merging into $branch is not allowed. Rebase feature branches onto dev; hotfix branches never receive merges."
+        echo "Undo with: git merge --abort"
+        exit 1 ;;
+esac
