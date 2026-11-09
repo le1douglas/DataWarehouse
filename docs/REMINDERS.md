@@ -20,7 +20,16 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Range rules live in two files,** `stg_<dataset>.yml` and silver's checks. If they disagree the build fails with a database error instead of a data test failure: `aud_issues` has the error, not the value that caused it.
 - **Silver references dimensions in `dw_gold`,** against the layer order. Revisit when modeling gold.
 - **Test results are append-only:** `test_result_rows` and `elementary_test_results` keep growing, which is fine at this volume.
-- **Python packages are not installed:** each image finds its package through `PYTHONPATH=/usr/app/src`, and its libraries are pinned in its Dockerfile. Revisit when two images share a package, or when the libraries should be declared once in `pyproject.toml` with a lock file: then `pip install .` in runtime and `pip install -e .` in dev.
+- **Python packages are not installed:** each image finds its package through `PYTHONPATH=/usr/app/src`, and its libraries are pinned in `docker/<image>/requirements.txt`. Revisit when two images share a package, or when the libraries should be declared once in `pyproject.toml` with a lock file: then `pip install .` in runtime and `pip install -e .` in dev.
+- **No lockfile per image** (decided 2026-11-09 to postpone): only the top-level libraries are pinned, so pip picks the
+  transitive versions again on every build. A rebuild already moved pydantic, and SQLAlchemy under meltano, and the dev
+  venvs can differ from the runtime images. The plan when it comes: `docker/<image>/requirements.in` edited by hand,
+  `requirements.txt` generated from it with every package pinned (`uv pip compile --python-platform linux
+  --python-version 3.14`, run in the dev container), the Dockerfiles unchanged. What it costs: a regenerate step on every
+  library change, and transitive fixes arrive only on a deliberate upgrade. It does not cover the base images, the
+  meltano plugins' venvs (`pip_url` in `meltano.yml`) or the GitHub download of `dbt-core-experimental-parser` at
+  install, which failed a build once on a GitHub 504. CI would catch the drift in a different way, by building and
+  testing the runtime images.
 - **What the old python loader caught and Meltano does not:** the loader was removed on 2026-11-05 (its code is in git history before that date). The gaps it leaves:
   - A missing column was refused by name. Now its rows arrive null and `not_null` refuses them row by row.
   - A row with more fields than the header was refused. tap-csv drops the extra fields silently, and no setting catches it (tested 2026-11-03): it needs a check before Meltano. A row with fewer fields gets nulls, which `not_null` refuses.

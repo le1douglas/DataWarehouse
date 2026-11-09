@@ -169,7 +169,7 @@ Start → **ODBC Data Sources (64-bit)** → **System DSN** → **Add** → `Pos
   - Claude Code: sign in once. Its login, settings and memory are kept in the `dw-dev_claude-config` volume
   - `meltano.yml` gets completion and validation from Meltano's schema (YAML extension)
   - Back to Windows: **Dev Containers: Reopen Folder Locally**
-- What is where, and how to move Claude's volume to another machine: `docs/agents/dev-container.md`
+- What is where, and how to move Claude's volume to another machine: `docs/DEV_CONTAINER.md`
 
 Setup is done.
 

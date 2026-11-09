@@ -50,7 +50,11 @@ ENV PATH=/opt/venvs/webapps/bin:/opt/venvs/tools/bin:/opt/venvs/dbt/bin:/opt/ven
 
 # dbt and meltano find their project from any folder. python finds the packages in src without installing them, print
 # output shows right away, and no __pycache__ is written into the mounted repo folder. no usage stats sent to meltano
-ENV DBT_PROJECT_DIR=/usr/app/DataWarehouseDbt \
+# LANG: the slim image sets no locale, so programs other than python (psql, perl, less) fall back to ascii. C.UTF-8 is
+# built into the image, nothing to install. the Dev Container keeps vs code's terminal from overriding it
+# (terminal.integrated.detectLocale)
+ENV LANG=C.UTF-8 \
+    DBT_PROJECT_DIR=/usr/app/DataWarehouseDbt \
     DBT_PROFILES_DIR=/usr/app/DataWarehouseDbt \
     MELTANO_PROJECT_ROOT=/usr/app/DataWarehouseMeltano \
     MELTANO_SEND_ANONYMOUS_USAGE_STATS=false \

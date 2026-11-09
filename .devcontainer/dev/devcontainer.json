@@ -33,7 +33,7 @@
         "anthropic.claude-code"
       ],
       "settings": {
-        // keep the image's locale (C.UTF-8, as in the runtime images). by default the terminal sets LANG=en_US.UTF-8,
+        // keep the image's locale (LANG=C.UTF-8 in docker/dev/Dockerfile). by default the terminal sets LANG=en_US.UTF-8,
         // which the image does not have, and perl (psql's wrapper) warns about it on every call
         "terminal.integrated.detectLocale": "off",
         // the web apps' python, where pytest is. dbt Power User uses the dbt venv's python instead

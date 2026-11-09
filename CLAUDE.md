@@ -7,7 +7,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 
 ## Environment
 - Windows tooling is minimal: most of the work happens inside docker containers.
-- Usual setup: one window, the dev container (`.devcontainer/dev`), with Claude Code running inside it. Every tool (`dbt`, `meltano`, `python`, `ruff`, `sqlfmt`, `pytest`) is on `PATH` and works from any folder. There is no Docker inside: commands that need Docker are for the user to run on Windows. Core, dev and prod images and volumes: `docs/agents/dev-container.md`.
+- Usual setup: one window, the dev container (`.devcontainer/dev`), with Claude Code running inside it. Every tool (`dbt`, `meltano`, `python`, `ruff`, `sqlfmt`, `pytest`) is on `PATH` and works from any folder. There is no Docker inside: commands that need Docker are for the user to run on Windows. Core, dev and prod images and volumes: `docs/DEV_CONTAINER.md`.
 - A library goes into its requirements file, never installed by hand (`pip install` in the dev container terminal): `docker/<image>/requirements.txt` for an image, `docker/dev/requirements.txt` (or `requirements-test.txt`) for a dev tool.
 - Only when working from Windows: in PowerShell, `psql -c` loses double quotes, so `"DataWarehouse"` arrives unquoted and fail or hit the wrong object. Run such statements through the Bash tool. In Bash, a container path (`--workdir /usr/app`) needs `MSYS_NO_PATHCONV=1` in front of the docker command.
 - Running compose from Windows after a Dev Container was opened (or the other way round) can recreate the postgres container, because the two write the repo path as `C:\` and `c:\`. The data stays in the volume, but open connections (Excel, VS Code SQL tabs) drop. `--no-deps` avoids it for commands that do not need the database.
@@ -36,7 +36,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 `docs/GIT_STANDARDS.md` holds the branches (`dev`, `prod`), releases, hotfixes and commit messages.
 
 ### Issue tracker
-Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this repo. See `docs/agents/issue-tracker.md`.
+Issues and specs live as markdown files under `.scratch/<feature-slug>/` in this repo.
 
 ### Domain docs
-One context: `GLOSSARY-MAP.md` at the repo root points to `docs/GLOSSARY.md`, which holds the domain modeling names (skill: `/mattpocock-skills:domain-modeling`). The glossary lives only where `GLOSSARY-MAP.md` says, never as a root `GLOSSARY.md`. ADRs are in `docs/adr/`. See `docs/agents/domain.md`.
+One context: `docs/GLOSSARY.md` holds the domain modeling names. The glossary lives only there, never as a root `GLOSSARY.md`.

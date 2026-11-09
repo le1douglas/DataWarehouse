@@ -72,7 +72,7 @@ services:
       - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
       # Claude Code's login, settings, skills and memory (CLAUDE_CONFIG_DIR below), tied to docker, not to windows:
       # they survive every rebuild, and are lost only with the volume. to move machines, export this volume
-      # (docs/agents/dev-container.md)
+      # (docs/DEV_CONTAINER.md)
       - claude-config:/claude-config
     # the env vars of the services, the same names as in compose.yaml: a yaml anchor cannot reach across files.
     # the values come from the env file, so each is still written once
