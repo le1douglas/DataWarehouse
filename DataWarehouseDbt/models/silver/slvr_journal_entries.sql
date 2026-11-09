@@ -6,8 +6,7 @@
 -- when every model that test reads is upstream of silver, so without these a failed relationship test lets the load in
 -- depends_on: {{ ref("seed_devices") }}
 -- depends_on: {{ ref("seed_rooms") }}
--- depends_on: {{ ref("seed_drip_or_drain") }}
--- depends_on: {{ ref("seed_sides") }}
+-- depends_on: {{ ref("seed_relative_positions") }}
 {{
     config(
         materialized="incremental",

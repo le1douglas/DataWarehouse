@@ -10,10 +10,16 @@ with
             -- TODO change so it gets the source timezone from the csv.
             nullif(date_time, '') || ' {{ var("timezone") }}' as date_time,
             nullif(device, '') as device,
-            -- the csv sends spot as drip_or_drain and side joined by _, such as drip_left. a value without its two
-            -- parts gives an empty part, which is null here and fails not_null. so does a value with a third part
-            nullif(split_part(spot, '_', 1), '') as drip_or_drain,
-            case when split_part(spot, '_', 3) = '' then nullif(split_part(spot, '_', 2), '') end as side,
+            -- the csv sends spot as drip or drain and the side joined by _, such as drip_left. it becomes the relative
+            -- position: always front, drip is up and drain is down, so drip_left is front_left_up. any other value is
+            -- null here and fails not_null
+            case
+                when spot ~ '^(drip|drain)_(left|right)$'
+                then
+                    'front_'
+                    || split_part(spot, '_', 2)
+                    || case when split_part(spot, '_', 1) = 'drip' then '_up' else '_down' end
+            end as relative_position,
             nullif(ml, '') as ml,
             nullif(ec, '') as ec,
             nullif(ph, '') as ph,

@@ -45,32 +45,19 @@ models:
               config:
                 meta:
                   description: device is not in seed_devices
-      - name: drip_or_drain
+      - name: relative_position
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: spot is missing or has no drip or drain
+                  description: spot is missing or not drip or drain and left or right joined by _, such as drip_left
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_drip_or_drain')
-                field: drip_or_drain
+                to: ref('seed_relative_positions')
+                field: relative_position
               config:
                 meta:
-                  description: drip_or_drain is not in seed_drip_or_drain
-      - name: side
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: spot is missing or has no side
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_sides')
-                field: side
-              config:
-                meta:
-                  description: side is not in seed_sides
+                  description: relative_position is not in seed_relative_positions
       - name: ml
         data_tests:
           - elementary.not_null_with_context:

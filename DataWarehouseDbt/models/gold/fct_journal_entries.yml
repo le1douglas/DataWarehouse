@@ -33,28 +33,17 @@ models:
       - name: bench
         data_type: integer
         description: The bench in the room the journal entry was measured at.
-      - name: drip_or_drain
+      - name: relative_position
         data_type: text
-        description: Which solution was measured, drip or drain.
+        description: Where on the bench it was measured, such as front_left_up.
         data_tests:
           - elementary.relationships_with_context:
               arguments:
-                to: ref('dim_drip_or_drain')
-                field: drip_or_drain
+                to: ref('dim_relative_positions')
+                field: relative_position
               config:
                 meta:
-                  description: drip_or_drain is not in dim_drip_or_drain
-      - name: side
-        data_type: text
-        description: The side it was measured on, left or right.
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('dim_sides')
-                field: side
-              config:
-                meta:
-                  description: side is not in dim_sides
+                  description: relative_position is not in dim_relative_positions
       - name: ml
         data_type: integer
         description: The volume.
