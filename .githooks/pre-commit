@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs on every commit, including the one that finishes a conflicted merge.
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+git_dir=$(git rev-parse --git-dir)
+
+if [ -f "$git_dir/MERGE_HEAD" ]; then
+    case "$branch" in
+        feature-*|hotfix-*)
+            echo "Merging into $branch is not allowed. Rebase feature branches onto dev; hotfix branches never receive merges."
+            echo "Undo with: git merge --abort"
+            exit 1 ;;
+    esac
+    exit 0
+fi
+
+if [ "$branch" = "main" ] || [ "$branch" = "dev" ]; then
+    echo "Direct commits on $branch are not allowed. Use feature-* or hotfix-*."
+    exit 1
+fi

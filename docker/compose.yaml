@@ -1,21 +1,40 @@
 # the time zone of every container (its clock and date), written only here: a time without a zone is assumed to be amsterdam
 x-timezone: &timezone Europe/Amsterdam
 
+# where EXPORTS_DIR (a windows folder, from the env file) appears inside the meltano container, written only here:
+# the same anchor is the mount target and EXPORTS_MOUNT, which DataWarehouseMeltano/meltano.yml reads
+x-exports-mount: &exports_mount /inbox/exports
+
+# the connection to postgres, written once here. the host is the service name below, and the port the one postgres listens
+# on inside the docker network: not POSTGRES_PORT, which is published to windows and changes per environment.
+# the database, user and password come from the project env file (.env or .env.prod), so each is written once per
+# environment. until the roles exist every service is postgres
+x-postgres-host: &postgres_host postgres
+x-postgres-port: &postgres_port "5432"
+x-postgres-db: &postgres_db ${POSTGRES_DB}
+x-postgres-user: &postgres_user ${POSTGRES_USER}
+x-postgres-password: &postgres_password ${POSTGRES_PASSWORD}
+
 services:
   postgres:
+    # the major version is written twice: here and in postgresql-client-<major> in docker/dev/Dockerfile (psql in the
+    # dev container). change both together
     image: postgres:18
     # the server's time zone from TZ, so the zone stays written once. compose would replace $TZ itself, $$ leaves it to sh.
-    # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would
-    command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\""]
+    # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would.
+    # datestyle YMD: initdb takes MDY from the en_US locale, which reads 03/11/2026 as 11 March. YMD refuses a date in
+    # day or month first order with a four digit year, instead of guessing. ISO dates read the same under any datestyle
+    command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\" -c datestyle=\"ISO, YMD\""]
     environment:
       TZ: *timezone
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: *postgres_db
+      POSTGRES_USER: *postgres_user
+      POSTGRES_PASSWORD: *postgres_password
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+      - ../Database/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
       - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
       # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
       # in the repo, ignored by git. a convenience for development, not the backups of prod
@@ -27,43 +46,49 @@ services:
     build:
       context: .. # the repo root, one up from this folder. docker/dbt/Dockerfile.dockerignore keeps only DataWarehouseDbt
       dockerfile: docker/dbt/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
     image: dbt:${RELEASE}
-    # the host is the service name above, and the port the one postgres listens on inside the docker network: not
-    # POSTGRES_PORT, which is published to windows and changes per environment.
-    # the database, user and password of postgres above, from the project env file (.env or .env.prod), so each is
-    # written once per environment. until the roles exist every service is postgres
     environment:
       TZ: *timezone # dbt itself always logs in UTC, whatever this says
-      DBT_HOST: postgres
-      DBT_PORT: "5432"
-      DBT_DBNAME: ${POSTGRES_DB}
-      DBT_USER: ${POSTGRES_USER}
-      DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
+      DBT_HOST: *postgres_host
+      DBT_PORT: *postgres_port
+      DBT_DBNAME: *postgres_db
+      DBT_USER: *postgres_user
+      DBT_ENV_SECRET_PASSWORD: *postgres_password
     depends_on:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
 
-  # a job: "docker compose run --rm loader bronze" runs one load, then the container exits
-  loader:
+  # a job: "docker compose run --rm meltano <command>" runs one meltano command, then the container exits
+  meltano:
     build:
-      context: .. # the repo root, one up from this folder. docker/loader/Dockerfile.dockerignore keeps only src
-      dockerfile: docker/loader/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
-    image: loader:${RELEASE}
-    # the connection to postgres above, as for dbt
+      context: .. # the repo root, one up from this folder. docker/meltano/Dockerfile.dockerignore keeps only what the image needs
+      dockerfile: docker/meltano/Dockerfile
+      target: runtime
+    image: meltano:${RELEASE}
     environment:
-      TZ: *timezone # CSVReader stamps meta_extract_date_time in it, read by src/datawarehouse/config.py
-      POSTGRESQL_SERVER: postgres
-      POSTGRESQL_PORT: "5432"
-      POSTGRESQL_DB: ${POSTGRES_DB}
-      POSTGRESQL_USER: ${POSTGRES_USER}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
-      # relative to /inbox/exports
+      TZ: *timezone
+      # the system database: meltano's own state and run history, in the meltano database of the postgres service
+      # (Database/00_create_meltano_database.sql) instead of the default sqlite file.
+      # the password is not in the uri, where an @ or / would break it: psycopg reads it from PGPASSWORD
+      MELTANO_DATABASE_URI: postgresql+psycopg://${POSTGRES_USER}@postgres:5432/meltano
+      PGPASSWORD: *postgres_password
+      # the warehouse, where target-postgres loads
+      TARGET_POSTGRES_HOST: *postgres_host
+      TARGET_POSTGRES_PORT: *postgres_port
+      TARGET_POSTGRES_DATABASE: *postgres_db
+      TARGET_POSTGRES_USER: *postgres_user
+      TARGET_POSTGRES_PASSWORD: *postgres_password
+      # the export folder inside the container, and the file in it: read by tap-csv in DataWarehouseMeltano/meltano.yml
+      EXPORTS_MOUNT: *exports_mount
       JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
     volumes:
-      # the input, read only (:ro), so the loader can never change an export
-      - ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}:/inbox/exports:ro
+      # the input, read only, so meltano can never change an export. the long form, because the short one
+      # ("source:target:ro") is a single string, where the anchor cannot go
+      - type: bind
+        source: ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}
+        target: *exports_mount
+        read_only: true
     depends_on:
       - postgres
     profiles: ["job"] # not started by "up", only by "run"
@@ -75,7 +100,7 @@ services:
     build:
       context: .. # the repo root, one up from this folder. docker/datastreamer/Dockerfile.dockerignore keeps only src/bluelab_datastreamer
       dockerfile: docker/datastreamer/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
     image: datastreamer:${RELEASE}
     environment:
       TZ: *timezone # stamps each reading and names the daily csv, read by src/bluelab_datastreamer/drip_drain.py
@@ -90,16 +115,15 @@ services:
     build:
       context: .. # the repo root, one up from this folder. docker/webapps/Dockerfile.dockerignore keeps only src/webapps
       dockerfile: docker/webapps/Dockerfile
-      target: runtime # the stage without any tools. compose.dev.yaml builds dev instead
+      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
     image: webapps:${RELEASE}
-    # the connection to postgres above, as for dbt
     environment:
       TZ: *timezone
-      POSTGRESQL_SERVER: postgres
-      POSTGRESQL_PORT: "5432"
-      POSTGRESQL_DB: ${POSTGRES_DB}
-      POSTGRESQL_USER: ${POSTGRES_USER}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_SERVER: *postgres_host
+      POSTGRESQL_PORT: *postgres_port
+      POSTGRESQL_DB: *postgres_db
+      POSTGRESQL_USER: *postgres_user
+      POSTGRESQL_PASSWORD: *postgres_password
     # one port per environment, so dev and prod can run side by side (as postgres does)
     ports:
       - "${NICEGUI_PORT:?set NICEGUI_PORT in the env file}:8080"

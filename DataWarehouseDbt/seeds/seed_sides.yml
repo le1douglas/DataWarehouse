@@ -1,0 +1,7 @@
+seeds:
+  - name: seed_sides
+    description: The sides a journal entry can be measured on, kept by hand in seed_sides.csv and reloaded by every dbt build.
+    config:
+      # every type is written, so dbt never infers one
+      column_types:
+        side: varchar(50)

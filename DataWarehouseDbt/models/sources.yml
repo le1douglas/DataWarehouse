@@ -1,17 +1,25 @@
 
 sources:
   - name: dw_bronze
-    description: An input layer. The store of all raw data, exactly as received from the sources, one table per source.
+    description: The main source of data. The store of all raw data, exactly as received from the sources, one table per source.
                 It has meaning on its own. Everything is stored as text and almost nothing is asserted about it.
-                It has no "meta_" columns, the metadata created at ingestion is in the meta table of the layer.
     tables:
       - name: brnz_journal_entries
-        description: csv data coming from the app "edenic" developed by bluelab.
-  - name: dw_corrections
-    description: An input layer. The latest correction of each journal entry, as submitted by reviewers in the web app.
-                It has meaning only for journal entries already in the warehouse.
-                Earlier corrections are in dw_snapshots.
-    tables:
-      - name: corr_journal_entries
-      - name: meta_corrections
-        description: The reviewer and review date-time of the latest correction, one row per row_id and kind.
+        description: csv of drip and drain measurements, one row per spot.
+        data_tests:
+          # nothing is checked before loading: a missing column arrives null and fails not_null in staging
+          #test rows amount.
+
+          #TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
+          - dbt_expectations.expect_table_row_count_to_equal:
+              arguments:
+                value: 40 # 10 rooms, 4 measurements per room. a file cut at a line end has fewer
+
+                # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
+                # TODO check if it sbetter to test every load that has not been tested, according to aud
+                row_condition: >-
+                  load_id = '{{ var("load_id") }}'::uuid
+              config:
+                meta:
+                  description: the file must have 40 rows
+          

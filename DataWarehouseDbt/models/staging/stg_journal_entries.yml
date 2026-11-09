@@ -1,0 +1,156 @@
+# only data tests: the columns and types and unique constraints are declared in slvr_journal_entries.yml.
+# an uncastable value is null here, so not_null reports both. range and relationship tests ignore nulls, so a bad value
+# gives one error. the description of a data test is the message the user sees.
+models:
+  - name: stg_journal_entries
+    data_tests:
+      # the key is unique_key in slvr_journal_entries.yml
+      - unique_within_upload:
+          arguments:
+            dataset: journal_entries
+          config:
+            meta:
+              description: this device already has a measurement at this moment
+      # a warning, not a refusal: a newer upload of a measurement overrides the older one in silver, and this lists it
+      - unique_across_accepted_uploads:
+          arguments:
+            dataset: journal_entries
+          config:
+            severity: warn
+            meta:
+              description: this measurement replaces the one of an earlier upload
+    columns:
+      - name: row_id
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: row_id must be unique
+      - name: date_time
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: date_time is missing or not a date and time
+      - name: device
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: device is missing
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('seed_devices')
+                field: device
+              config:
+                meta:
+                  description: device is not in seed_devices
+      - name: drip_or_drain
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: spot is missing or has no drip or drain
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('seed_drip_or_drain')
+                field: drip_or_drain
+              config:
+                meta:
+                  description: drip_or_drain is not in seed_drip_or_drain
+      - name: side
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: spot is missing or has no side
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('seed_sides')
+                field: side
+              config:
+                meta:
+                  description: side is not in seed_sides
+      - name: ml
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: ml is missing or not a whole number
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5000
+              config:
+                meta:
+                  description: ml must be between 0 and 5000
+      - name: ec
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: ec is missing or not a number
+          - elementary.expression_is_true_with_context:
+              arguments:
+                expression: "= round(ec, 2)"
+              config:
+                meta:
+                  description: ec has more than 2 decimals
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10
+              config:
+                meta:
+                  description: ec must be between 0 and 10
+      - name: ph
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: ph is missing or not a number
+          - elementary.expression_is_true_with_context:
+              arguments:
+                expression: "= round(ph, 2)"
+              config:
+                meta:
+                  description: ph has more than 2 decimals
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 14
+              config:
+                meta:
+                  description: ph must be between 0 and 14
+      - name: temperature
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: temperature is missing or not a number
+          - elementary.expression_is_true_with_context:
+              arguments:
+                expression: "= round(temperature, 2)"
+              config:
+                meta:
+                  description: temperature has more than 2 decimals
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 50
+              config:
+                meta:
+                  description: temperature must be between 0 and 50
+      - name: room
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room is missing
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('seed_rooms')
+                field: room
+              config:
+                meta:
+                  description: room is not in seed_rooms

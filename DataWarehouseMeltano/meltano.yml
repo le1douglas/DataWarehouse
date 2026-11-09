@@ -1,0 +1,55 @@
+default_environment: dw
+project_id: 01a1a092-fb86-7349-a6ae-ffc686e2b184
+environments:
+- name: dw
+send_anonymous_usage_stats: false
+plugins:
+  extractors:
+  - name: tap-csv
+    variant: meltanolabs
+    # not on pypi: pinned to a git tag
+    pip_url: git+https://github.com/MeltanoLabs/tap-csv.git@v1.3.2
+    config:
+      # the entity is the table name in dw_bronze. the export folder is mounted read only at EXPORTS_MOUNT (set in
+      # docker/compose.yaml), the file in it is JOURNAL_ENTRIES_CSV from the env file
+      files:
+      - entity: brnz_journal_entries #table name in dw_bronze
+        path: ${EXPORTS_MOUNT}/${JOURNAL_ENTRIES_CSV}
+        keys: []
+        encoding: utf-8-sig
+        delimiter: ','
+        quotechar: '"'
+        doublequote: true # a quote inside a quoted value is written twice: "a ""quoted"" word"
+        escapechar: null # no escape character: a backslash is an ordinary character
+        skipinitialspace: false # a space after the delimiter belongs to the value
+        strict: true #interpret quoting '"' strictly. A row with more or fewer fields than the header is not caught by this
+      
+
+      #TODO make this generic for every tap somehow
+      # every row gets the load_id of its upload: the run_id of this run, which meltano shows only when the caller
+      # sets it in MELTANO_RUN_ID. without it the insert fails on bronze's NOT NULL load_id.
+      # "*" matches every stream, so a new entry under files needs nothing here
+      stream_maps:
+        "*":
+          load_id: config['load_id']
+      stream_map_config:
+        load_id: ${MELTANO_RUN_ID}
+    # load_id is a uuid in bronze. a stream map can only declare a plain string, which target-postgres would try to
+    # alter the column to, and fail. this declares it as a uuid instead, for every stream ("*") as above
+    schema:
+      "*":
+        load_id:
+          type: string
+          format: uuid
+
+  
+  loaders:
+  - name: target-postgres
+    variant: meltanolabs
+    pip_url: meltanolabs-target-postgres==0.8.1
+    # host, port, database, user and password come from TARGET_POSTGRES_* in docker/compose.yaml
+    config:
+      default_target_schema: dw_bronze
+      load_method: append-only
+      add_record_metadata: false
+      activate_version: false

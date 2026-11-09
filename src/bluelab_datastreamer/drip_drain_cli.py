@@ -26,9 +26,9 @@ ml to the readings at any time, and the left arrow back to the ml, as they are o
 every line of one is filled, the next empty line of the other is taken. A value the pen has not
 got, such as with the probe in the air, shows as n.a., a line not recorded yet as -. When every
 line has both its ml and its reading, a confirmation is shown below the lines (up goes back to
-change them). Enter on it appends the room to drip_drain.csv, next to this file, in the shape of
-a journal entries export, and the next room starts. While a room is shown, q quits after enter to
-confirm (any other key stays and does nothing else), and a room that is not complete then is not
+change them). Enter on it appends the room to drip_drain.csv, next to this file, one row per line
+(date_time,device,spot,ml,ec,ph,temperature,room), and the next room starts. While a room is shown,
+q quits after enter to confirm (any other key stays and does nothing else), and a room that is not complete then is not
 written. s skips the room at any time, after enter to confirm (any other key keeps the room and
 does nothing else): what was typed or recorded in it is dropped, nothing of it is
 written, and the next room starts. The room continues from the last row of the csv, past
@@ -48,6 +48,7 @@ drip_drain.py, the terminal in cli_terminal.py. Only the standard library is use
 
 import argparse
 import asyncio
+import sys
 from collections.abc import Coroutine
 from pathlib import Path
 from typing import TypeVar
@@ -454,5 +455,10 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
+    except drip_drain.HeaderNotRecognized as error:
+        # read at the start, before any room: a message instead of a traceback, and an exit code that keeps
+        # the window of OnePen.cmd open so it can be read
+        print(f"# error: {error}")
+        sys.exit(1)
     if room is not None and not room.saving and room.started:
         print(f"# room {room.name} not complete, not written to {CSV_PATH.name}")

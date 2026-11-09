@@ -1,0 +1,4 @@
+# build context of the dev image (the repo root): only the requirements files go in. the code is mounted, not copied.
+# paths are relative to the repo root, not to this file
+*
+!docker/*/requirements*.txt

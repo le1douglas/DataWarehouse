@@ -1,0 +1,21 @@
+models:
+  - name: aud_issues
+    description: What failed, warned or errored in every run, read from Elementary. Filter on invocation_id for one run,
+                on load_id for one load. It depends only on Elementary's models, so a failed data test does not skip it.
+    columns:
+      - name: invocation_id
+        description: The dbt run.
+      - name: load_id
+        description: The load the run judged, its load_id var. Null for a run without the var.
+      - name: status
+        description: fail and error refuse the load, warn does not.
+      - name: dataset
+        description: The dataset of the tested or built table, journal_entries for stg_journal_entries.
+      - name: row_id
+        description: The failing row, null for a failure of the whole file and for an error.
+      - name: kind
+        description: The data test, or model, snapshot or seed for an error of a build step.
+      - name: target_column
+        description: The column the issue is in, null when it is in the whole row or file.
+      - name: description
+        description: The message the user sees. For an error, the database's message.

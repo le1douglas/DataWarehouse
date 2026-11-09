@@ -1,6 +1,7 @@
 # the dbt job: runs one dbt command against the postgres service, then exits.
 # built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
-# runtime: only what the job needs to run. prod uses it as is, dev (and later ci) adds its own tools on top
+# runtime: only what the job needs to run. prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml).
+# the dev tools are not here: they are in the dev image, docker/dev/Dockerfile
 FROM python:3.14-slim AS runtime
 
 # git: dbt debug reports an error without it, and dbt deps needs it for packages installed from a git url.
@@ -9,7 +10,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir dbt-core==1.12.5 dbt-postgres==1.11.0
+# the versions are in the requirements file, the one place they are written (docker/dev/Dockerfile reads it too)
+COPY docker/dbt/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app/DataWarehouseDbt
 
@@ -18,15 +21,9 @@ ENV DBT_PROFILES_DIR=/usr/app/DataWarehouseDbt
 
 COPY DataWarehouseDbt/ ./
 
-# installs dbt_utils at the version in package-lock.yml. needs no database connection
+# installs dbt libraries
 RUN dbt deps
 
 # the container runs dbt: "docker compose run dbt build" runs "dbt build", with no arguments it runs "dbt build"
 ENTRYPOINT ["dbt"]
 CMD ["build"]
-
-# dev only (target: dev in docker/compose.dev.yaml): runtime plus sqlfmt.
-# jinjafmt formats the jinja inside the sql with black. the config is in pyproject.toml at the repo root
-FROM runtime AS dev
-
-RUN pip install --no-cache-dir "shandy-sqlfmt[jinjafmt]==0.32.0" black==26.10.0

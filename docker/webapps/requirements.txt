@@ -1,0 +1,5 @@
+# the libraries of the webapps image, the only place their versions are written. installed by the runtime stage of
+# docker/webapps/Dockerfile, and into its own venv by docker/dev/Dockerfile, so dev runs the same versions
+nicegui==3.18.0
+SQLAlchemy==2.0.54
+psycopg[binary]==3.3.6

@@ -3,7 +3,7 @@
 
 Data warehouse, medallion architecture (raw bronze, cleaned silver, business ready gold)
 
-The design goal is that bad data never reaches silver, and that a non technical user can fix it without touching the source file or the database directly.
+The design goal is that bad data never reaches silver: a file that fails its data tests is refused, and it is fixed where it came from.
 
 ## Regual DB maintenance
 # Index maintenance
@@ -32,8 +32,8 @@ find data loss tolerance
 ## Role	Permissions
 todo decide on the roles to use
 postgres ---> superuser responsable for permissions and owns bronze layer
-extract_load_user	----> the Python load script	INSERT on bronze and correction tables
-transform_user	---> what dbt connects as.	owns the  silver/gold schemas, with CREATE on the database, only select needed in bronze and corrections
+extract_load_user	----> Meltano (target-postgres)	INSERT and SELECT on bronze
+transform_user	---> what dbt connects as.	owns the  silver/gold schemas, with CREATE on the database, only select needed in bronze
 read_only_user	-----> Excel, Power BI, Tableau, Grafana	USAGE on gold, SELECT on gold, nothing on bronze or silver
 
 

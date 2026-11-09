@@ -8,6 +8,8 @@ vars:
   # appended in staging to a datetime whose source text has no time zone, so every datetime has one from staging on.
   # the container's time zone, set once in docker/compose.yaml. no default: without TZ dbt stops instead of guessing
   timezone: "{{ env_var('TZ') }}"
+  # how many failing rows of a data test elementary stores. -1 is all of them, the default is 5
+  test_sample_row_count: -1
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]
@@ -16,22 +18,42 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
-  - "target"
-  - "dbt_packages"
+# where dbt deps installs the packages. dev sets the env var to the dbt-state volume (docker/compose.dev.yaml), as it
+# sets DBT_TARGET_PATH and DBT_LOG_PATH, which dbt reads by itself. prod sets none of them: the folders next to this file
+packages-install-path: "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
+
+# directories to be removed by `dbt clean`, wherever the env vars put them. in dev they are outside the project, so
+# dbt clean needs --no-clean-project-files-only there
+clean-targets:
+  - "{{ env_var('DBT_TARGET_PATH', 'target') }}"
+  - "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
 
 # the folder of a model decides its materialisation and schema
 models:
   DataWarehouseDbt:
-    staging:             # text except the key: mechanical changes plus auto-fix rules
+    staging:             # mapping and auto-fixes, then a generated safe cast
       +materialized: view
-      +schema: staging
-    candidate:           # corrections override staging, then derived columns. still text
-      +materialized: view
-      +schema: candidate
-    silver:              # casts, rebuilt only when all candidate tests pass
+      +schema: bronze    # bronze tables are the raw data, bronze views are staging
+    silver:              # no logic, rebuilt only when all staging tests pass
       +materialized: table
       +schema: silver
+      +contract:
+        enforced: true    # every column declared with its type in the yml
+    gold:                # the modeled views over silver and the seeds: no copy of the data, no constraints
+      +materialized: view
+      +schema: gold
+      +contract:
+        enforced: true
+    audit:               # what failed, read from elementary
+      +materialized: view
+      +schema: audit
+  elementary:
+    +schema: elementary
+
+# reference data kept by hand in a csv, reloaded by every dbt build. types in the seed's own yml
+seeds:
+  DataWarehouseDbt:
+    +schema: seeds
 
 # every version of the rows of one table, see docs/CODING_STANDARDS.md. a snapshot mirrors its table exactly,
 # so every one is configured the same: key in its own yml, every column compared, a deleted row is a version too
@@ -48,15 +70,7 @@ snapshots:
       dbt_updated_at: meta_updated_at
       dbt_is_deleted: meta_is_deleted
 
-# every data test fails the build, and its failing rows are stored in one table per data test
+# every data test fails the build. elementary stores its failing rows, see macros/materialization_test.sql
 data_tests:
   DataWarehouseDbt:
     +severity: error
-    +store_failures: true
-    +schema: audit
-
-# the audit table, one per dataset: every flagged row once, for the review in the web app. see macros/create_audit_table.sql.
-# then, last, a notify on the channel dbt_run_end, for anyone listening to the database. see macros/notify_run_end.sql
-on-run-end:
-  - "{{ create_audit_table('journal_entries', results) }}"
-  - "{{ notify_run_end() }}"
