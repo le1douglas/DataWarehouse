@@ -38,20 +38,20 @@ models:
               config:
                 meta:
                   description: device is not in seed_devices
-      - name: relative_position
+      - name: absolute_position
         data_type: text
-        description: Where on the bench it was measured, such as front_left_up.
+        description: Where it was measured, room, bench and relative position joined by _, such as 1.30_4_front_left_up.
         constraints:
           - type: not_null
         # a data test, not a foreign key: see device
         data_tests:
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_relative_positions')
-                field: relative_position
+                to: ref('seed_absolute_positions')
+                field: absolute_position
               config:
                 meta:
-                  description: relative_position is not in seed_relative_positions
+                  description: absolute_position is not in seed_absolute_positions
       - name: ml
         data_type: integer
         description: The volume.
@@ -79,23 +79,3 @@ models:
           - type: not_null
           - type: check
             expression: "temperature between 0 and 50 and temperature = round(temperature, 2)"
-      - name: room
-        data_type: text
-        constraints:
-          - type: not_null
-        # a data test, not a foreign key: see device
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_rooms')
-                field: room
-              config:
-                meta:
-                  description: room is not in seed_rooms
-      - name: bench
-        data_type: integer
-        description: The bench in the room the journal entry was measured at.
-        constraints:
-          - type: not_null
-          - type: check
-            expression: "bench >= 1"

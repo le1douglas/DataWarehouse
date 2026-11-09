@@ -45,19 +45,19 @@ models:
               config:
                 meta:
                   description: device is not in seed_devices
-      - name: relative_position
+      - name: absolute_position
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: spot is missing or not drip or drain and left or right joined by _, such as drip_left
+                  description: room or spot is missing, or spot is not drip or drain and left or right joined by _, such as drip_left
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_relative_positions')
-                field: relative_position
+                to: ref('seed_absolute_positions')
+                field: absolute_position
               config:
                 meta:
-                  description: relative_position is not in seed_relative_positions
+                  description: this room, bench and relative position are not in seed_absolute_positions
       - name: ml
         data_tests:
           - elementary.not_null_with_context:
@@ -128,26 +128,3 @@ models:
               config:
                 meta:
                   description: temperature must be between 0 and 50
-      - name: room
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: room is missing
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_rooms')
-                field: room
-              config:
-                meta:
-                  description: room is not in seed_rooms
-      - name: bench
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: bench is missing or not a whole number
-          - bench_within_room:
-              config:
-                meta:
-                  description: bench is not between 1 and the benches_number of its room in seed_rooms

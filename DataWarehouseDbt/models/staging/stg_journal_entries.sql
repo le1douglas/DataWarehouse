@@ -25,12 +25,18 @@ with
             nullif(ph, '') as ph,
             nullif(temperature, '') as temperature,
             nullif(room, '') as room,
-            -- the csv has no bench: every measurement is taken at bench 4 for now. text like the other columns, so
-            -- cast_select casts it
+            -- the csv has no bench: every measurement is taken at bench 4 for now
             '4' as bench
         from {{ source("dw_bronze", "brnz_journal_entries") }}
         -- one load only, the load_id var, so every data test judges that load alone. without the var, compilation fails
         where load_id = '{{ var("load_id") }}'::uuid
+    ),
+
+    assign_absolute_position as (
+        -- room, bench and relative position joined into the one key of the place, such as 1.30_4_front_left_up. null
+        -- when a part is null, so not_null fails; a combination that does not exist fails the seed_absolute_positions
+        -- relationships test. room, bench and relative_position are helpers: cast_select keeps only silver's columns
+        select *, room || '_' || bench || '_' || relative_position as absolute_position from mapped
     )
 
-    {{ cast_select("mapped", "journal_entries") }}
+    {{ cast_select("assign_absolute_position", "journal_entries") }}

@@ -1,14 +1,14 @@
 models:
   - name: dim_relative_positions
     description: >-
-      Where on the bench a journal entry was measured: front or back, left or right, up or down. Change a relative
-      position in seed_relative_positions.csv, not here.
+      Where on the bench a journal entry was measured: one row per combination of a depth, a horizontal and a vertical
+      value. Published from seed_relative_positions: add or change a value in seed_relative_position_values.csv, not here.
     # a view, so it always equals the seed. a view has no constraints: its key and values are checked by data tests.
     # see docs/CODING_STANDARDS.md
     columns:
       - name: relative_position
-        data_type: varchar(50)
-        description: The three attributes joined by _, such as front_left_up.
+        data_type: text
+        description: "The key: depth, horizontal and vertical joined by _, such as front_left_up."
         data_tests:
           - elementary.expect_column_values_to_be_unique_with_context:
               config:
@@ -18,42 +18,27 @@ models:
               config:
                 meta:
                   description: relative_position is missing
-      - name: front_back
+      - name: depth
         data_type: varchar(50)
+        description: front or back.
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: front_back is missing
-          - elementary.expression_is_true_with_context:
-              arguments:
-                expression: "in ('front', 'back')"
-              config:
-                meta:
-                  description: front_back is not front or back
-      - name: left_right
+                  description: depth is missing
+      - name: horizontal
         data_type: varchar(50)
+        description: left or right.
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: left_right is missing
-          - elementary.expression_is_true_with_context:
-              arguments:
-                expression: "in ('left', 'right')"
-              config:
-                meta:
-                  description: left_right is not left or right
-      - name: up_down
+                  description: horizontal is missing
+      - name: vertical
         data_type: varchar(50)
+        description: up or down.
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: up_down is missing
-          - elementary.expression_is_true_with_context:
-              arguments:
-                expression: "in ('up', 'down')"
-              config:
-                meta:
-                  description: up_down is not up or down
+                  description: vertical is missing

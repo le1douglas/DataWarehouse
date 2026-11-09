@@ -28,6 +28,10 @@ _Avoid_: Table, which is an SQL keyword
 Where on the bench a journal entry was measured: `front` or `back`, `left` or `right`, `up` or `down`, such as `front_left_up`. The bench itself is separate. The source sends it as a spot, such as `drip_left`: always front, `drip` (the solution given to the plants) is up and `drain` (the solution that ran off them) is down.
 _Avoid_: Spot, which is the source's column; drip or drain and side, the columns it replaced; position, location
 
+**Absolute position**:
+The place in the real world where a journal entry was measured: its room, its bench and its relative position, such as `1.30_4_front_left_up`. Every one that exists is generated from the rooms, their number of benches and the relative positions.
+_Avoid_: Spot, position, location
+
 ### Layers
 
 **Dataset**:

@@ -19,31 +19,17 @@ models:
               config:
                 meta:
                   description: device is not in dim_devices
-      - name: room
+      - name: absolute_position
         data_type: text
-        description: The room the measurement was taken in.
+        description: Where it was measured, such as 1.30_4_front_left_up.
         data_tests:
           - elementary.relationships_with_context:
               arguments:
-                to: ref('dim_rooms')
-                field: room
+                to: ref('dim_absolute_positions')
+                field: absolute_position
               config:
                 meta:
-                  description: room is not in dim_rooms
-      - name: bench
-        data_type: integer
-        description: The bench in the room the journal entry was measured at.
-      - name: relative_position
-        data_type: text
-        description: Where on the bench it was measured, such as front_left_up.
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('dim_relative_positions')
-                field: relative_position
-              config:
-                meta:
-                  description: relative_position is not in dim_relative_positions
+                  description: absolute_position is not in dim_absolute_positions
       - name: ml
         data_type: integer
         description: The volume.

@@ -1,0 +1,6 @@
+models:
+  - name: seed_absolute_positions
+    description: >-
+      Every place a journal entry can be measured at, generated from seed_rooms and seed_relative_positions. Reference
+      data like a seed: staging and silver test against it, dim_absolute_positions publishes it. Change a room or its
+      benches_number in seed_rooms.csv.

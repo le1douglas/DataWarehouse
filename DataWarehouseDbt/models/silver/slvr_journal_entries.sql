@@ -5,8 +5,7 @@
 -- the seeds are not selected from, but silver must depend on them: dbt build skips silver after a failed test only
 -- when every model that test reads is upstream of silver, so without these a failed relationship test lets the load in
 -- depends_on: {{ ref("seed_devices") }}
--- depends_on: {{ ref("seed_rooms") }}
--- depends_on: {{ ref("seed_relative_positions") }}
+-- depends_on: {{ ref("seed_absolute_positions") }}
 {{
     config(
         materialized="incremental",

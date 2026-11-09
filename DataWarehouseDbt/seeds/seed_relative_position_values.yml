@@ -1,0 +1,10 @@
+seeds:
+  - name: seed_relative_position_values
+    description: >-
+      The values of each axis of a relative position, kept by hand in seed_relative_position_values.csv and reloaded by
+      every dbt build. seed_relative_positions combines them into every relative position.
+    config:
+      # every type is written, so dbt never infers one
+      column_types:
+        axis: varchar(50)
+        value: varchar(50)

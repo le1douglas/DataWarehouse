@@ -39,6 +39,9 @@ models:
       +schema: silver
       +contract:
         enforced: true    # every column declared with its type in the yml
+    seeds:               # reference data generated from the seeds only, beside them: staging and silver may test against it
+      +materialized: view
+      +schema: seeds
     gold:                # the modeled views over silver and the seeds: no copy of the data, no constraints
       +materialized: view
       +schema: gold
