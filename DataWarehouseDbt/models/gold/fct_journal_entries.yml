@@ -30,6 +30,9 @@ models:
               config:
                 meta:
                   description: room is not in dim_rooms
+      - name: bench
+        data_type: integer
+        description: The bench in the room the journal entry was measured at.
       - name: drip_or_drain
         data_type: text
         description: Which solution was measured, drip or drain.

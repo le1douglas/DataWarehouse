@@ -44,10 +44,10 @@ models:
               config:
                 meta:
                   description: assigned_stage is missing
-      - name: tables_number
+      - name: benches_number
         data_type: integer
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: tables_number is missing
+                  description: benches_number is missing

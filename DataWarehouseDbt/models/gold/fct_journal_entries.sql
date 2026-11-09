@@ -5,6 +5,7 @@ select
     date_time,
     device,
     room,
+    bench,
     drip_or_drain,
     side,
     ml,

@@ -8,4 +8,4 @@ seeds:
         room_time: varchar(50)
         floor_number: integer
         assigned_stage: varchar(50)
-        tables_number: integer
+        benches_number: integer

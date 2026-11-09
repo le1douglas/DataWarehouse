@@ -106,3 +106,10 @@ models:
               config:
                 meta:
                   description: room is not in seed_rooms
+      - name: bench
+        data_type: integer
+        description: The bench in the room the journal entry was measured at.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "bench >= 1"

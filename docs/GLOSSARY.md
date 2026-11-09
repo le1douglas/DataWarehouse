@@ -20,6 +20,10 @@ _Avoid_: Natural key. The date and time and the device are unique together, but 
 **Room**:
 The growing room a journal entry was measured in.
 
+**Bench**:
+The growing table in a room that a journal entry was measured at. A room usually has 7.
+_Avoid_: Table, which is an SQL keyword
+
 **Drip or drain**:
 Which solution a journal entry measured: `drip`, the solution given to the plants, or `drain`, the solution that ran off them.
 _Avoid_: Spot, flow, which combined it with the side

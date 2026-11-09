@@ -18,7 +18,10 @@ with
             nullif(ec, '') as ec,
             nullif(ph, '') as ph,
             nullif(temperature, '') as temperature,
-            nullif(room, '') as room
+            nullif(room, '') as room,
+            -- the csv has no bench: every measurement is taken at bench 4 for now. text like the other columns, so
+            -- cast_select casts it
+            '4' as bench
         from {{ source("dw_bronze", "brnz_journal_entries") }}
         -- one load only, the load_id var, so every data test judges that load alone. without the var, compilation fails
         where load_id = '{{ var("load_id") }}'::uuid

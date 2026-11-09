@@ -154,3 +154,13 @@ models:
               config:
                 meta:
                   description: room is not in seed_rooms
+      - name: bench
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: bench is missing or not a whole number
+          - bench_within_room:
+              config:
+                meta:
+                  description: bench is not between 1 and the benches_number of its room in seed_rooms
