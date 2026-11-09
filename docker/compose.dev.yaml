@@ -102,6 +102,11 @@ services:
       POSTGRESQL_USER: ${POSTGRES_USER}
       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
       WATCHFILES_FORCE_POLLING: "true"
+      # psql: a bare "psql" reaches the warehouse. the password is PGPASSWORD above, shared with meltano
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
       # Claude Code keeps everything in the claude-config volume, its .claude.json too
       CLAUDE_CONFIG_DIR: /claude-config
     depends_on:

@@ -21,7 +21,9 @@ only) and **prod**.
 - **Image:** `docker/dev/Dockerfile`, the dev container. It has one venv per image under `/opt/venvs/`, each installed
   from that image's requirements file, so it has the same versions and no clashes. It adds one venv of tools
   (`docker/dev/requirements.txt`) and pytest in the webapps venv (`docker/dev/requirements-test.txt`). All the venvs
-  are on `PATH`, and `python` is the webapps one.
+  are on `PATH`, and `python` is the webapps one. It also has `psql`, `pg_dump` and `pg_restore` at the server's
+  major version, from PostgreSQL's own package source. That version is written in two places, the Dockerfile and
+  the `postgres` image tag in `docker/compose.yaml`, which have to change together.
 - **Volumes**, declared only in `docker/compose.dev.yaml`, so they exist only as `dw-dev_*`:
 
   | Volume | Holds | Mounted at | Refilled by |

@@ -34,14 +34,15 @@ Status on 2026-11-06: the dev container works, and nothing is committed yet.
 
 ## To do (small)
 
-- [ ] **Remove the old dev container and recreate the web apps** on the runtime image. From PowerShell at the repo root:
+- [x] **Remove the old dev container and recreate the web apps** on the runtime image (done, serves 200; reload on save
+      left to the user to check). From PowerShell at the repo root:
       `docker rm -f dw-dev-dbt-1`, then
       `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml up -d --no-deps --build webapps`. Check that
       http://localhost:8080 still serves and reloads on save.
 - [ ] **Re-install the Claude plugins** (mattpocock skills) inside the container: they were not copied, because their
       install records hold Windows paths.
-- [ ] **Rename the memory file** `use-running-loader-container.md` (its slug is outdated, its title says "Use the dev
-      container"), in the `claude-config` volume.
+- [x] **Rename the memory file** `use-running-loader-container.md` (its slug is outdated, its title says "Use the dev
+      container"), in the `claude-config` volume. Now `use-dev-container.md`, in the volume and the Windows copy.
 - [x] `docs/agents/dev-container.md` said `/dumps` is in the dev container. It's on postgres. Fixed.
 
 ## Later / separate issues
@@ -55,7 +56,13 @@ Status on 2026-11-06: the dev container works, and nothing is committed yet.
     and `unique_within_upload.sql`.
 - **dbt warning:** `ec`, `ph` and `temperature` are `numeric` without precision or scale in silver and gold, which can
   round values.
-- **No `psql` in the dev container:** a load id comes from a one-line Python call for now.
+- [x] **No `psql` in the dev container:** added. `postgresql-client-18` from PostgreSQL's own package source (Debian
+  has only 17), the same build as the server (18.6). The major version is written twice, in `docker/dev/Dockerfile` and
+  the postgres image tag in `docker/compose.yaml`, each pointing to the other. `PGHOST`, `PGPORT`, `PGDATABASE` and
+  `PGUSER` are set, so `psql -tAc "select uuidv7()"` gives a load id. Checked in a throwaway dev container; the dev
+  container itself needs a rebuild in VS Code.
+- **Builds depend on GitHub:** `dbt-core-experimental-parser` (needed by dbt-core) downloads its wheel from GitHub
+  releases at install. A GitHub 504 failed the dev image build once (2026-11-09). Think about it with the lockfile.
 
 ## Noted, no action needed
 

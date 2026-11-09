@@ -8,9 +8,23 @@ FROM python:3.14-slim
 # git: dbt deps, meltano install of a plugin from a git url, and the source control panel.
 # libatomic1: node needs it, and the slim image does not have it. node is installed by a feature of the Dev Container
 # (.devcontainer/dev), for Claude Code's command line.
+# curl and ca-certificates: to fetch the signing key of postgresql's own package source, below.
 # the apt lists are removed after the install, so they do not stay in the image
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git libatomic1 \
+    && apt-get install -y --no-install-recommends git libatomic1 curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# psql, pg_dump and pg_restore, at the major version of the server. debian has only its own major (17), so they come
+# from postgresql's own package source, the one the postgres image installs the server from.
+# the major version is written twice: here and in the postgres image tag in docker/compose.yaml. change both together;
+# psql warns when its major differs from the server's. the minor version is the newest at build, as the server's is
+RUN install -d /usr/share/postgresql-common/pgdg \
+    && curl --fail -sSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && . /etc/os-release \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-18 \
     && rm -rf /var/lib/apt/lists/*
 
 # one venv per image, from that image's own requirements file: the same versions as the runtime image, and no clash

@@ -198,8 +198,13 @@ Setup is done.
   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: $id}"
   ```
 
-- Dev container, from any folder: `MELTANO_RUN_ID=<id> meltano run tap-csv target-postgres`, then
-  `dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: <id>}"`
+- Dev container, from any folder (a bare `psql` reaches the warehouse: `PGHOST` and the rest are set):
+
+  ```bash
+  id=$(psql -tAc "select uuidv7()")
+  MELTANO_RUN_ID=$id meltano run tap-csv target-postgres
+  dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: $id}"
+  ```
 - Every bronze row gets the id as `load_id`. Without `MELTANO_RUN_ID` nothing is loaded
 - Passed: silver holds the load. A row with the same key as one already in silver replaces it, with a warning
 - Failed: the build reports the failing data tests, the load stays in bronze as a record of what arrived, and silver

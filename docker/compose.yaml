@@ -17,6 +17,8 @@ x-postgres-password: &postgres_password ${POSTGRES_PASSWORD}
 
 services:
   postgres:
+    # the major version is written twice: here and in postgresql-client-<major> in docker/dev/Dockerfile (psql in the
+    # dev container). change both together
     image: postgres:18
     # the server's time zone from TZ, so the zone stays written once. compose would replace $TZ itself, $$ leaves it to sh.
     # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would.
