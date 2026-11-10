@@ -15,10 +15,9 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Leftovers after a delete or rename:** dbt does not drop the relation of a deleted model or data test.
 - **Snapshots have no reader:** they are storage only. A deleted row's current version has `meta_is_deleted = 'True'`, as text, so a reader must filter it out.
 - **Snapshot schema changes follow dbt's defaults:** a key moved to a new or renamed column splits the history at that build (old versions are marked deleted), and a column whose type changes (mainly in silver's yml) is not migrated and is fixed by hand when it happens. Dropping the database loses all history; on dev that is accepted.
-- **Relative position tests are weak:** they check each value, not that every room has each relative position exactly once. Such a rule cannot be a constraint and stays a data test if added.
+- **Absolute position tests are weak:** they check that each row's `absolute_position` exists, not that every bench of a room has each relative position exactly once. Such a rule cannot be a constraint and stays a data test if added.
 - **`is_working`** in `dim_devices` is informational: a device marked false still passes the relationship data test.
 - **Range rules live in two files,** `stg_<dataset>.yml` and silver's checks. If they disagree the build fails with a database error instead of a data test failure: `aud_issues` has the error, not the value that caused it.
-- **Silver references dimensions in `dw_gold`,** against the layer order. Revisit when modeling gold.
 - **Test results are append-only:** `test_result_rows` and `elementary_test_results` keep growing, which is fine at this volume.
 - **Python packages are not installed:** each image finds its package through `PYTHONPATH=/usr/app/src`, and its libraries are pinned in `docker/<image>/requirements.txt`. Revisit when two images share a package, or when the libraries should be declared once in `pyproject.toml` with a lock file: then `pip install .` in runtime and `pip install -e .` in dev.
 - **No lockfile per image** (decided 2026-11-09 to postpone): only the top-level libraries are pinned, so pip picks the

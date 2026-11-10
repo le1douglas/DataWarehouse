@@ -1,0 +1,16 @@
+models:
+  - name: seed_flowering_rooms
+    description: >-
+      The rooms whose assigned_stage is flowering, generated from seed_rooms. Reference data like a seed: staging and
+      silver of plants_batches test their room against it. Change a room or its assigned_stage in seed_rooms.csv.
+    columns:
+      - name: room
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: room must be unique
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room is missing

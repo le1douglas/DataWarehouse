@@ -35,7 +35,13 @@ models:
       +materialized: view
       +schema: bronze    # bronze tables are the raw data, bronze views are staging
     silver:              # no logic, rebuilt only when all staging tests pass
-      +materialized: table
+      # every silver model is incremental: staging holds only the latest load, which is added only when its tests
+      # pass. a row of the load replaces the row with the same unique_key (in the model's yml), so a newer upload
+      # overrides the older one. full_refresh is off: a rebuild from staging would keep only the latest load
+      +materialized: incremental
+      +incremental_strategy: delete+insert
+      +on_schema_change: fail
+      +full_refresh: false
       +schema: silver
       +contract:
         enforced: true    # every column declared with its type in the yml
