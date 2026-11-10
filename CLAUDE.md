@@ -21,8 +21,9 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 
 ## Data rules
 - `row_id` is the primary key and the only column shared between datasets, carried unchanged through the pipeline.
-- A datetime is text up to staging, which appends the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) and casts it to `timestamptz(0)`, rounded to the second. The cast accepts only a zone that cannot be misread (`macros/cast_select.sql`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
+- A datetime is text up to staging, which appends the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) and casts it to `timestamptz`, to the microsecond. The cast accepts only a zone that cannot be misread (`macros/cast_select.sql`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
 - Empty string means null. The decimal separator is `.`.
+- Silver keeps the precision the source sends. Gold reduces it per dataset: for journal entries, `date_time` truncated to the second and decimals rounded to `numeric(4,2)`.
 
 ## Agent skills
 

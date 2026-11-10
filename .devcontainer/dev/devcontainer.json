@@ -14,6 +14,10 @@
   "overrideCommand": true,
   // closing the window leaves the containers running: postgres is shared with Excel
   "shutdownAction": "none",
+  // the ERD's server (dbterd.serverPort below). its tab runs in VS Code on windows and reaches the server only through
+  // this forward: a random port changed on every server restart and the forward did not follow. 8765 is taken by the
+  // OnePen bridge, 8080/8081 by NiceGUI, 5432/5433 by postgres
+  "forwardPorts": [8790],
   // Claude Code's command line, which needs node. its login, settings and memory are in the claude-config volume
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
@@ -54,6 +58,8 @@
         // its server lives in a venv the extension makes on first use, outside the image: a container rebuild loses it
         // and the extension makes it again
         "dbterd.dbtProjectPath": "/dbt-state",
+        // a fixed port, forwarded by forwardPorts above. 0 would pick a new one on every restart
+        "dbterd.serverPort": 8790,
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
         "python.testing.pytestArgs": ["tests"],

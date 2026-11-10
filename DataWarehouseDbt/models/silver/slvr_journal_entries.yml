@@ -18,8 +18,8 @@ models:
         constraints:
           - type: primary_key
       - name: date_time
-        data_type: timestamptz(0)
-        description: When the journal entry was measured, in the timezone var.
+        data_type: timestamptz
+        description: When the journal entry was measured, in the timezone var, to the microsecond as the csv sends it.
         constraints:
           - type: not_null
       - name: device
@@ -59,23 +59,23 @@ models:
           - type: not_null
           - type: check
             expression: "ml between 0 and 5000"
-      # plain numeric on purpose: numeric(4,2) would silently round 22.355 and hide a failure
+      # plain numeric on purpose: silver keeps every decimal the csv sends, gold rounds to 2
       - name: ec
         data_type: numeric
         constraints:
           - type: not_null
           - type: check
-            expression: "ec between 0 and 10 and ec = round(ec, 2)"
+            expression: "ec between 0 and 10"
       - name: ph
         data_type: numeric
         constraints:
           - type: not_null
           - type: check
-            expression: "ph between 0 and 14 and ph = round(ph, 2)"
+            expression: "ph between 0 and 14"
       - name: temperature
         data_type: numeric
         description: The temperature.
         constraints:
           - type: not_null
           - type: check
-            expression: "temperature between 0 and 50 and temperature = round(temperature, 2)"
+            expression: "temperature between 0 and 50"

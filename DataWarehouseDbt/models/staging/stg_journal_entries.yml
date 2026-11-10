@@ -77,12 +77,6 @@ models:
               config:
                 meta:
                   description: ec is missing or not a number
-          - elementary.expression_is_true_with_context:
-              arguments:
-                expression: "= round(ec, 2)"
-              config:
-                meta:
-                  description: ec has more than 2 decimals
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0
@@ -96,12 +90,6 @@ models:
               config:
                 meta:
                   description: ph is missing or not a number
-          - elementary.expression_is_true_with_context:
-              arguments:
-                expression: "= round(ph, 2)"
-              config:
-                meta:
-                  description: ph has more than 2 decimals
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0
@@ -115,12 +103,6 @@ models:
               config:
                 meta:
                   description: temperature is missing or not a number
-          - elementary.expression_is_true_with_context:
-              arguments:
-                expression: "= round(temperature, 2)"
-              config:
-                meta:
-                  description: temperature has more than 2 decimals
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0

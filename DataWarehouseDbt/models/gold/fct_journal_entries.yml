@@ -7,7 +7,7 @@ models:
         description: The key, assigned by bronze when the journal entry was received.
       - name: date_time
         data_type: timestamptz(0)
-        description: When the journal entry was measured.
+        description: When the journal entry was measured, truncated to the second.
       - name: device
         data_type: text
         description: The device that took the measurement.
@@ -34,9 +34,11 @@ models:
         data_type: integer
         description: The volume.
       - name: ec
-        data_type: numeric
+        data_type: numeric(4,2)
+        description: Rounded to 2 decimals.
       - name: ph
-        data_type: numeric
+        data_type: numeric(4,2)
+        description: Rounded to 2 decimals.
       - name: temperature
-        data_type: numeric
-        description: The temperature.
+        data_type: numeric(4,2)
+        description: The temperature, rounded to 2 decimals.
