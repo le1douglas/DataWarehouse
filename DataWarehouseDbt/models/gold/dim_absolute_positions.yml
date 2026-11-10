@@ -3,57 +3,19 @@ models:
     description: >-
       Every place a journal entry can be measured at: one row per room, bench of that room and relative position,
       with a key to dim_rooms and to dim_relative_positions for their attributes. Published from
-      seed_absolute_positions: change a room or its benches_number in seed_rooms.csv, not here.
-    # a view, so it always equals the reference data it publishes. a view has no constraints: its key and values are
-    # checked by data tests. see docs/CODING_STANDARDS.md
+      ref_absolute_positions: change a room or its benches_number in seed_rooms.csv, not here.
+    # a view that only publishes ref_absolute_positions: its contract checks names and types, the data tests are in
+    # ref_absolute_positions.yml. see docs/CODING_STANDARDS.md
     columns:
       - name: absolute_position
         data_type: text
         description: "The key: room, bench and relative position joined by _, such as 1.30_4_front_left_up."
-        data_tests:
-          - elementary.expect_column_values_to_be_unique_with_context:
-              config:
-                meta:
-                  description: absolute_position must be unique
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: absolute_position is missing
       - name: room
-        data_type: varchar(50)
+        data_type: text
         description: The room, see dim_rooms.
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: room is missing
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('dim_rooms')
-                field: room
-              config:
-                meta:
-                  description: room is not in dim_rooms
       - name: bench
         data_type: integer
         description: The bench in the room, from 1 to the benches_number of the room.
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: bench is missing
       - name: relative_position
         data_type: text
         description: Where on the bench, see dim_relative_positions.
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: relative_position is missing
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('dim_relative_positions')
-                field: relative_position
-              config:
-                meta:
-                  description: relative_position is not in dim_relative_positions

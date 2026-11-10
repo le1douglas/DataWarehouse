@@ -1,0 +1,49 @@
+models:
+  - name: ref_absolute_positions
+    description: >-
+      Every place a journal entry can be measured at, generated from ref_rooms and ref_relative_positions. Staging and
+      silver test against it, dim_absolute_positions publishes it. Change a room or its benches_number in
+      seed_rooms.csv.
+    columns:
+      - name: absolute_position
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: absolute_position must be unique
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: absolute_position is missing
+      - name: room
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room is missing
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('ref_rooms')
+                field: room
+              config:
+                meta:
+                  description: room is not in ref_rooms
+      - name: bench
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: bench is missing
+      - name: relative_position
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: relative_position is missing
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('ref_relative_positions')
+                field: relative_position
+              config:
+                meta:
+                  description: relative_position is not in ref_relative_positions

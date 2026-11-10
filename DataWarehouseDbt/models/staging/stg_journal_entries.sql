@@ -34,7 +34,7 @@ with
 
     assign_absolute_position as (
         -- room, bench and relative position joined into the one key of the place, such as 1.30_4_front_left_up. null
-        -- when a part is null, so not_null fails; a combination that does not exist fails the seed_absolute_positions
+        -- when a part is null, so not_null fails; a combination that does not exist fails the ref_absolute_positions
         -- relationships test. room, bench and relative_position are helpers: cast_select keeps only silver's columns
         select *, room || '_' || bench || '_' || relative_position as absolute_position from mapped
     )

@@ -30,14 +30,15 @@ models:
         description: The flowering room the plants batch is grown in.
         constraints:
           - type: not_null
-        # a data test, not a foreign key: recreating the seed's view drops a foreign key with CASCADE, and an
-        # incremental silver never adds it again. staging tests the load, this tests every row, so a room that is no
+        # a data test, not a foreign key: a view such as ref_rooms has no constraints, and an incremental silver
+        # never adds a foreign key again. staging tests the load, this tests every row, so a room that is no
         # longer flowering in seed_rooms is reported
         data_tests:
-          - elementary.relationships_with_context:
+          - relationships_where_with_context:
               arguments:
-                to: ref('seed_flowering_rooms')
+                to: ref('ref_rooms')
                 field: room
+                to_condition: "assigned_stage = 'flowering'"
               config:
                 meta:
                   description: room is not a flowering room in seed_rooms

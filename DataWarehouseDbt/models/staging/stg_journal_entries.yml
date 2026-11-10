@@ -40,7 +40,7 @@ models:
                   description: device is missing
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_devices')
+                to: ref('ref_devices')
                 field: device
               config:
                 meta:
@@ -53,11 +53,11 @@ models:
                   description: room or spot is missing, or spot is not drip or drain and left or right joined by _, such as drip_left
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_absolute_positions')
+                to: ref('ref_absolute_positions')
                 field: absolute_position
               config:
                 meta:
-                  description: this room, bench and relative position are not in seed_absolute_positions
+                  description: this room, bench and relative position are not in ref_absolute_positions
       - name: ml
         data_tests:
           - elementary.not_null_with_context:

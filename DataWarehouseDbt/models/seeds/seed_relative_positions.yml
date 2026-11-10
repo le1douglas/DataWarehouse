@@ -1,5 +1,0 @@
-models:
-  - name: seed_relative_positions
-    description: >-
-      Every relative position, generated from seed_relative_position_values. Reference data like a seed: staging and
-      silver test against it, dim_relative_positions publishes it. Change a value in seed_relative_position_values.csv.

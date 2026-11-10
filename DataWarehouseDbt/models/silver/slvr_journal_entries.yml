@@ -33,7 +33,7 @@ models:
         data_tests:
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_devices')
+                to: ref('ref_devices')
                 field: device
               config:
                 meta:
@@ -47,11 +47,11 @@ models:
         data_tests:
           - elementary.relationships_with_context:
               arguments:
-                to: ref('seed_absolute_positions')
+                to: ref('ref_absolute_positions')
                 field: absolute_position
               config:
                 meta:
-                  description: absolute_position is not in seed_absolute_positions
+                  description: absolute_position is not in ref_absolute_positions
       - name: ml
         data_type: integer
         description: The volume.

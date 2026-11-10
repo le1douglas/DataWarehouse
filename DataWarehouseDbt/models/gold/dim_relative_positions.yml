@@ -2,43 +2,19 @@ models:
   - name: dim_relative_positions
     description: >-
       Where on the bench a journal entry was measured: one row per combination of a depth, a horizontal and a vertical
-      value. Published from seed_relative_positions: add or change a value in seed_relative_position_values.csv, not here.
-    # a view, so it always equals the seed. a view has no constraints: its key and values are checked by data tests.
-    # see docs/CODING_STANDARDS.md
+      value. Published from ref_relative_positions: add or change a value in seed_relative_position_values.csv, not here.
+    # a view that only publishes ref_relative_positions: its contract checks names and types, the data tests are in
+    # ref_relative_positions.yml. see docs/CODING_STANDARDS.md
     columns:
       - name: relative_position
         data_type: text
         description: "The key: depth, horizontal and vertical joined by _, such as front_left_up."
-        data_tests:
-          - elementary.expect_column_values_to_be_unique_with_context:
-              config:
-                meta:
-                  description: relative_position must be unique
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: relative_position is missing
       - name: depth
-        data_type: varchar(50)
+        data_type: text
         description: front or back.
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: depth is missing
       - name: horizontal
-        data_type: varchar(50)
+        data_type: text
         description: left or right.
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: horizontal is missing
       - name: vertical
-        data_type: varchar(50)
+        data_type: text
         description: up or down.
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: vertical is missing

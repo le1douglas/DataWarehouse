@@ -1,0 +1,34 @@
+models:
+  - name: ref_relative_positions
+    description: >-
+      Every relative position, generated from seed_relative_position_values. Staging and silver test against it,
+      dim_relative_positions publishes it. Change a value in seed_relative_position_values.csv.
+    columns:
+      - name: relative_position
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: relative_position must be unique
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: relative_position is missing
+      - name: depth
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: depth is missing
+      - name: horizontal
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: horizontal is missing
+      - name: vertical
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: vertical is missing

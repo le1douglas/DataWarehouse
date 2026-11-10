@@ -45,9 +45,9 @@ models:
       +schema: silver
       +contract:
         enforced: true    # every column declared with its type in the yml
-    seeds:               # reference data generated from the seeds only, beside them: staging and silver may test against it
-      +materialized: view
-      +schema: seeds
+    ref:                 # the reference data: each seed cast, or combined, and tested. staging and silver test against it,
+      +materialized: view  # gold publishes it. views, so they always equal the seeds; in silver, as trusted data
+      +schema: silver
     gold:                # the modeled views over silver and the seeds: no copy of the data, no constraints
       +materialized: view
       +schema: gold
@@ -59,10 +59,14 @@ models:
   elementary:
     +schema: elementary
 
-# reference data kept by hand in a csv, reloaded by every dbt build. types in the seed's own yml
+# reference data kept by hand in a csv, reloaded by every dbt build. a csv has no yml: dbt infers every type, except
+# room, which is text in every seed (1.30 inferred as a number could become 1.3). its ref_ model holds its tests.
+# a seed without a room column logs a warning that the override is ignored. after a type changes, run
+# dbt seed --full-refresh once
 seeds:
   DataWarehouseDbt:
     +schema: seeds
+    +column_types: {room: text}
 
 # every version of the rows of one table, see docs/CODING_STANDARDS.md. a snapshot mirrors its table exactly,
 # so every one is configured the same: key in its own yml, every column compared, a deleted row is a version too

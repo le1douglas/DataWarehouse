@@ -60,10 +60,11 @@ models:
               config:
                 meta:
                   description: room is missing
-          - elementary.relationships_with_context:
+          - relationships_where_with_context:
               arguments:
-                to: ref('seed_flowering_rooms')
+                to: ref('ref_rooms')
                 field: room
+                to_condition: "assigned_stage = 'flowering'"
               config:
                 meta:
                   description: room is not a flowering room in seed_rooms
