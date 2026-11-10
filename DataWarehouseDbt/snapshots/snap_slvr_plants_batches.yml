@@ -1,0 +1,9 @@
+snapshots:
+  - name: snap_slvr_plants_batches
+    description: >-
+      Every version of the published plants batches. It depends on silver, so it is skipped when silver is. A plants
+      batch sent again gets a new row_id, so it shows as the old row deleted and a new row added; its history is read
+      by pp_number.
+    relation: ref("slvr_plants_batches")
+    config:
+      unique_key: row_id

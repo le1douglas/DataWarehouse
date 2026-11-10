@@ -1,0 +1,31 @@
+seeds:
+  - name: seed_sample_plants_batches
+    description: >-
+      A synthetic plants batches file, standing in for bronze until its source is chosen. It has bronze's shape: row_id
+      and load_id as bronze assigns them, every other column as text, as received. Every row is one load,
+      01a1c4ce-7dfd-743d-bbc7-c8dc231a6a1f. Not reference data, despite its folder: once the source is loaded by
+      Meltano this becomes dw_bronze.brnz_plants_batches, the test below moves to models/sources.yml, and
+      stg_plants_batches swaps its ref for a source (docs/REMINDERS.md).
+    config:
+      # every type is written, so dbt never infers one: 1.30 inferred as a number could become 1.3. the uuids match
+      # bronze's types, so staging filters load_id the same way it will on bronze
+      column_types:
+        row_id: uuid
+        load_id: uuid
+        room: text
+        strain: text
+        pp_number: text
+        date_veg_start: text
+        date_flower_start: text
+        date_flower_end: text
+        plants_number: text
+    data_tests:
+      # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            row_condition: >-
+              load_id = '{{ var("load_id") }}'::uuid
+          config:
+            meta:
+              description: the file must have at least one row

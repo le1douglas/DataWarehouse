@@ -1,0 +1,79 @@
+models:
+  - name: slvr_plants_batches
+    description: The published plants batches, one row per pp_number, each with its planned timeline.
+                The latest load is added only when staging passes every data test, and replaces the rows with the same
+                pp_number.
+                The columns and types below are the only place they are declared, cast_select macro is generated from them,
+                and the contract checks that the table has exactly these. The constraints are the last guard, the data
+                tests of stg_plants_batches.yml are what reports a bad row. If the two disagree the build fails.
+    config:
+      unique_key: &batch_key [pp_number]  #this is for dbt
+    constraints:
+      - type: unique
+        columns: *batch_key  #this is for postgres
+      # two plants batches cannot share a room with the same flowering dates. staging tests it within the load only:
+      # a clash with a row already in silver is refused by this constraint, as a database error (docs/REMINDERS.md)
+      - type: unique
+        columns: [room, date_flower_start, date_flower_end]
+      - type: check
+        expression: "date_flower_start > date_veg_start"
+      - type: check
+        expression: "date_flower_end > date_flower_start"
+    columns:
+      - name: row_id
+        data_type: uuid
+        description: The key, assigned by bronze when the plants batch was received.
+        constraints:
+          - type: primary_key
+      - name: room
+        data_type: text
+        description: The flowering room the plants batch is grown in.
+        constraints:
+          - type: not_null
+        # a data test, not a foreign key: recreating the seed's view drops a foreign key with CASCADE, and an
+        # incremental silver never adds it again. staging tests the load, this tests every row, so a room that is no
+        # longer flowering in seed_rooms is reported
+        data_tests:
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('seed_flowering_rooms')
+                field: room
+              config:
+                meta:
+                  description: room is not a flowering room in seed_rooms
+      - name: strain
+        data_type: text
+        description: The variety of the plants.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "length(strain) <= 50"
+      - name: pp_number
+        data_type: text
+        description: What the grower calls the plants batch, PP- and six digits, such as PP-000366.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "pp_number ~ '^PP-[0-9]{6}$'"
+      - name: date_veg_start
+        data_type: date
+        description: The planned start of the vegetative stage.
+        constraints:
+          - type: not_null
+      - name: date_flower_start
+        data_type: date
+        description: The planned start of the flowering stage.
+        constraints:
+          - type: not_null
+      - name: date_flower_end
+        data_type: date
+        description: The planned end of the flowering stage.
+        constraints:
+          - type: not_null
+      - name: plants_number
+        data_type: integer
+        description: How many plants the batch has.
+        constraints:
+          - type: not_null
+          - type: check
+            expression: "plants_number between 1 and 2000"
