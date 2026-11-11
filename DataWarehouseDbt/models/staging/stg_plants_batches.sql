@@ -24,4 +24,4 @@ with
         where load_id = '{{ var("load_id") }}'::uuid
     )
 
-    {{ cast_select("mapped", "plants_batches") }}
+    {{ cast_select("mapped") }}

@@ -1,26 +1,34 @@
-# only data tests: the columns, types, key and constraints are declared in slvr_journal_entries.yml.
+# the columns, their types and every data test of journal entries, the only place they are declared. cast_select casts
+# to these types, the contract (dbt_project.yml) checks that the view has exactly these, and silver takes them from
+# select *. the key is unique_key in slvr_journal_entries.sql; slvr_journal_entries.yml is documentation only.
 # an uncastable value is null here, so not_null reports both. range and relationship tests ignore nulls, so a bad value
 # gives one error. the description of a data test is the message the user sees.
 models:
   - name: stg_journal_entries
     data_tests:
-      # the key is unique_key in the silver yml; both tests read it from there
-      - unique_within_upload
-      - unique_across_accepted_uploads
+      # the business key, unique_key in the config of slvr_journal_entries.sql: repeated here, and must match it.
+      # silver's rows with the same key are the ones the load replaces, so this checks the load alone: a duplicate
+      # within the load is an error, a key already in silver is an overwrite, listed by warn_overwritten_rows (which
+      # reads unique_key itself)
+      - unique_in_load_and_silver:
+          arguments:
+            columns: [date_time, device]
+          config:
+            meta:
+              description: another journal entry in this load has this date_time and device
+      - warn_overwritten_rows
     columns:
       - name: row_id
-        data_tests:
-          - elementary.expect_column_values_to_be_unique_with_context:
-              config:
-                meta:
-                  description: row_id must be unique
+        data_type: uuid
       - name: date_time
+        data_type: timestamptz
         data_tests:
           - elementary.not_null_with_context:
               config:
                 meta:
                   description: date_time is missing or not a date and time
       - name: device
+        data_type: text
         data_tests:
           - elementary.not_null_with_context:
               config:
@@ -34,6 +42,7 @@ models:
                 meta:
                   description: device is not in seed_devices
       - name: absolute_position
+        data_type: text
         data_tests:
           - elementary.not_null_with_context:
               config:
@@ -47,6 +56,7 @@ models:
                 meta:
                   description: this room, bench and relative position are not in ref_absolute_positions
       - name: ml
+        data_type: integer
         data_tests:
           - elementary.not_null_with_context:
               config:
@@ -60,6 +70,7 @@ models:
                 meta:
                   description: ml must be between 0 and 5000
       - name: ec
+        data_type: numeric
         data_tests:
           - elementary.not_null_with_context:
               config:
@@ -73,6 +84,7 @@ models:
                 meta:
                   description: ec must be between 0 and 10
       - name: ph
+        data_type: numeric
         data_tests:
           - elementary.not_null_with_context:
               config:
@@ -86,6 +98,7 @@ models:
                 meta:
                   description: ph must be between 0 and 14
       - name: temperature
+        data_type: numeric
         data_tests:
           - elementary.not_null_with_context:
               config:

@@ -6,15 +6,15 @@
     replaced. before silver's table exists, nothing is replaced.
     the test runs on stg_<dataset>, and reads the dataset from that name. a dataset without silver is a mistake in the yml
 #}
-{% test unique_across_accepted_uploads(model) %}
-    {# a warning, not a refusal: a newer upload overrides the older row in silver, and this lists it #}
-    {{ config(severity="warn", meta={"description": "this key is already present in silver"}) }}
+{% test warn_overwritten_rows(model) %}
+    {# only a warning, never a refusal: a newer load overwrites the older row in silver, and this lists it #}
+    {{ config(severity="warn", meta={"description": "this row overwrites the row with the same key in silver"}) }}
     {# the graph is empty while dbt parses: silver_node stays none, and the test is a placeholder #}
     {% set silver_name = "slvr_" ~ model.identifier.removeprefix("stg_") if execute else none %}
     {% set silver_node = graph.nodes.get("model." ~ project_name ~ "." ~ silver_name) if execute else none %}
 
     {% if execute and (silver_node is none or not silver_node.config.unique_key) %}
-        {{ exceptions.raise_compiler_error("unique_across_accepted_uploads on " ~ model.identifier ~ ": " ~ silver_name ~ " has not been found or has no unique_key") }}
+        {{ exceptions.raise_compiler_error("warn_overwritten_rows on " ~ model.identifier ~ ": " ~ silver_name ~ " has not been found or has no unique_key") }}
     {% endif %}
 
     {% set silver =adapter.get_relation(silver_node.database, silver_node.schema, silver_node.alias) if silver_node else none %}
