@@ -7,10 +7,8 @@ models:
                 and the contract checks that the table has exactly these. The constraints are the last guard, the data
                 tests of stg_journal_entries.yml are what reports a bad row. If the two disagree the build fails.
     config:
-      unique_key: &measurement_key [date_time, device]  #this is for dbt
-    constraints:
-      - type: unique
-        columns: *measurement_key  #this is for postgres
+      # what a load replaces, what the staging uniqueness tests check, and silver's unique index (unique_key_index)
+      unique_key: [date_time, device]
     columns:
       - name: row_id
         data_type: uuid

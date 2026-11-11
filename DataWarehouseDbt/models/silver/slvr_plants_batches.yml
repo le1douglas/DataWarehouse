@@ -7,10 +7,9 @@ models:
                 and the contract checks that the table has exactly these. The constraints are the last guard, the data
                 tests of stg_plants_batches.yml are what reports a bad row. If the two disagree the build fails.
     config:
-      unique_key: &batch_key [pp_number]  #this is for dbt
+      # what a load replaces, what the staging uniqueness tests check, and silver's unique index (unique_key_index)
+      unique_key: [pp_number]
     constraints:
-      - type: unique
-        columns: *batch_key  #this is for postgres
       # two plants batches cannot share a room with the same flowering dates. staging tests it within the load only:
       # a clash with a row already in silver is refused by this constraint, as a database error (docs/REMINDERS.md)
       - type: unique
