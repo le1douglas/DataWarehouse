@@ -2,20 +2,29 @@ models:
   - name: dim_absolute_positions
     description: >-
       Every place a journal entry can be measured at: one row per room, bench of that room and relative position,
-      with a key to dim_rooms and to dim_relative_positions for their attributes. Published from
-      ref_absolute_positions: change a room or its benches_number in seed_rooms.csv, not here.
-    # a view that only publishes ref_absolute_positions: its contract checks names and types, the data tests are in
-    # ref_absolute_positions.yml. see docs/CODING_STANDARDS.md
+      flattened so the attributes of the room and of the relative position are columns here. Published from
+      ref_absolute_positions: change a room or its benches_total in seed_rooms.csv, a relative position value in
+      seed_relative_position_values.csv, not here.
+    # a view that only publishes ref_absolute_positions, joined to ref_rooms and ref_relative_positions: its contract
+    # checks names and types, the data tests are in their yml files. see docs/CODING_STANDARDS.md
     columns:
       - name: absolute_position
         data_type: text
         description: "The key: room, bench and relative position joined by _, such as 1.30_4_front_left_up."
       - name: room
         data_type: text
-        description: The room, see dim_rooms.
+        description: The room, as text so 1.30 keeps its zero.
+      - name: floor_number
+        data_type: integer
       - name: bench
         data_type: integer
-        description: The bench in the room, from 1 to the benches_number of the room.
-      - name: relative_position
+        description: The bench in the room, from 1 to the benches_total of the room.
+      - name: depth
         data_type: text
-        description: Where on the bench, see dim_relative_positions.
+        description: front or back.
+      - name: horizontal
+        data_type: text
+        description: left or right.
+      - name: vertical
+        data_type: text
+        description: up or down.

@@ -2,7 +2,7 @@ models:
   - name: ref_absolute_positions
     description: >-
       Every place a journal entry can be measured at, generated from ref_rooms and ref_relative_positions. Staging and
-      silver test against it, dim_absolute_positions publishes it. Change a room or its benches_number in
+      silver test against it, dim_absolute_positions publishes it. Change a room or its benches_total in
       seed_rooms.csv.
     columns:
       - name: absolute_position

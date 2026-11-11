@@ -14,5 +14,5 @@ models:
         data_type: integer
       - name: assigned_stage
         data_type: text
-      - name: benches_number
+      - name: benches_total
         data_type: integer
