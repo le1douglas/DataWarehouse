@@ -9,24 +9,17 @@
 {% test warn_overwritten_rows(model) %}
     {# only a warning, never a refusal: a newer load overwrites the older row in silver, and this lists it #}
     {{ config(severity="warn", meta={"description": "this row overwrites the row with the same key in silver"}) }}
-    {# the graph is empty while dbt parses: silver_node stays none, and the test is a placeholder #}
-    {% set silver_name = "slvr_" ~ get_dataset_name(model.identifier) if execute else none %}
-    {% set silver_node = graph.nodes.get("model." ~ project_name ~ "." ~ silver_name) if execute else none %}
+    {# the graph is empty while dbt parses: silver is none, and the test is a placeholder #}
+    {% set silver = get_silver_of_staging(model) %}
 
-    {% if execute and (silver_node is none or not silver_node.config.unique_key) %}
-        {{ exceptions.raise_compiler_error("warn_overwritten_rows on " ~ model.identifier ~ ": " ~ silver_name ~ " has not been found or has no unique_key") }}
-    {% endif %}
-
-    {% set silver =adapter.get_relation(silver_node.database, silver_node.schema, silver_node.alias) if silver_node else none %}
-
-    {% if silver is none %}
+    {% if silver is none or silver.relation is none %}
         select * from {{ model }} where false
     {% else %}
         select latest.*, replaced.row_id as replaced_row_id
         from {{ model }} as latest
-        inner join {{ silver }} as replaced
+        inner join {{ silver.relation }} as replaced
             on
-            {%- for column in silver_node.config.unique_key %}
+            {%- for column in silver.unique_key %}
                 {{ "and " if not loop.first }}latest.{{ column }} = replaced.{{ column }}
             {%- endfor %}
         where latest.row_id <> replaced.row_id

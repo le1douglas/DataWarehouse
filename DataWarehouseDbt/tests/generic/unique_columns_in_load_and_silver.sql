@@ -11,36 +11,20 @@
     without unique_key, is a mistake in the yml
 #}
 {% test unique_columns_in_load_and_silver(model, columns) %}
-    {# the graph is empty while dbt parses: silver_node stays none, and the test is a placeholder #}
-    {% set silver_name = "slvr_" ~ get_dataset_name(model.identifier) if execute else none %}
-    {% set silver_node = graph.nodes.get("model." ~ project_name ~ "." ~ silver_name) if execute else none %}
-
-    {% if execute and (silver_node is none or not silver_node.config.unique_key) %}
-        {{
-            exceptions.raise_compiler_error(
-                model.identifier ~ ": " ~ silver_name ~ " has not been found or has no unique_key"
-            )
-        }}
-    {% endif %}
-
-    {% set silver = (
-        adapter.get_relation(silver_node.database, silver_node.schema, silver_node.alias)
-        if silver_node
-        else none
-    ) %}
-    {# unique_key is a list, or a single column name #}
-    {% set unique_key = silver_node.config.unique_key if silver_node else [] %}
-    {% set unique_key = [unique_key] if unique_key is string else unique_key %}
+    {# the graph is empty while dbt parses: silver is none, and the test is a placeholder #}
+    {% set silver = get_silver_of_staging(model) %}
+    {% set relation = silver.relation if silver else none %}
+    {% set unique_key = silver.unique_key if silver else [] %}
 
     with
         -- what silver holds after the load: the load, and the rows of silver it does not replace
         after_load as (
             select row_id, {{ columns | join(", ") }}
             from {{ model }}
-            {% if silver is not none %}
+            {% if relation is not none %}
                 union all
                 select kept.row_id, {% for column in columns %} kept.{{ column }}{{ ", " if not loop.last }}{% endfor %}
-                from {{ silver }} as kept
+                from {{ relation }} as kept
                 where
                     not exists (
                         select
@@ -74,13 +58,7 @@
 #}
 {% test unique_business_key_in_load_and_silver(model) %}
     {# the graph is empty while dbt parses: the key stays empty, and the test is a placeholder #}
-    {% set silver_node = (
-        graph.nodes.get("model." ~ project_name ~ ".slvr_" ~ get_dataset_name(model.identifier))
-        if execute
-        else none
-    ) %}
-    {% set unique_key = silver_node.config.unique_key if silver_node else [] %}
-    {% set unique_key = [unique_key] if unique_key is string else unique_key %}
+    {% set silver = get_silver_of_staging(model) %}
 
-    {{ test_unique_columns_in_load_and_silver(model, unique_key) }}
+    {{ test_unique_columns_in_load_and_silver(model, silver.unique_key if silver else []) }}
 {% endtest %}
