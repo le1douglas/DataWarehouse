@@ -48,6 +48,7 @@ drip_drain.py, the terminal in cli_terminal.py. Only the standard library is use
 
 import argparse
 import asyncio
+import sys
 from collections.abc import Coroutine
 from pathlib import Path
 from typing import TypeVar
@@ -454,5 +455,10 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
+    except drip_drain.HeaderNotRecognized as error:
+        # read at the start, before any room: a message instead of a traceback, and an exit code that keeps
+        # the window of OnePen.cmd open so it can be read
+        print(f"# error: {error}")
+        sys.exit(1)
     if room is not None and not room.saving and room.started:
         print(f"# room {room.name} not complete, not written to {CSV_PATH.name}")

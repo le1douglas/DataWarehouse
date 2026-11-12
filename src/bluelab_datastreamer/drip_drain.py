@@ -209,6 +209,10 @@ def next_empty(values: list, start: int) -> int | None:
     return None
 
 
+class HeaderNotRecognized(ValueError):
+    """The header of the csv is not CSV_COLUMNS, such as a csv left by a version that writes other columns."""
+
+
 def read_csv() -> list[dict]:
     """The rows of the csv, without empty lines. Creates the csv with its header if it is missing or empty."""
     if not CSV_PATH.exists() or not CSV_PATH.read_text().strip():
@@ -216,7 +220,10 @@ def read_csv() -> list[dict]:
     with CSV_PATH.open(newline="") as file:
         reader = csv.DictReader(file)
         if tuple(reader.fieldnames or ()) != CSV_COLUMNS:
-            raise ValueError(f"the header of {CSV_PATH.name} is not {','.join(CSV_COLUMNS)}")
+            raise HeaderNotRecognized(
+                f"header of {CSV_PATH.name} not recognized: {','.join(reader.fieldnames or ())}, "
+                f"expected {','.join(CSV_COLUMNS)}"
+            )
         return [row for row in reader if any((cell or "").strip() for cell in row.values())]
 
 
