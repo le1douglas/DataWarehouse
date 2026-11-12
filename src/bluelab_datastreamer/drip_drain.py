@@ -13,7 +13,21 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 CSV_PATH = Path(__file__).with_name("drip_drain.csv")
-CSV_COLUMNS = ("date_time", "device", "spot", "ml", "ec", "ph", "temperature", "room")
+CSV_COLUMNS = (
+    "date_time",
+    "subject",
+    "notes",
+    "type",
+    "ec",
+    "ec_pore",
+    "ec_bulk",
+    "ph",
+    "mc",
+    "temp",
+    "device",
+    "media",
+    "tags",
+)
 # the rooms of each part of the day, in the order they are taken
 ROOMS = {
     "morning": ("1.30", "1.29", "1.28", "1.27", "1.26", "1.25", "1.24", "0.31", "0.32", "0.33"),
@@ -22,7 +36,7 @@ ROOMS = {
 }
 # once every room of the part of the day is done, the csv is moved to this folder, named by the
 # date and the number of the part of the day, such as 261020-1.csv. the path in the container, where
-# compose mounts the windows folder DAILY_RAW_CSV_DIR of .env (user_output/journal_entries)
+# compose mounts the windows folder DAILY_RAW_CSV_DIR of .env
 DEFAULT_DAILY_DIR = Path("/daily_raw_csv")
 # the time zone of the readings and of the date in the daily csv name, from TZ, set once in docker/compose.yaml.
 # read here instead of taken from the container's clock, which falls back to UTC without an error: an empty or
@@ -43,13 +57,8 @@ def line_names(room_name: str) -> tuple[str, ...]:
     return ROOM_LINE_NAMES.get(room_name, LINE_NAMES)
 
 
-def spot(line_name: str) -> str:
-    """The line as the csv stores it, such as drip_left for Drip Left. drip_1 stays drip_1."""
-    return line_name.lower().replace(" ", "_")
-
-
 def now() -> str:
-    """The time of a reading, in TIMEZONE but written without it."""
+    """The time of a reading, in TIMEZONE but written without it, as in a journal entries export."""
     return datetime.now(TIMEZONE).replace(tzinfo=None).isoformat(timespec="microseconds")
 
 
@@ -57,11 +66,11 @@ def csv_values(ec: float | None, ph: float | None, temperature: float | None) ->
     """The values as the csv stores them, an empty string for none."""
     # a dry probe has no ec, and its ph and temperature are not of the water either
     if ec is None:
-        return {"ec": "", "ph": "", "temperature": ""}
+        return {"ec": "", "ph": "", "temp": ""}
     return {
         "ec": f"{ec:.2f}",
         "ph": "" if ph is None else f"{ph:.2f}",
-        "temperature": "" if temperature is None else f"{temperature:.1f}",
+        "temp": "" if temperature is None else f"{temperature:.1f}",
     }
 
 
@@ -159,11 +168,19 @@ class Room:
         self.saving = True
 
     def rows(self, pen_name: str) -> list[dict]:
-        """The room as rows of the csv, one per line."""
-        return [
-            {"device": pen_name, "spot": spot(line_name), "ml": str(int(ml)), "room": self.name, **reading}
-            for line_name, ml, reading in zip(self.line_names, self.ml, self.readings)
-        ]
+        """The room as rows of the csv, in the shape of a journal entries export."""
+        rows = []
+        for ml, reading in zip(self.ml, self.readings):
+            row = dict.fromkeys(CSV_COLUMNS, "")
+            row.update(
+                subject=f"{pen_name} - Measurement",
+                notes=str(int(ml)),
+                type="measurement",
+                tags=self.name,
+                **reading,
+            )
+            rows.append(row)
+        return rows
 
     def _advance(self, values: list) -> None:
         """After a line is filled: goes to the next empty line of values.
@@ -192,10 +209,6 @@ def next_empty(values: list, start: int) -> int | None:
     return None
 
 
-class HeaderNotRecognized(ValueError):
-    """The header of the csv is not CSV_COLUMNS, such as a csv left by a version that writes other columns."""
-
-
 def read_csv() -> list[dict]:
     """The rows of the csv, without empty lines. Creates the csv with its header if it is missing or empty."""
     if not CSV_PATH.exists() or not CSV_PATH.read_text().strip():
@@ -203,10 +216,7 @@ def read_csv() -> list[dict]:
     with CSV_PATH.open(newline="") as file:
         reader = csv.DictReader(file)
         if tuple(reader.fieldnames or ()) != CSV_COLUMNS:
-            raise HeaderNotRecognized(
-                f"header of {CSV_PATH.name} not recognized: {','.join(reader.fieldnames or ())}, "
-                f"expected {','.join(CSV_COLUMNS)}"
-            )
+            raise ValueError(f"the header of {CSV_PATH.name} is not {','.join(CSV_COLUMNS)}")
         return [row for row in reader if any((cell or "").strip() for cell in row.values())]
 
 
@@ -217,19 +227,19 @@ def next_room(rows: list[dict], part_of_day: str, skipped: frozenset[str] = froz
     done. Every row must be of the part of the day: a csv of the other one is not continued.
     """
     rooms = ROOMS[part_of_day]
-    others = sorted({row["room"] for row in rows} - set(rooms))
+    others = sorted({row["tags"] for row in rows} - set(rooms))
     if others:
         raise ValueError(
-            f"{CSV_PATH.name} has rows of rooms {', '.join(others)}, which are not rooms of this part of the day"
+            f"{CSV_PATH.name} has rows with tags {', '.join(others)}, which are not rooms of this part of the day"
         )
     start = 0
     if rows:
-        last = rows[-1]["room"]
+        last = rows[-1]["tags"]
         index = rooms.index(last)
-        # the rows of the last room are the ones at the end with its room
+        # the rows of the last room are the ones at the end with its tags
         in_room = 0
         for row in reversed(rows):
-            if row["room"] != last:
+            if row["tags"] != last:
                 break
             in_room += 1
         if in_room < len(line_names(last)) and last not in skipped:

@@ -21,7 +21,9 @@
   // Claude Code's command line, which needs node. its login, settings and memory are in the claude-config volume
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    // pwsh, for the PowerShell extension below. the .ps1 scripts still run on windows, not in here
+    "ghcr.io/devcontainers/features/powershell:1": {}
   },
   "customizations": {
     "vscode": {
@@ -41,6 +43,8 @@
         "cweijan.vscode-postgresql-client2",
         // csv files as a table
         "ReprEng.csv",
+        // the .ps1 scripts of docker/: syntax, completion and analysis. needs pwsh, from the feature above
+        "ms-vscode.PowerShell",
         "anthropic.claude-code"
       ],
       "settings": {
