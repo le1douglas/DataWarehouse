@@ -1,4 +1,4 @@
-# prod setup: builds the dbt, webapps and meltano images of the git tag in RELEASE (docker/.env.prod), starts
+# prod setup: builds the dbt, webapps, meltano and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
 # postgres and checks dbt's connection. the images are built from the tag's code: the repo is switched to the tag for the build
 # and back to where it was after, even when the build fails.
 # safe to run again: images of RELEASE that exist are not rebuilt, and up changes only what changed. loads nothing.
@@ -35,7 +35,7 @@ try {
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "dbt:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "meltano:$release")) {
+    if ((Test-Docker image inspect "dbt:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "meltano:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {
@@ -55,7 +55,7 @@ try {
         git switch --detach $release
         Assert-Ok "git switch to $release"
         try {
-            & docker @prod build dbt webapps meltano
+            & docker @prod build dbt webapps meltano datastreamer
             Assert-Ok 'the build'
         }
         finally {

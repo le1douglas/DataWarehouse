@@ -26,7 +26,7 @@ ml to the readings at any time, and the left arrow back to the ml, as they are o
 every line of one is filled, the next empty line of the other is taken. A value the pen has not
 got, such as with the probe in the air, shows as n.a., a line not recorded yet as -. When every
 line has both its ml and its reading, a confirmation is shown below the lines (up goes back to
-change them). Enter on it appends the room to drip_drain.csv, next to this file, in the shape of
+change them). Enter on it appends the room to drip_drain.csv, in the work-in-progress volume, in the shape of
 a journal entries export, and the next room starts. While a room is shown, q quits after enter to
 confirm (any other key stays and does nothing else), and a room that is not complete then is not
 written. s skips the room at any time, after enter to confirm (any other key keeps the room and
@@ -37,8 +37,9 @@ kept after q: a room skipped is taken again when the readings are started again.
 
 It runs in its own container (the datastreamer service, docker/datastreamer/Dockerfile), in an
 interactive terminal (no -T), or no key can be read, next to the bridge (onepen_bridge.py) on
-Windows. OnePen.cmd, next to this file, starts both. Compose mounts the daily folder at --daily-dir. By
-hand, from the repo root:
+Windows. OnePen.cmd, next to this file, starts both, on prod: the image of the release in docker/.env.prod.
+Compose mounts the output folder that holds --daily-dir. On dev, from the branch checked out, by hand from the
+repo root:
 
     docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm datastreamer
 

@@ -188,7 +188,7 @@ Setup is done.
 
 - A load is two commands with the same id, until an orchestrator runs them: Meltano appends the file to bronze, then
   `dbt build` judges that load alone and adds it to silver only when its data tests pass
-- The file is `journal_entries_input/journal_entries.csv` in `USER_INPUT_DIR` (`docker/.env`), named in `tap-csv` in
+- The file is `journal_entries/journal_entries.csv` in `USER_INPUT_DIR` (`docker/.env`), named in `tap-csv` in
   `DataWarehouseMeltano/meltano.yml`. Dev and prod read the same folder
 - PowerShell, a new id for every load:
 
@@ -246,7 +246,7 @@ All in the dev container, from `/usr/app`:
 
 - **`docker` fails with `Docker Desktop is unable to start`, or a setup script with `docker does not answer`:** open
   Docker Desktop and wait until the engine runs; tick autostart (section 1).
-- **`set USER_INPUT_DIR / NICEGUI_PORT / DAILY_RAW_CSV_DIR in the env file`:** `docker/.env` is missing or incomplete.
+- **`set USER_INPUT_DIR / NICEGUI_PORT / USER_OUTPUT_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
 - **Prod `up` fails with `pull access denied for dbt` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.

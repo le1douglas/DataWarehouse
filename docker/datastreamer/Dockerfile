@@ -18,6 +18,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY src/bluelab_datastreamer/ ./src/bluelab_datastreamer/
 
-# "docker compose run --rm datastreamer" takes the readings. the csv of the readings is written next to the code,
-# in src/bluelab_datastreamer: without the repo mounted (dev), it is lost with the container
+# "docker compose run --rm datastreamer" takes the readings. the csv of the rooms done so far is in the work-in-progress
+# volume (docker/compose.yaml), so it outlives the container
 ENTRYPOINT ["python", "src/bluelab_datastreamer/drip_drain_cli.py"]

@@ -14,7 +14,7 @@ plugins:
       # only at USER_INPUT_MOUNT (docker/compose.yaml). each dataset reads one file, named here, from its own subfolder
       files:
       - entity: brnz_journal_entries #table name in dw_bronze
-        path: ${USER_INPUT_MOUNT}/journal_entries_input/journal_entries.csv
+        path: ${USER_INPUT_MOUNT}/journal_entries/journal_entries.csv
         keys: []
         encoding: utf-8-sig
         delimiter: ','
