@@ -1,10 +1,10 @@
 {#
     a plain index on a silver table's unique_key, run as a post-hook on every silver model (dbt_project.yml). the key
-    is declared once, in the config of slvr_<dataset>.sql: it decides what a load replaces (delete+insert), and the
+    is declared once, in slvr_<dataset>.yml: it decides what a load replaces (delete+insert), and the
     staging tests read it. the index only makes the delete of every load fast: a duplicate key is reported by the
     staging data tests, not refused by postgres. created once, with the table: after that it already exists and this
     does nothing.
-    a silver model without unique_key is a mistake in its sql
+    a silver model without unique_key is a mistake in its yml
 #}
 {% macro unique_key_index() %}
     {# dbt also renders hooks while it parses, before the config is complete: the check waits for execution #}

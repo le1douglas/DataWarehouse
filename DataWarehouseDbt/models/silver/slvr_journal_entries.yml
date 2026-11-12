@@ -1,10 +1,14 @@
-# documentation only. the columns, their types and the data tests are declared in stg_journal_entries.yml, the key in
-# slvr_journal_entries.sql. the types reach silver through select *, and dbt docs reads them from the database
+# documentation, and the business key. the columns, their types and the data tests are declared in
+# stg_journal_entries.yml. the types reach silver through select *, and dbt docs reads them from the database
 models:
   - name: slvr_journal_entries
     description: The published journal entries, one row per measurement.
                 A load is added only when staging passes every data test, and replaces the rows with the same
                 date_time and device.
+    config:
+      # the business key, declared only here. what a load replaces (delete+insert), what the staging uniqueness tests
+      # check, and silver's index (unique_key_index)
+      unique_key: [date_time, device]
     columns:
       - name: row_id
         description: The key, assigned by bronze when the journal entry was received.

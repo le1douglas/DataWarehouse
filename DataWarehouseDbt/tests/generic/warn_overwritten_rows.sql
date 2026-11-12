@@ -10,7 +10,7 @@
     {# only a warning, never a refusal: a newer load overwrites the older row in silver, and this lists it #}
     {{ config(severity="warn", meta={"description": "this row overwrites the row with the same key in silver"}) }}
     {# the graph is empty while dbt parses: silver_node stays none, and the test is a placeholder #}
-    {% set silver_name = "slvr_" ~ model.identifier.removeprefix("stg_") if execute else none %}
+    {% set silver_name = "slvr_" ~ get_dataset_name(model.identifier) if execute else none %}
     {% set silver_node = graph.nodes.get("model." ~ project_name ~ "." ~ silver_name) if execute else none %}
 
     {% if execute and (silver_node is none or not silver_node.config.unique_key) %}

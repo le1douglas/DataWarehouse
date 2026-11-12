@@ -15,7 +15,11 @@ _Avoid_: Subject, sensor
 
 **Key**:
 What identifies a row of any dataset, such as a journal entry or a plants batch: an identifier it is given when it is received, unique across every dataset, that never changes and follows it through every layer.
-_Avoid_: Natural key. Some columns are unique together, such as the date and time and the device of a journal entry, or the PP number of a plants batch, but they do not identify the row.
+_Avoid_: Business key, which identifies the thing a row describes, not the row.
+
+**Business key**:
+The columns that identify one real-world thing in a dataset. The same thing can arrive more than once, each time as a new row with its own key: the newest replaces the older one, so silver holds one row per business key. It is enforced by dbt, not by database constraints.
+_Avoid_: Primary key, which is the key; natural key
 
 **Room**:
 A growing room, such as `1.30`: where a journal entry was measured, or where a plants batch is grown. Each room has an assigned stage, such as flowering, and a number of benches.
@@ -39,7 +43,7 @@ A group of plants of one strain, grown together in one room, with its planned ti
 _Avoid_: Plant, which is one of the plants in it; crop, cycle
 
 **PP number**:
-What the grower calls a plants batch, such as `PP-000366`: `PP-` and six digits. One plants batch has one PP number. It identifies the batch for the grower, but it is not its key: a plants batch sent again with the same PP number replaces the earlier one.
+What the grower calls a plants batch, such as `PP-000366`: `PP-` and six digits. One plants batch has one PP number, and it is the business key of a plants batch: a plants batch sent again with the same PP number replaces the earlier one.
 _Avoid_: Batch id, which suggests the key
 
 **Strain**:

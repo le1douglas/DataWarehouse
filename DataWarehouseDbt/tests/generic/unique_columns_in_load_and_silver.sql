@@ -1,25 +1,24 @@
 {#
     the rows of the latest load whose columns equal another row, of the same load or of slvr_<dataset>: what silver will
-    hold after this load, checked as one set. a row of silver with the same unique_key as a row of the load is about to
-    be replaced by delete+insert, so it is left out: a batch sent again unchanged is not a clash with its own older
-    version. a null never equals anything, so a row with a null in columns is left to its not_null test.
-    silver is read from the graph, not with ref: a ref would run this test after silver, when the rows are already
+    hold after this load, checked as one set. for any set of columns that must be unique together; the business key
+    has its own test below.
+    a row of silver with the same unique_key as a row of the load is about to be replaced by delete+insert, so it is
+    left out: a batch sent again unchanged is not a clash with its own older version. a null never equals anything, so
+    a row with a null in columns is left to its not_null test.
+    silver is read from the graph, not with ref: a ref would run the test after silver, when the rows are already
     replaced. before silver's table exists, only the load is checked.
-    the test runs on stg_<dataset>, and reads the dataset from that name. a dataset without silver is a mistake in the yml
+    the test runs on stg_<dataset>, and reads the dataset from that name. a dataset without silver, or a silver yml
+    without unique_key, is a mistake in the yml
 #}
-{% test unique_in_load_and_silver(model, columns) %}
+{% test unique_columns_in_load_and_silver(model, columns) %}
     {# the graph is empty while dbt parses: silver_node stays none, and the test is a placeholder #}
-    {% set silver_name = "slvr_" ~ model.identifier.removeprefix("stg_") if execute else none %}
+    {% set silver_name = "slvr_" ~ get_dataset_name(model.identifier) if execute else none %}
     {% set silver_node = graph.nodes.get("model." ~ project_name ~ "." ~ silver_name) if execute else none %}
 
     {% if execute and (silver_node is none or not silver_node.config.unique_key) %}
         {{
             exceptions.raise_compiler_error(
-                "unique_in_load_and_silver on "
-                ~ model.identifier
-                ~ ": "
-                ~ silver_name
-                ~ " has not been found or has no unique_key"
+                model.identifier ~ ": " ~ silver_name ~ " has not been found or has no unique_key"
             )
         }}
     {% endif %}
@@ -65,4 +64,23 @@
                 latest.row_id <> other.row_id
                 {%- for column in columns %} and latest.{{ column }} = other.{{ column }} {%- endfor %}
         )
+{% endtest %}
+
+{#
+    unique_columns_in_load_and_silver on the business key: unique_key in slvr_<dataset>.yml, the only place it is
+    declared, so this test takes no columns. silver's rows with the same key are the ones the load replaces, so in
+    practice this checks the load alone: a duplicate within the load is an error, a key already in silver is an
+    overwrite, listed by warn_overwritten_rows
+#}
+{% test unique_business_key_in_load_and_silver(model) %}
+    {# the graph is empty while dbt parses: the key stays empty, and the test is a placeholder #}
+    {% set silver_node = (
+        graph.nodes.get("model." ~ project_name ~ ".slvr_" ~ get_dataset_name(model.identifier))
+        if execute
+        else none
+    ) %}
+    {% set unique_key = silver_node.config.unique_key if silver_node else [] %}
+    {% set unique_key = [unique_key] if unique_key is string else unique_key %}
+
+    {{ test_unique_columns_in_load_and_silver(model, unique_key) }}
 {% endtest %}

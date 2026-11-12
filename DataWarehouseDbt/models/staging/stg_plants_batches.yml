@@ -1,25 +1,22 @@
 # the columns, their types and every data test of plants batches, the only place they are declared. cast_select casts
 # to these types, the contract (dbt_project.yml) checks that the view has exactly these, and silver takes them from
-# select *. the key is unique_key in slvr_plants_batches.sql; slvr_plants_batches.yml is documentation only.
+# select *. the business key is unique_key in slvr_plants_batches.yml, the rest of that file is documentation.
 # an uncastable value is null here, so not_null reports both. range, format and relationship tests ignore nulls, so a
 # bad value gives one error. the description of a data test is the message the user sees.
 models:
   - name: stg_plants_batches
     data_tests:
-      # the business key, unique_key in the config of slvr_plants_batches.sql: repeated here, and must match it.
-      # silver's rows with the same key are the ones the load replaces, so this checks the load alone: a duplicate
-      # within the load is an error, a key already in silver is an overwrite, listed by warn_overwritten_rows (which
-      # reads unique_key itself)
-      - unique_in_load_and_silver:
-          arguments:
-            columns: [pp_number]
+      # the business key, read from unique_key in slvr_plants_batches.yml: the test takes no columns. silver's
+      # rows with the same key are the ones the load replaces, so this checks the load alone: a duplicate within the
+      # load is an error, a key already in silver is an overwrite, listed by warn_overwritten_rows
+      - unique_business_key_in_load_and_silver:
           config:
             meta:
-              description: another plants batch in this load has this pp_number
+              description: another plants batch in this load has the same business key
       - warn_overwritten_rows
       # two plants batches cannot share a room at the same time. the dates are estimates, so only the exact same
       # flowering dates count: overlapping ones are not checked. the load and silver are checked together
-      - unique_in_load_and_silver:
+      - unique_columns_in_load_and_silver:
           arguments:
             columns: [room, date_flower_start, date_flower_end]
           config:
