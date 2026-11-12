@@ -10,11 +10,11 @@ plugins:
     # not on pypi: pinned to a git tag
     pip_url: git+https://github.com/MeltanoLabs/tap-csv.git@v1.3.2
     config:
-      # the entity is the table name in dw_bronze. the export folder is mounted read only at EXPORTS_MOUNT (set in
-      # docker/compose.yaml), the file in it is JOURNAL_ENTRIES_CSV from the env file
+      # the entity is the table name in dw_bronze. the input folder (USER_INPUT_DIR in the env file) is mounted read
+      # only at USER_INPUT_MOUNT (docker/compose.yaml). each dataset reads one file, named here, from its own subfolder
       files:
       - entity: brnz_journal_entries #table name in dw_bronze
-        path: ${EXPORTS_MOUNT}/${JOURNAL_ENTRIES_CSV}
+        path: ${USER_INPUT_MOUNT}/journal_entries_input/journal_entries.csv
         keys: []
         encoding: utf-8-sig
         delimiter: ','

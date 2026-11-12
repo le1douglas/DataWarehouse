@@ -1,9 +1,10 @@
 # the time zone of every container (its clock and date), written only here: a time without a zone is assumed to be amsterdam
 x-timezone: &timezone Europe/Amsterdam
 
-# where EXPORTS_DIR (a windows folder, from the env file) appears inside the meltano container, written only here:
-# the same anchor is the mount target and EXPORTS_MOUNT, which DataWarehouseMeltano/meltano.yml reads
-x-exports-mount: &exports_mount /inbox/exports
+# where USER_INPUT_DIR (the windows folder of every csv to load, from the env file) appears inside the meltano container,
+# under the same name, written only here: the same anchor is the mount target and USER_INPUT_MOUNT, which
+# DataWarehouseMeltano/meltano.yml reads. the file of each dataset is named in meltano.yml, not here
+x-user-input-mount: &user_input_mount /user_input
 
 # the connection to postgres, written once here. the host is the service name below, and the port the one postgres listens
 # on inside the docker network: not POSTGRES_PORT, which is published to windows and changes per environment.
@@ -79,15 +80,14 @@ services:
       TARGET_POSTGRES_DATABASE: *postgres_db
       TARGET_POSTGRES_USER: *postgres_user
       TARGET_POSTGRES_PASSWORD: *postgres_password
-      # the export folder inside the container, and the file in it: read by tap-csv in DataWarehouseMeltano/meltano.yml
-      EXPORTS_MOUNT: *exports_mount
-      JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
+      # the input folder inside the container: tap-csv in DataWarehouseMeltano/meltano.yml reads each file from it
+      USER_INPUT_MOUNT: *user_input_mount
     volumes:
       # the input, read only, so meltano can never change an export. the long form, because the short one
       # ("source:target:ro") is a single string, where the anchor cannot go
       - type: bind
-        source: ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}
-        target: *exports_mount
+        source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
+        target: *user_input_mount
         read_only: true
     depends_on:
       - postgres

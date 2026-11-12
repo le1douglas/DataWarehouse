@@ -22,7 +22,7 @@ ROOMS = {
 }
 # once every room of the part of the day is done, the csv is moved to this folder, named by the
 # date and the number of the part of the day, such as 261020-1.csv. the path in the container, where
-# compose mounts the windows folder DAILY_RAW_CSV_DIR of .env
+# compose mounts the windows folder DAILY_RAW_CSV_DIR of .env (user_output/journal_entries)
 DEFAULT_DAILY_DIR = Path("/daily_raw_csv")
 # the time zone of the readings and of the date in the daily csv name, from TZ, set once in docker/compose.yaml.
 # read here instead of taken from the container's clock, which falls back to UTC without an error: an empty or
