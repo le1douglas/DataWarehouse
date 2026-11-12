@@ -1,0 +1,28 @@
+# documentation, and the business key. the columns, their types and the data tests are declared in
+# stg_plants_batches.yml. the types reach silver through select *, and dbt docs reads them from the database
+models:
+  - name: slvr_plants_batches
+    description: The published plants batches, one row per pp_number, each with its planned timeline.
+                A load is added only when staging passes every data test, and replaces the rows with the same
+                pp_number.
+    config:
+      # the business key, declared only here. what a load replaces (delete+insert), what the staging uniqueness tests
+      # check, and silver's index (unique_key_index)
+      unique_key: [pp_number]
+    columns:
+      - name: row_id
+        description: The key, assigned by bronze when the plants batch was received.
+      - name: room
+        description: The flowering room the plants batch is grown in.
+      - name: strain
+        description: The variety of the plants.
+      - name: pp_number
+        description: What the grower calls the plants batch, PP- and six digits, such as PP-000366.
+      - name: date_veg_start
+        description: The planned start of the vegetative stage.
+      - name: date_flower_start
+        description: The planned start of the flowering stage.
+      - name: date_flower_end
+        description: The planned end of the flowering stage.
+      - name: plants_number
+        description: How many plants the batch has.

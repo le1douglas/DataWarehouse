@@ -73,7 +73,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v dw-dev_claude-config:/data -v "$PWD":/back
 
 ## What stays on Windows
 
-- The repo, and the folders shared with the containers: `EXPORTS_DIR`, `DAILY_RAW_CSV_DIR` and `Database/dumps`.
+- The repo, and the folders shared with the containers: `USER_INPUT_DIR`, `DAILY_RAW_CSV_DIR` and `Database/dumps`.
 - Docker Desktop, Excel, and VS Code with only the Dev Containers extension: the project is opened only in the dev
   container, whose extensions are listed in `devcontainer.json`.
 - The OnePen bridge (`onepen_bridge.py` with bleak, started by `OnePen.cmd`), because the Bluetooth adapter is on

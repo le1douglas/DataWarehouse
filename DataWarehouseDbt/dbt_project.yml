@@ -34,11 +34,26 @@ models:
     staging:             # mapping and auto-fixes, then a generated safe cast
       +materialized: view
       +schema: bronze    # bronze tables are the raw data, bronze views are staging
-    silver:              # no logic, rebuilt only when all staging tests pass
-      +materialized: table
-      +schema: silver
       +contract:
-        enforced: true    # every column declared with its type in the yml
+        enforced: true    # every column declared with its type in the yml, the only place; silver takes them from here
+    silver:              # no logic, rebuilt only when all staging tests pass
+      # every silver model is incremental: staging holds only the latest load, which is added only when its tests
+      # pass. a row of the load replaces the row with the same unique_key (in the model's yml), so a newer upload
+      # overrides the older one. full_refresh is off: a rebuild from staging would keep only the latest load.
+      # no contract: the types come from staging through select *, and on_schema_change fails the build when they change
+      +materialized: incremental
+      +incremental_strategy: delete+insert
+      +on_schema_change: fail
+      +full_refresh: false
+      # row_id is the primary key, the only constraint: every other rule is a data test on staging. the index on
+      # unique_key is a plain one, it makes the delete of each load fast
+      +post-hook:
+        - "{{ primary_key('row_id') }}"
+        - "{{ unique_key_index() }}"
+      +schema: silver
+    ref:                 # the reference data: each seed cast, or combined, and tested. staging and silver test against it,
+      +materialized: view  # gold publishes it. views, so they always equal the seeds; in silver, as trusted data
+      +schema: silver
     gold:                # the modeled views over silver and the seeds: no copy of the data, no constraints
       +materialized: view
       +schema: gold
@@ -50,10 +65,14 @@ models:
   elementary:
     +schema: elementary
 
-# reference data kept by hand in a csv, reloaded by every dbt build. types in the seed's own yml
+# reference data kept by hand in a csv, reloaded by every dbt build. a csv has no yml: dbt infers every type, except
+# room, which is text in every seed (1.30 inferred as a number could become 1.3). its ref_ model holds its tests.
+# a seed without a room column logs a warning that the override is ignored. after a type changes, run
+# dbt seed --full-refresh once
 seeds:
   DataWarehouseDbt:
     +schema: seeds
+    +column_types: {room: text}
 
 # every version of the rows of one table, see docs/CODING_STANDARDS.md. a snapshot mirrors its table exactly,
 # so every one is configured the same: key in its own yml, every column compared, a deleted row is a version too

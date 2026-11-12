@@ -1,0 +1,20 @@
+models:
+  - name: dim_relative_positions
+    description: >-
+      Where on the bench a journal entry was measured: one row per combination of a depth, a horizontal and a vertical
+      value. Published from ref_relative_positions: add or change a value in seed_relative_position_values.csv, not here.
+    # a view that only publishes ref_relative_positions: its contract checks names and types, the data tests are in
+    # ref_relative_positions.yml. see docs/CODING_STANDARDS.md
+    columns:
+      - name: relative_position
+        data_type: text
+        description: "The key: depth, horizontal and vertical joined by _, such as front_left_up."
+      - name: depth
+        data_type: text
+        description: front or back.
+      - name: horizontal
+        data_type: text
+        description: left or right.
+      - name: vertical
+        data_type: text
+        description: up or down.

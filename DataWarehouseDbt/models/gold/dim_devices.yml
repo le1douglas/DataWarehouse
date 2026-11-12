@@ -1,31 +1,12 @@
 models:
   - name: dim_devices
     description: The measuring devices. Change a device in seed_devices.csv, not here.
-    # a view, so it always equals the seed. a view has no constraints: its key is checked by data tests.
-    # see docs/CODING_STANDARDS.md
+    # a view that only publishes ref_devices: its contract checks names and types, the data tests are in
+    # ref_devices.yml. see docs/CODING_STANDARDS.md
     columns:
       - name: device
-        data_type: varchar(50)
-        data_tests:
-          - elementary.expect_column_values_to_be_unique_with_context:
-              config:
-                meta:
-                  description: device must be unique
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: device is missing
+        data_type: text
       - name: manufacturer
-        data_type: varchar(50)
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: manufacturer is missing
+        data_type: text
       - name: is_working
         data_type: boolean
-        data_tests:
-          - elementary.not_null_with_context:
-              config:
-                meta:
-                  description: is_working is missing

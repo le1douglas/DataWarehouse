@@ -1,4 +1,4 @@
-# Git Strategy
+# Git Standards
 
 ## 1. Philosophy
 
@@ -458,6 +458,8 @@ The script is safe to run again: each ruleset is matched by its name and replace
 | Hotfix branch | `hotfix-name` | `hotfix-crash-on-start` |
 | Release tag | `vX.Y.0`, annotated | `v4.0.0` |
 | Hotfix tag | `vX.Y.Z`, annotated (patch +1) | `v4.0.1` |
+
+Tags follow [semantic versioning](https://semver.org) and end in `-alpha` while the warehouse is not in real use
 
 ## 7. Remember
 

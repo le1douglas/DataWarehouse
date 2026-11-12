@@ -17,12 +17,13 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 - Use `dbt build`, not `dbt run`: dbt-postgres replaces a view by dropping the old one with `CASCADE`, so rebuilding a view alone silently drops every view on top of it.
 - A package added to `packages.yml` means updating `package-lock.yml` too.
 - A load is two commands, until an orchestrator runs them: `meltano run tap-csv target-postgres` with a new uuidv7 (`select uuidv7()`) in `MELTANO_RUN_ID`, which every bronze row gets as `load_id`, then `dbt build --select source:dw_bronze.<table>+ --vars "{load_id: <the same id>}"`. Staging holds only that load, so its data tests judge it alone, and a file without rows is refused. Without the var, a build that compiles staging fails on purpose. Silver adds it only when they pass, and a row replaces the one with the same `unique_key`, with a warning.
-- A new database needs the DDL, then one whole `dbt build` without the var, then the first load and its build. The whole build makes what a load's selection leaves out (seeds, dims, Elementary's tables, `aud_issues`); it fails the row-count test and skips silver, as expected. Without it the first load's build errors on the missing dims, and nothing reaches `aud_issues`.
+- A new database needs the DDL, then one whole `dbt build` without the var, then the first load and its build. The whole build makes what a load's selection leaves out (seeds, `ref_` models, dims, Elementary's tables, `aud_issues`); it fails the row-count test and skips silver, as expected. Without it the first load's build errors on the missing dims, and nothing reaches `aud_issues`.
 
 ## Data rules
 - `row_id` is the primary key and the only column shared between datasets, carried unchanged through the pipeline.
-- A datetime is text up to staging, which appends the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) and casts it to `timestamptz(0)`, rounded to the second. The cast accepts only a zone that cannot be misread (`macros/cast_select.sql`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
+- A datetime is text up to staging, which appends the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) and casts it to `timestamptz`, to the microsecond. The cast accepts only a zone that cannot be misread (`macros/cast_select.sql`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
 - Empty string means null. The decimal separator is `.`.
+- Silver keeps the precision the source sends. Gold reduces it per dataset: for journal entries, `date_time` truncated to the second and decimals rounded to `numeric(4,2)`.
 
 ## Agent skills
 

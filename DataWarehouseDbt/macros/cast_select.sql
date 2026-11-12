@@ -1,17 +1,16 @@
 {#
-    the columns of slvr_<dataset> as declared in its yml, in their order, except row_id. the yml is the only place their
-    types are declared, the contract checks them. it is read from the graph, not with ref, so staging does not depend
-    on silver. returns a list of column objects (name, data_type), empty while dbt parses
+    the columns of the model being built as declared in its yml, in their order, except row_id. the staging yml is the
+    only place the types are declared: the contract checks the view against it, and silver takes the types from
+    select *. returns a list of column objects (name, data_type), empty while dbt parses
 #}
-{% macro silver_columns(dataset) %}
+{% macro declared_columns() %}
     {% if not execute %} {{ return([]) }} {% endif %}
 
-    {% set silver_node = graph.nodes.get("model." ~ project_name ~ ".slvr_" ~ dataset) %}
-    {{ return(silver_node.columns.values() | rejectattr("name", "equalto", "row_id") | list) }}
+    {{ return(model.columns.values() | rejectattr("name", "equalto", "row_id") | list) }}
 {% endmacro %}
 
 {#
-    the condition that a value of col can be cast to the data_type its silver column declares. a timestamptz value
+    the condition that a value of col can be cast to the data_type its column declares. a timestamptz value
     must also be ISO from its first character: yyyy-mm-dd, T or a space, an hour 00-23 and minutes and seconds 00-59.
     postgres would also read 03/11/2026 (month first), yesterday (the day of the build), 24:00 and second 60.
     it must end in a time zone that cannot be misread, right after the time: Z, an offset (+02, +0200, +02:00),
@@ -30,14 +29,14 @@
 {% endmacro %}
 
 {#
-    the final select of stg_<dataset>: row_id unchanged, every other column of slvr_<dataset>.yml cast to its data_type.
+    the final select of stg_<dataset>: row_id unchanged, every other column of stg_<dataset>.yml cast to its data_type.
     a value that cannot be cast becomes null and fails its not_null data test, so every bad row is reported, instead of
     the view crashing on the first
 #}
-{% macro cast_select(cte, dataset) %}
+{% macro cast_select(cte) %}
 select
     row_id
-    {%- for col in silver_columns(dataset) %}
+    {%- for col in declared_columns() %}
         {%- set name = adapter.quote(col.name) %}
     , case when {{ castable(col) }} then {{ name }}::{{ col.data_type }} end as {{ name }}
     {%- endfor %}

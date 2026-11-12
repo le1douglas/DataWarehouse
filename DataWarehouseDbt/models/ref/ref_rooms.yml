@@ -1,0 +1,46 @@
+models:
+  - name: ref_rooms
+    description: >-
+      The growing rooms, cast from seed_rooms. Staging and silver test against it, dim_rooms publishes it. Change a
+      room in seed_rooms.csv.
+    columns:
+      - name: room
+        data_tests:
+          - elementary.expect_column_values_to_be_unique_with_context:
+              config:
+                meta:
+                  description: room must be unique
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room is missing
+      - name: room_time
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room_time is missing
+          - elementary.expression_is_true_with_context:
+              arguments:
+                expression: "in ('morning', 'afternoon', 'all_day')"
+              config:
+                meta:
+                  description: room_time is not morning, afternoon or all_day
+      - name: floor_number
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: floor_number is missing
+      - name: assigned_stage
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: assigned_stage is missing
+      - name: benches_total
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: benches_total is missing

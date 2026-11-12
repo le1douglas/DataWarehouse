@@ -1,4 +1,4 @@
-room,room_time,floor_number,assigned_stage,tables_number
+room,room_time,floor_number,assigned_stage,benches_total
 1.30,morning,1,flowering,7
 1.29,morning,1,flowering,7
 1.28,morning,1,flowering,7

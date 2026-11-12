@@ -488,9 +488,6 @@ $RECYCLE.BIN/
 # local issue tracker used by the agent skills
 .scratch/
 
-# local helper scripts (rebuild, load corrections)
-.scripts/
-
 # dbt per-user id file
 .user.yml
 
@@ -498,8 +495,15 @@ $RECYCLE.BIN/
 # next to their script, which is in git. not the backups of prod
 *.dump
 
-# the daily csv written by the datastreamer (DAILY_RAW_CSV_DIR in docker/.env): data, not code
-user_input/journal_entries/
+# the csv files to load (USER_INPUT_DIR in docker/.env) and the daily csv written by the datastreamer (DAILY_RAW_CSV_DIR):
+# data, not code. the folders stay in git through their .gitkeep. user_input/journal_entries is the datastreamer's folder
+# of v0.2.0
+user_input/**
+!user_input/*/
+!user_input/*/.gitkeep
+user_output/**
+!user_output/*/
+!user_output/*/.gitkeep
 
 # claude code's own permissions for this project, per machine: never committed. on windows a global git ignore
 # does the same, but the dev container does not have it

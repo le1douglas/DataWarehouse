@@ -10,18 +10,34 @@ with
             -- TODO change so it gets the source timezone from the csv.
             nullif(date_time, '') || ' {{ var("timezone") }}' as date_time,
             nullif(device, '') as device,
-            -- the csv sends spot as drip_or_drain and side joined by _, such as drip_left. a value without its two
-            -- parts gives an empty part, which is null here and fails not_null. so does a value with a third part
-            nullif(split_part(spot, '_', 1), '') as drip_or_drain,
-            case when split_part(spot, '_', 3) = '' then nullif(split_part(spot, '_', 2), '') end as side,
+            -- the csv sends spot as drip or drain and the side joined by _, such as drip_left. it becomes the relative
+            -- position: always front, drip is up and drain is down, so drip_left is front_left_up. any other value is
+            -- null here and fails not_null
+            case
+                when spot ~ '^(drip|drain)_(left|right)$'
+                then
+                    'front_'
+                    || split_part(spot, '_', 2)
+                    || case when split_part(spot, '_', 1) = 'drip' then '_up' else '_down' end
+            end as relative_position,
             nullif(ml, '') as ml,
             nullif(ec, '') as ec,
             nullif(ph, '') as ph,
             nullif(temperature, '') as temperature,
-            nullif(room, '') as room
+            nullif(room, '') as room,
+            -- the csv has no bench: every measurement is taken at bench 4 for now
+            '4' as bench
         from {{ source("dw_bronze", "brnz_journal_entries") }}
         -- one load only, the load_id var, so every data test judges that load alone. without the var, compilation fails
         where load_id = '{{ var("load_id") }}'::uuid
+    ),
+
+    assign_absolute_position as (
+        -- room, bench and relative position joined into the one key of the place, such as 1.30_4_front_left_up. null
+        -- when a part is null, so not_null fails; a combination that does not exist fails the ref_absolute_positions
+        -- relationships test. room, bench and relative_position are helpers: cast_select keeps only the columns
+        -- declared in stg_journal_entries.yml
+        select *, room || '_' || bench || '_' || relative_position as absolute_position from mapped
     )
 
-    {{ cast_select("mapped", "journal_entries") }}
+    {{ cast_select("assign_absolute_position") }}

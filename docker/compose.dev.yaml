@@ -64,10 +64,10 @@ services:
       - ..:/usr/app
       - dbt-state:/dbt-state
       - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
-      # the exports, read only, at the path of x-exports-mount in compose.yaml
+      # the input, read only, at the path of x-user-input-mount in compose.yaml
       - type: bind
-        source: ${EXPORTS_DIR:?set EXPORTS_DIR in the env file}
-        target: /inbox/exports
+        source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
+        target: /user_input
         read_only: true
       - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
       # Claude Code's login, settings, skills and memory (CLAUDE_CONFIG_DIR below), tied to docker, not to windows:
@@ -93,8 +93,7 @@ services:
       TARGET_POSTGRES_DATABASE: ${POSTGRES_DB}
       TARGET_POSTGRES_USER: ${POSTGRES_USER}
       TARGET_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      EXPORTS_MOUNT: /inbox/exports
-      JOURNAL_ENTRIES_CSV: ${JOURNAL_ENTRIES_CSV:?set JOURNAL_ENTRIES_CSV in the env file}
+      USER_INPUT_MOUNT: /user_input
       # webapps
       POSTGRESQL_SERVER: postgres
       POSTGRESQL_PORT: "5432"

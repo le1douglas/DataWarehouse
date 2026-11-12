@@ -14,10 +14,16 @@
   "overrideCommand": true,
   // closing the window leaves the containers running: postgres is shared with Excel
   "shutdownAction": "none",
+  // the ERD's server (dbterd.serverPort below). its tab runs in VS Code on windows and reaches the server only through
+  // this forward: a random port changed on every server restart and the forward did not follow. 8765 is taken by the
+  // OnePen bridge, 8080/8081 by NiceGUI, 5432/5433 by postgres
+  "forwardPorts": [8790],
   // Claude Code's command line, which needs node. its login, settings and memory are in the claude-config volume
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    // pwsh, for the PowerShell extension below. the .ps1 scripts still run on windows, not in here
+    "ghcr.io/devcontainers/features/powershell:1": {}
   },
   "customizations": {
     "vscode": {
@@ -28,6 +34,8 @@
         // dbt, and the colours of the jinja in the sql
         "innoverio.vscode-dbt-power-user",
         "samuelcolvin.jinjahtml",
+        // the ERD of the dbt models
+        "datnguye.dbterd-vscode",
         // meltano.yml
         "redhat.vscode-yaml",
         // the database in a sidebar. its backup and restore use the pg_dump and pg_restore of docker/dev/Dockerfile,
@@ -35,6 +43,8 @@
         "cweijan.vscode-postgresql-client2",
         // csv files as a table
         "ReprEng.csv",
+        // the .ps1 scripts of docker/: syntax, completion and analysis. needs pwsh, from the feature above
+        "ms-vscode.PowerShell",
         "anthropic.claude-code"
       ],
       "settings": {
@@ -46,6 +56,14 @@
         "dbt.dbtPythonPathOverride": "/opt/venvs/dbt/bin/python",
         "dbt.perspectiveTheme": "Vintage",
         "dbt.lineage.defaultExpansion": 13,
+        // the ERD reads <this path>/target/manifest.json and catalog.json, a folder name it does not let change. dbt
+        // writes them to the dbt-state volume (DBT_TARGET_PATH, docker/compose.dev.yaml), so the path is the volume, not
+        // the project: clicking a model does not open its .sql file. dbt docs generate refreshes both files.
+        // its server lives in a venv the extension makes on first use, outside the image: a container rebuild loses it
+        // and the extension makes it again
+        "dbterd.dbtProjectPath": "/dbt-state",
+        // a fixed port, forwarded by forwardPorts above. 0 would pick a new one on every restart
+        "dbterd.serverPort": 8790,
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
         "python.testing.pytestArgs": ["tests"],

@@ -1,108 +1,27 @@
+# documentation, and the business key. the columns, their types and the data tests are declared in
+# stg_journal_entries.yml. the types reach silver through select *, and dbt docs reads them from the database
 models:
   - name: slvr_journal_entries
-    description: The published journal entries, one row per measurement of a drip or drain on one side.
-                The latest load is added only when staging passes every data test, and replaces the rows with the same
+    description: The published journal entries, one row per measurement.
+                A load is added only when staging passes every data test, and replaces the rows with the same
                 date_time and device.
-                The columns and types below are the only place they are declared, cast_select macro is generated from them,
-                and the contract checks that the table has exactly these. The constraints are the last guard, the data
-                tests of stg_journal_entries.yml are what reports a bad row. If the two disagree the build fails.
     config:
-      unique_key: &measurement_key [date_time, device]  #this is for dbt
-    constraints:
-      - type: unique
-        columns: *measurement_key  #this is for postgres
+      # the business key, declared only here. what a load replaces (delete+insert), what the staging uniqueness tests
+      # check, and silver's index (unique_key_index)
+      unique_key: [date_time, device]
     columns:
       - name: row_id
-        data_type: uuid
         description: The key, assigned by bronze when the journal entry was received.
-        constraints:
-          - type: primary_key
       - name: date_time
-        data_type: timestamptz(0)
-        description: When the journal entry was measured, in the timezone var.
-        constraints:
-          - type: not_null
+        description: When the journal entry was measured, in the timezone var, to the microsecond as the csv sends it.
       - name: device
-        data_type: text
         description: The device that took the measurement.
-        constraints:
-          - type: not_null
-        # a data test, not a foreign key: recreating the seed's table drops a foreign key with CASCADE, and an incremental
-        # silver never adds it again. staging tests the load, this tests every row, so a device removed from the seed
-        # is reported
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_devices')
-                field: device
-              config:
-                meta:
-                  description: device is not in seed_devices
-      - name: drip_or_drain
-        data_type: text
-        description: Which solution was measured, drip or drain.
-        constraints:
-          - type: not_null
-        # a data test, not a foreign key: see device
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_drip_or_drain')
-                field: drip_or_drain
-              config:
-                meta:
-                  description: drip_or_drain is not in seed_drip_or_drain
-      - name: side
-        data_type: text
-        description: The side it was measured on, left or right.
-        constraints:
-          - type: not_null
-        # a data test, not a foreign key: see device
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_sides')
-                field: side
-              config:
-                meta:
-                  description: side is not in seed_sides
+      - name: absolute_position
+        description: Where it was measured, room, bench and relative position joined by _, such as 1.30_4_front_left_up.
       - name: ml
-        data_type: integer
         description: The volume.
-        constraints:
-          - type: not_null
-          - type: check
-            expression: "ml between 0 and 5000"
-      # plain numeric on purpose: numeric(4,2) would silently round 22.355 and hide a failure
+      # plain numeric on purpose: silver keeps every decimal the csv sends, gold rounds to 2
       - name: ec
-        data_type: numeric
-        constraints:
-          - type: not_null
-          - type: check
-            expression: "ec between 0 and 10 and ec = round(ec, 2)"
       - name: ph
-        data_type: numeric
-        constraints:
-          - type: not_null
-          - type: check
-            expression: "ph between 0 and 14 and ph = round(ph, 2)"
       - name: temperature
-        data_type: numeric
         description: The temperature.
-        constraints:
-          - type: not_null
-          - type: check
-            expression: "temperature between 0 and 50 and temperature = round(temperature, 2)"
-      - name: room
-        data_type: text
-        constraints:
-          - type: not_null
-        # a data test, not a foreign key: see device
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('seed_rooms')
-                field: room
-              config:
-                meta:
-                  description: room is not in seed_rooms

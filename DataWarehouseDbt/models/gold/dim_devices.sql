@@ -1,2 +1,3 @@
--- the seed as a view with a contract, so gold presents it with checked types; its data tests are in the yml
-select * from {{ ref("seed_devices") }}
+-- publishes ref_devices, with a contract so gold presents checked types; its data tests are in ref_devices.yml
+select device, manufacturer, is_working
+from {{ ref("ref_devices") }}

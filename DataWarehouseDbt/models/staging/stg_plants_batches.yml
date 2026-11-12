@@ -1,0 +1,117 @@
+# the columns, their types and every data test of plants batches, the only place they are declared. cast_select casts
+# to these types, the contract (dbt_project.yml) checks that the view has exactly these, and silver takes them from
+# select *. the business key is unique_key in slvr_plants_batches.yml, the rest of that file is documentation.
+# an uncastable value is null here, so not_null reports both. range, format and relationship tests ignore nulls, so a
+# bad value gives one error. the description of a data test is the message the user sees.
+models:
+  - name: stg_plants_batches
+    data_tests:
+      # the business key, read from unique_key in slvr_plants_batches.yml: the test takes no columns. silver's
+      # rows with the same key are the ones the load replaces, so this checks the load alone: a duplicate within the
+      # load is an error, a key already in silver is an overwrite, listed by warn_overwritten_rows
+      - unique_business_key_in_load_and_silver:
+          config:
+            meta:
+              description: another plants batch in this load has the same business key
+      - warn_overwritten_rows
+      # two plants batches cannot share a room at the same time. the dates are estimates, so only the exact same
+      # flowering dates count: overlapping ones are not checked. the load and silver are checked together
+      - unique_columns_in_load_and_silver:
+          arguments:
+            columns: [room, date_flower_start, date_flower_end]
+          config:
+            meta:
+              description: another plants batch, in this load or in silver, has this room and these flowering dates
+      - elementary.expect_column_pair_values_A_to_be_greater_than_B_with_context:
+          arguments:
+            column_A: date_flower_start
+            column_B: date_veg_start
+          config:
+            meta:
+              description: date_flower_start must be later than date_veg_start
+      - elementary.expect_column_pair_values_A_to_be_greater_than_B_with_context:
+          arguments:
+            column_A: date_flower_end
+            column_B: date_flower_start
+          config:
+            meta:
+              description: date_flower_end must be later than date_flower_start
+      - elementary.expression_is_true_with_context:
+          arguments:
+            expression: length(strain) <= 50
+          config:
+            meta:
+              description: strain is longer than 50 characters
+    columns:
+      - name: row_id
+        data_type: uuid
+      - name: room
+        data_type: text
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room is missing
+          - relationships_where_with_context:
+              arguments:
+                to: ref('ref_rooms')
+                field: room
+                to_condition: "assigned_stage = 'flowering'"
+              config:
+                meta:
+                  description: room is not a flowering room in seed_rooms
+      - name: strain
+        data_type: text
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: strain is missing
+      - name: pp_number
+        data_type: text
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: pp_number is missing
+          - elementary.expect_column_values_to_match_regex_with_context:
+              arguments:
+                regex: "^PP-[0-9]{6}$"
+              config:
+                meta:
+                  description: pp_number is not PP and six digits, such as PP000366 or PP-000366
+      - name: date_veg_start
+        data_type: date
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: date_veg_start is missing or not a date as dd/mm/yyyy
+      - name: date_flower_start
+        data_type: date
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: date_flower_start is missing or not a date as dd/mm/yyyy
+      - name: date_flower_end
+        data_type: date
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: date_flower_end is missing or not a date as dd/mm/yyyy
+      - name: plants_number
+        data_type: integer
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: plants_number is missing or not a whole number
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 2000
+              config:
+                meta:
+                  description: plants_number must be between 1 and 2000

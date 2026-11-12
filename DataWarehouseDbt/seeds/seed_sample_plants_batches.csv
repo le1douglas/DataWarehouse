@@ -1,0 +1,6 @@
+row_id,load_id,room,strain,pp_number,date_veg_start,date_flower_start,date_flower_end,plants_number
+01a1c4ce-7dfd-743d-bbc7-c8dd631e1eb8,01a1c4ce-7dfd-743d-bbc7-c8dc231a6a1f,0.31,WTF,PP000366,12/09/2026,30/09/2026,08/12/2026,1000
+01a1c4ce-7dfd-743d-bbc7-c8de1c5f0b88,01a1c4ce-7dfd-743d-bbc7-c8dc231a6a1f,0.32,WTF,PP-000367,12/09/2026,30/09/2026,08/12/2026,950
+01a1c4ce-7dfd-743d-bbc7-c8df3a11384c,01a1c4ce-7dfd-743d-bbc7-c8dc231a6a1f,1.30,Gelato,PP000368,01/10/2026,21/10/2026,30/12/2026,1200
+01a1c4ce-7dfd-743d-bbc7-c8e0272dc8bb,01a1c4ce-7dfd-743d-bbc7-c8dc231a6a1f,1.30,Gelato,PP-000369,05/01/2027,25/01/2027,05/04/2027,1200
+01a1c4ce-7dfd-743d-bbc7-c8e12a464f2d,01a1c4ce-7dfd-743d-bbc7-c8dc231a6a1f,1.17,Zkittlez,PP000370,15/11/2026,03/12/2026,12/02/2027,800

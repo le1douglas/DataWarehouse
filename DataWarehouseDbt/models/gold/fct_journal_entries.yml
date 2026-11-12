@@ -7,7 +7,7 @@ models:
         description: The key, assigned by bronze when the journal entry was received.
       - name: date_time
         data_type: timestamptz(0)
-        description: When the journal entry was measured.
+        description: When the journal entry was measured, truncated to the second.
       - name: device
         data_type: text
         description: The device that took the measurement.
@@ -19,46 +19,26 @@ models:
               config:
                 meta:
                   description: device is not in dim_devices
-      - name: room
+      - name: absolute_position
         data_type: text
-        description: The room the measurement was taken in.
+        description: Where it was measured, such as 1.30_4_front_left_up.
         data_tests:
           - elementary.relationships_with_context:
               arguments:
-                to: ref('dim_rooms')
-                field: room
+                to: ref('dim_absolute_positions')
+                field: absolute_position
               config:
                 meta:
-                  description: room is not in dim_rooms
-      - name: drip_or_drain
-        data_type: text
-        description: Which solution was measured, drip or drain.
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('dim_drip_or_drain')
-                field: drip_or_drain
-              config:
-                meta:
-                  description: drip_or_drain is not in dim_drip_or_drain
-      - name: side
-        data_type: text
-        description: The side it was measured on, left or right.
-        data_tests:
-          - elementary.relationships_with_context:
-              arguments:
-                to: ref('dim_sides')
-                field: side
-              config:
-                meta:
-                  description: side is not in dim_sides
+                  description: absolute_position is not in dim_absolute_positions
       - name: ml
         data_type: integer
         description: The volume.
       - name: ec
-        data_type: numeric
+        data_type: numeric(4,2)
+        description: Rounded to 2 decimals.
       - name: ph
-        data_type: numeric
+        data_type: numeric(4,2)
+        description: Rounded to 2 decimals.
       - name: temperature
-        data_type: numeric
-        description: The temperature.
+        data_type: numeric(4,2)
+        description: The temperature, rounded to 2 decimals.
