@@ -14,7 +14,11 @@ only) and **prod**.
   - `postgres:18`: the stock image, configured in `docker/compose.yaml`.
 - **Versions:** `docker/<image>/requirements.txt`, the only place a runtime library's version is written. The meltano
   plugins are pinned in `DataWarehouseMeltano/meltano.yml`, and the dbt packages in `DataWarehouseDbt/packages.yml`.
-- **Volume:** `pgdata`, the database. Each environment has its own: `dw-dev_pgdata` and `dw-prod_pgdata`.
+- **Volumes:** each environment has its own, prefixed by its project name (`dw-dev_*`, `dw-prod_*`):
+  - `pgdata`, the database.
+  - `work-in-progress`, at `/work_in_progress`: what a program has not finished yet, one subfolder per program, such
+    as `journal_entries/drip_drain.csv` of the datastreamer. It outlives the container. The dev container mounts
+    `dw-dev_work-in-progress` only.
 
 ## Dev: development only
 
@@ -40,7 +44,7 @@ only) and **prod**.
 ## Prod
 
 - The runtime images of the git tag in `RELEASE`, with nothing mounted. `docker/compose.prod.yaml` and `docker/.env.prod`.
-- The only volume is `dw-prod_pgdata`. Plugins and packages come from the image. `target` and `logs` are thrown away
+- The only volumes are `dw-prod_pgdata` and `dw-prod_work-in-progress`. Plugins and packages come from the image. `target` and `logs` are thrown away
   with the container.
 
 ## The dev container
@@ -73,7 +77,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v dw-dev_claude-config:/data -v "$PWD":/back
 
 ## What stays on Windows
 
-- The repo, and the folders shared with the containers: `USER_INPUT_DIR`, `DAILY_RAW_CSV_DIR` and `Database/dumps`.
+- The repo, and the folders shared with the containers: `USER_INPUT_DIR`, `USER_OUTPUT_DIR` and `Database/dumps`.
 - Docker Desktop, Excel, and VS Code with only the Dev Containers extension: the project is opened only in the dev
   container, whose extensions are listed in `devcontainer.json`.
 - The OnePen bridge (`onepen_bridge.py` with bleak, started by `OnePen.cmd`), because the Bluetooth adapter is on

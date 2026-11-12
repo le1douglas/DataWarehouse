@@ -9,14 +9,33 @@ cd /d "%~dp0..\.."
 rem what an earlier run may have left, such as a bridge that still holds the port
 call :cleanup
 
+rem prod: the datastreamer image of the git tag in RELEASE (docker\.env.prod), built by docker\03_setup_prod.ps1. a
+rem missing image stops here: compose would otherwise build one from whatever is checked out, not from the tag
+set "RELEASE="
+if exist docker\.env.prod (
+    for /f "tokens=1,* delims==" %%a in ('findstr /b /c:"RELEASE=" docker\.env.prod') do set "RELEASE=%%b"
+)
+if not defined RELEASE (
+    echo # error: no RELEASE= line in docker\.env.prod. run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1
+    pause
+    exit /b 1
+)
+docker image inspect datastreamer:%RELEASE% >nul 2>&1
+if errorlevel 1 (
+    echo # error: no datastreamer:%RELEASE% image. run: powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
+    pause
+    exit /b 1
+)
+
 rem the bridge writes to a log instead of this window, so it does not draw over the readings
 set "BRIDGE_LOG=%TEMP%\onepen_bridge.log"
 start "" /b cmd /c "uv run src\bluelab_datastreamer\onepen_bridge.py > "%BRIDGE_LOG%" 2>&1"
 
-rem a container of its own, removed after (--rm), with a fixed name so cleanup finds it. it needs no
-rem database, and the daily folder (DAILY_RAW_CSV_DIR in docker\.env) is mounted by compose. it retries every
-rem 2 seconds until the bridge listens
-docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm --name onepen-drip-drain datastreamer
+rem a container of its own in dw-prod, removed after (--rm), with a fixed name so cleanup finds it. it needs no
+rem database. compose mounts the output folder (USER_OUTPUT_DIR in docker\.env.prod) and the work-in-progress volume
+rem of prod. it retries every 2 seconds until the bridge listens. dev, from a branch, by hand:
+rem   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm datastreamer
+docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod run --rm --name onepen-drip-drain datastreamer
 set "EXITCODE=%ERRORLEVEL%"
 
 call :cleanup

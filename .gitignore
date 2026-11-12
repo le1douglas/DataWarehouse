@@ -495,9 +495,8 @@ $RECYCLE.BIN/
 # next to their script, which is in git. not the backups of prod
 *.dump
 
-# the csv files to load (USER_INPUT_DIR in docker/.env) and the daily csv written by the datastreamer (DAILY_RAW_CSV_DIR):
-# data, not code. the folders stay in git through their .gitkeep. user_input/journal_entries is the datastreamer's folder
-# of v0.2.0
+# the csv files to load (USER_INPUT_DIR in docker/.env) and the files the programs write, such as the daily csv of the
+# datastreamer (USER_OUTPUT_DIR): data, not code. the folders stay in git through their .gitkeep
 user_input/**
 !user_input/*/
 !user_input/*/.gitkeep

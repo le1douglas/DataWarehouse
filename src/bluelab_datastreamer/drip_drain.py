@@ -12,7 +12,10 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-CSV_PATH = Path(__file__).with_name("drip_drain.csv")
+# the rooms done so far, until the part of the day is done. in the journal_entries subfolder of the work-in-progress
+# volume, which compose mounts and names in WORK_IN_PROGRESS_MOUNT: it survives the container. the subfolder is named
+# only here, and made when it is missing
+CSV_PATH = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "journal_entries" / "drip_drain.csv"
 CSV_COLUMNS = (
     "date_time",
     "subject",
@@ -35,9 +38,10 @@ ROOMS = {
     "mothers": ("0.14", "0.15"),
 }
 # once every room of the part of the day is done, the csv is moved to this folder, named by the
-# date and the number of the part of the day, such as 261020-1.csv. the path in the container, where
-# compose mounts the windows folder DAILY_RAW_CSV_DIR of .env
-DEFAULT_DAILY_DIR = Path("/daily_raw_csv")
+# date and the number of the part of the day, such as 261020-1.csv. the subfolder of the output folder, which
+# compose mounts from the windows folder USER_OUTPUT_DIR of the env file and names in USER_OUTPUT_MOUNT. the
+# subfolder is named only here, and made when it is missing
+DEFAULT_DAILY_DIR = Path(os.environ["USER_OUTPUT_MOUNT"]) / "journal_entries"
 # the time zone of the readings and of the date in the daily csv name, from TZ, set once in docker/compose.yaml.
 # read here instead of taken from the container's clock, which falls back to UTC without an error: an empty or
 # unknown TZ stops the readings before the first one
@@ -215,6 +219,7 @@ class HeaderNotRecognized(ValueError):
 
 def read_csv() -> list[dict]:
     """The rows of the csv, without empty lines. Creates the csv with its header if it is missing or empty."""
+    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not CSV_PATH.exists() or not CSV_PATH.read_text().strip():
         CSV_PATH.write_text(",".join(CSV_COLUMNS) + "\n")
     with CSV_PATH.open(newline="") as file:
@@ -277,6 +282,8 @@ def daily_csv(daily_dir: Path, part_of_day: str) -> Path:
 
 
 def archive_csv(target: Path) -> None:
-    """Copies the csv to target, overwriting a file there, and leaves the csv with its header only."""
+    """Copies the csv to target, overwriting a file there, and leaves the csv with its header only.
+    Makes the folder of target when it is missing, such as after its name changed in DEFAULT_DAILY_DIR."""
+    target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(CSV_PATH, target)
     CSV_PATH.write_text(",".join(CSV_COLUMNS) + "\n")

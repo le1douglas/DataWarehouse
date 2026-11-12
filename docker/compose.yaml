@@ -6,6 +6,18 @@ x-timezone: &timezone Europe/Amsterdam
 # DataWarehouseMeltano/meltano.yml reads. the file of each dataset is named in meltano.yml, not here
 x-user-input-mount: &user_input_mount /user_input
 
+# where USER_OUTPUT_DIR (the windows folder of every file the programs write for the user, from the env file) appears
+# inside the datastreamer container, written only here: the same anchor is the mount target and USER_OUTPUT_MOUNT, which
+# src/bluelab_datastreamer/drip_drain.py reads. each program names its own subfolder in its code, not here
+x-user-output-mount: &user_output_mount /user_output
+
+# where the work-in-progress volume appears inside the datastreamer container, written only here: the same anchor is the
+# mount target and WORK_IN_PROGRESS_MOUNT, which src/bluelab_datastreamer/drip_drain.py reads. it holds what a program
+# has not finished yet, such as the csv of the rooms done so far, so it survives the container (run --rm). each program
+# names its own subfolder in its code. a volume, not a windows folder: compose prefixes it with the project name, so
+# dev (dw-dev) and prod (dw-prod) each have their own
+x-work-in-progress-mount: &work_in_progress_mount /work_in_progress
+
 # the connection to postgres, written once here. the host is the service name below, and the port the one postgres listens
 # on inside the docker network: not POSTGRES_PORT, which is published to windows and changes per environment.
 # the database, user and password come from the project env file (.env or .env.prod), so each is written once per
@@ -104,9 +116,18 @@ services:
     image: datastreamer:${RELEASE}
     environment:
       TZ: *timezone # stamps each reading and names the daily csv, read by src/bluelab_datastreamer/drip_drain.py
+      # the output folder inside the container: drip_drain.py saves the csv of a part of the day in its subfolder
+      USER_OUTPUT_MOUNT: *user_output_mount
+      # the work-in-progress folder inside the container: drip_drain.py keeps drip_drain.csv in its subfolder
+      WORK_IN_PROGRESS_MOUNT: *work_in_progress_mount
     volumes:
-      # where the csv of a part of the day is saved once every room is done
-      - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
+      # the output. the long form, because the short one is a single string, where the anchor cannot go
+      - type: bind
+        source: ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}
+        target: *user_output_mount
+      - type: volume
+        source: work-in-progress
+        target: *work_in_progress_mount
     profiles: ["job"] # not started by "up", only by "run"
 
   # a server: the NiceGUI pages of the warehouse, at http://localhost on NICEGUI_PORT.
@@ -133,3 +154,4 @@ services:
 
 volumes:
   pgdata:
+  work-in-progress:

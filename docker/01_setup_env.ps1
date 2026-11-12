@@ -64,9 +64,10 @@ RELEASE=dev
 # dataset, the file in it named in DataWarehouseMeltano/meltano.yml. it can move: change the line, no rebuild needed.
 # dev and prod read the same files
 USER_INPUT_DIR=../user_input
-# windows folder mounted into the datastreamer container, at /daily_raw_csv: where the csv of a part of the day is saved.
-# user_input/journal_entries is still the folder of v0.2.0
-DAILY_RAW_CSV_DIR=../user_output/journal_entries
+# windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output.
+# each program writes to its own subfolder, named in its code, such as journal_entries by the datastreamer. dev and prod
+# write to the same folder
+USER_OUTPUT_DIR=../user_output
 
 "@
 }
@@ -88,9 +89,9 @@ NICEGUI_PORT=8081
 RELEASE=$release
 # windows folder of every csv to load, mounted read only into the meltano container at /user_input: the same files as dev
 USER_INPUT_DIR=../user_input
-# windows folder mounted into the datastreamer container, at /daily_raw_csv
-# TODO placeholder (2026-10-22): compose.yaml requires it even though prod does not run the datastreamer yet
-DAILY_RAW_CSV_DIR=../user_output/journal_entries
+# windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output:
+# the same folder as dev
+USER_OUTPUT_DIR=../user_output
 
 "@
 }

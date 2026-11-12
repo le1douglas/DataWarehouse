@@ -69,7 +69,10 @@ services:
         source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
         target: /user_input
         read_only: true
-      - ${DAILY_RAW_CSV_DIR:?set DAILY_RAW_CSV_DIR in the env file}:/daily_raw_csv
+      # the output, at the path of x-user-output-mount in compose.yaml
+      - ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}:/user_output
+      # the work-in-progress volume of dw-dev, at the path of x-work-in-progress-mount in compose.yaml. never prod's
+      - work-in-progress:/work_in_progress
       # Claude Code's login, settings, skills and memory (CLAUDE_CONFIG_DIR below), tied to docker, not to windows:
       # they survive every rebuild, and are lost only with the volume. to move machines, export this volume
       # (docs/DEV_CONTAINER.md)
@@ -94,6 +97,9 @@ services:
       TARGET_POSTGRES_USER: ${POSTGRES_USER}
       TARGET_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       USER_INPUT_MOUNT: /user_input
+      # datastreamer
+      USER_OUTPUT_MOUNT: /user_output
+      WORK_IN_PROGRESS_MOUNT: /work_in_progress
       # webapps
       POSTGRESQL_SERVER: postgres
       POSTGRESQL_PORT: "5432"
