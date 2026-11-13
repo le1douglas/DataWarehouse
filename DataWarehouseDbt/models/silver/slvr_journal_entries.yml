@@ -1,4 +1,4 @@
-# documentation, and the business key. the columns, their types and the data tests are declared in
+# documentation, the business key and the primary key. the columns, their types and the data tests are declared in
 # stg_journal_entries.yml. the types reach silver through select *, and dbt docs reads them from the database
 models:
   - name: slvr_journal_entries
@@ -12,6 +12,12 @@ models:
     columns:
       - name: row_id
         description: The key, assigned by bronze when the journal entry was received.
+        data_tests:
+          # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
+          - dbt_constraints.primary_key:
+              config:
+                meta:
+                  description: row_id is missing or not unique
       - name: date_time
         description: When the journal entry was measured, in the timezone var, to the microsecond as the csv sends it.
       - name: device

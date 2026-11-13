@@ -20,7 +20,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 - A new database needs the DDL, then one whole `dbt build` without the var, then the first load and its build. The whole build makes what a load's selection leaves out (seeds, `ref_` models, dims, Elementary's tables, `aud_issues`); it fails the row-count test and skips silver, as expected. Without it the first load's build errors on the missing dims, and nothing reaches `aud_issues`.
 
 ## Data rules
-- `row_id` is the primary key and the only column shared between datasets, carried unchanged through the pipeline.
+- `row_id` is the primary key up to silver and the only column shared between datasets, carried unchanged through the pipeline. In gold a fact's primary key is its business key, and `row_id` is a unique key. Every key of a dbt model is a dbt_constraints test (`docs/CODING_STANDARDS.md`).
 - A datetime is text up to staging, which appends the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) and casts it to `timestamptz`, to the microsecond. The cast accepts only a zone that cannot be misread (`macros/cast_select.sql`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
 - Empty string means null. The decimal separator is `.`.
 - Silver keeps the precision the source sends. Gold reduces it per dataset: for journal entries, `date_time` truncated to the second and decimals rounded to `numeric(4,2)`.
