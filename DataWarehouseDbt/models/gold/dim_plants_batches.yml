@@ -1,8 +1,8 @@
 models:
-  - name: fct_plants_batches
+  - name: dim_plants_batches
     description: The plants batches, one row per pp_number, with a key to its room and its planned timeline.
     # the keys are dbt_constraints tests: the package adds each one after its test passes (dbt_project.yml). the
-    # primary key is the business key, pp_number. row_id stays unique, to trace a row back to silver
+    # primary key is the natural key, pp_number. row_id stays unique, to trace a row back to silver
     data_tests:
       - dbt_constraints.primary_key:
           arguments:
