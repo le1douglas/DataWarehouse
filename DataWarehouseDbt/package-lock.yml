@@ -8,7 +8,10 @@ packages:
   - name: elementary
     package: elementary-data/elementary
     version: 0.26.1
+  - name: dbt_constraints
+    package: Snowflake-Labs/dbt_constraints
+    version: 1.0.12
   - name: dbt_date
     package: godatadriven/dbt_date
     version: 0.21.0
-sha1_hash: 10b101ad8508cb93258fa98ca192647eed4eef39
+sha1_hash: 925069f906a96da96c85ba464fd9ac2da4cc224f

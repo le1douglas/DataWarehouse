@@ -1,11 +1,14 @@
 models:
   - name: dim_devices
     description: The measuring devices. Change a device in seed_devices.csv, not here.
-    # a view that only publishes ref_devices: its contract checks names and types, the data tests are in
-    # ref_devices.yml. see docs/CODING_STANDARDS.md
+    # a table that only publishes ref_devices: its contract checks names and types, its primary key is here, the
+    # other data tests are in ref_devices.yml. see docs/CODING_STANDARDS.md
     columns:
       - name: device
         data_type: text
+        data_tests:
+          # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
+          - dbt_constraints.primary_key
       - name: manufacturer
         data_type: text
       - name: is_working

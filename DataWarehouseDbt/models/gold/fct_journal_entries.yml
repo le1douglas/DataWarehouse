@@ -1,10 +1,19 @@
 models:
   - name: fct_journal_entries
     description: The journal entries, one row per measurement, with a key to each dimension and the measures.
+    # the keys are dbt_constraints tests: the package adds each one after its test passes (dbt_project.yml). the
+    # primary key is the business key, the terms an analyst knows: a device cannot measure twice in one second, so
+    # it holds after date_time is truncated to the second. row_id stays unique, to trace a row back to silver
+    data_tests:
+      - dbt_constraints.primary_key:
+          arguments:
+            column_names: [date_time, device]
     columns:
       - name: row_id
         data_type: uuid
-        description: The key, assigned by bronze when the journal entry was received.
+        description: Uniquely identifies this row, across bronze, silver and gold.
+        data_tests:
+          - dbt_constraints.unique_key
       - name: date_time
         data_type: timestamptz(0)
         description: When the journal entry was measured, truncated to the second.
@@ -12,24 +21,18 @@ models:
         data_type: text
         description: The device that took the measurement.
         data_tests:
-          - elementary.relationships_with_context:
+          - dbt_constraints.foreign_key:
               arguments:
-                to: ref('dim_devices')
-                field: device
-              config:
-                meta:
-                  description: device is not in dim_devices
+                pk_table_name: ref('dim_devices')
+                pk_column_name: device
       - name: absolute_position
         data_type: text
         description: Where it was measured, such as 1.30_4_front_left_up.
         data_tests:
-          - elementary.relationships_with_context:
+          - dbt_constraints.foreign_key:
               arguments:
-                to: ref('dim_absolute_positions')
-                field: absolute_position
-              config:
-                meta:
-                  description: absolute_position is not in dim_absolute_positions
+                pk_table_name: ref('dim_absolute_positions')
+                pk_column_name: absolute_position
       - name: ml
         data_type: integer
         description: The volume.

@@ -186,25 +186,32 @@ Setup is done.
 
 **Load a file**
 
-- A load is two commands with the same id, until an orchestrator runs them: Meltano appends the file to bronze, then
-  `dbt build` judges that load alone and adds it to silver only when its data tests pass
-- The file is `journal_entries/journal_entries.csv` in `USER_INPUT_DIR` (`docker/.env`), named in `tap-csv` in
-  `DataWarehouseMeltano/meltano.yml`. Dev and prod read the same folder
-- PowerShell, a new id for every load:
+- A load is one dataset, two commands with the same id, until an orchestrator runs them: Meltano appends the file to
+  bronze, then `dbt build` judges that load alone and adds it to silver only when its data tests pass
+- Each dataset has its own file in `USER_INPUT_DIR` (`docker/.env`), its own extractor in
+  `DataWarehouseMeltano/meltano.yml` and its own bronze table. Dev and prod read the same folder:
+
+  | Dataset | File | Extractor | Bronze table |
+  | --- | --- | --- | --- |
+  | Journal entries | `journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
+  | Plants batches | `plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
+
+- PowerShell, a new id for every load, `<dataset>` and `<table>` from the table above:
 
   ```powershell
   $id = docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -tAc "select uuidv7();"
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm -e MELTANO_RUN_ID=$id meltano run tap-csv target-postgres
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: $id}"
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm -e MELTANO_RUN_ID=$id meltano run tap-csv-<dataset> target-postgres
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build --select source:dw_bronze.<table>+ --vars "{load_id: $id}"
   ```
 
 - Dev container, from any folder (a bare `psql` reaches the warehouse: `PGHOST` and the rest are set):
 
   ```bash
   id=$(psql -tAc "select uuidv7()")
-  MELTANO_RUN_ID=$id meltano run tap-csv target-postgres
-  dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: $id}"
+  MELTANO_RUN_ID=$id meltano run tap-csv-<dataset> target-postgres
+  dbt build --select source:dw_bronze.<table>+ --vars "{load_id: $id}"
   ```
+- `tap-csv` alone is the base the extractors inherit from: it has no file, so running it fails
 - Every bronze row gets the id as `load_id`. Without `MELTANO_RUN_ID` nothing is loaded
 - Passed: silver holds the load. A row with the same key as one already in silver replaces it, with a warning
 - Failed: the build reports the failing data tests, the load stays in bronze as a record of what arrived, and silver

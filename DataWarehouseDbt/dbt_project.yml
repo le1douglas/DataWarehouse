@@ -10,6 +10,11 @@ vars:
   timezone: "{{ env_var('TZ') }}"
   # how many failing rows of a data test elementary stores. -1 is all of them, the default is 5
   test_sample_row_count: -1
+  # gold's keys only: every primary, unique and foreign key of a gold model is a dbt_constraints test in its yml, so
+  # a catalog and the tools reading gold see real keys. silver has none. at the end of a dbt build the package adds the constraint of each such test that ran and passed in that
+  # build: a failed test fails the build, as every test does, and leaves its constraint missing. it releases the
+  # constraints of a table it rebuilds before the build starts. on by default, set here so it shows
+  dbt_constraints_enabled: true
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]
@@ -45,17 +50,16 @@ models:
       +incremental_strategy: delete+insert
       +on_schema_change: fail
       +full_refresh: false
-      # row_id is the primary key, the only constraint: every other rule is a data test on staging. the index on
-      # unique_key is a plain one, it makes the delete of each load fast
+      # no constraints: every rule is a data test on staging, and nothing writes to silver outside dbt build. one
+      # plain index on unique_key, kept in step with it by unique_key_index, makes the delete of each load fast
       +post-hook:
-        - "{{ primary_key('row_id') }}"
         - "{{ unique_key_index() }}"
       +schema: silver
     ref:                 # the reference data: each seed cast, or combined, and tested. staging and silver test against it,
       +materialized: view  # gold publishes it. views, so they always equal the seeds; in silver, as trusted data
       +schema: silver
-    gold:                # the modeled views over silver and the seeds: no copy of the data, no constraints
-      +materialized: view
+    gold:                # the modeled tables over silver and the seeds, rebuilt by every dbt build. tables, so they
+      +materialized: table # hold their keys (dbt_constraints tests in each yml) and a catalog can draw the diagram
       +schema: gold
       +contract:
         enforced: true

@@ -1,6 +1,8 @@
 -- every issue of every run: a failed or warned data test (one row per failing row), a data test that could not run, and
 -- a model, snapshot or seed that errored. a failure of the whole file has no stored row with a row_id, so its row_id is
--- null. the message of a failed or warned data test is its meta.description, an error's is the database's.
+-- null. the message of a failed or warned data test is its meta.description, an error's is the database's. a key test
+-- of dbt_constraints says the same thing in every model, so without a meta.description it gets the message of its kind.
+-- unique_key and foreign_key let a null pass, as a constraint does: a column that must be filled needs not_null too
 -- the load is the load_id var of the run, so a failure of the whole file still says which load it was
 with
     test_issues as (
@@ -11,8 +13,22 @@ with
             (result_rows.result_row::jsonb ->> 'row_id')::uuid as row_id,
             results.test_short_name as kind,
             results.column_name as target_column,
-            case when results.status = 'error' then results.test_results_description else tests.description end
-                as description
+            case
+                when results.status = 'error'
+                then results.test_results_description
+                else
+                    coalesce(
+                        nullif(tests.description, ''),
+                        case
+                            when tests.test_namespace = 'dbt_constraints' and results.test_short_name = 'primary_key'
+                            then 'another row has the same primary key, or a column of it is missing'
+                            when tests.test_namespace = 'dbt_constraints' and results.test_short_name = 'unique_key'
+                            then 'another row has the same unique key'
+                            when tests.test_namespace = 'dbt_constraints' and results.test_short_name = 'foreign_key'
+                            then 'the value is not in the table it refers to'
+                        end
+                    )
+            end as description
         from {{ ref("elementary", "elementary_test_results") }} as results
         inner join {{ ref("elementary", "dbt_tests") }} as tests on results.test_unique_id = tests.unique_id
         left join
@@ -35,9 +51,11 @@ with
     ),
 
     issues as (
-        select * from test_issues
+        select *
+        from test_issues
         union all
-        select * from node_errors
+        select *
+        from node_errors
     )
 
 select
@@ -50,6 +68,4 @@ select
     issues.target_column,
     issues.description
 from issues
-left join
-    {{ ref("elementary", "dbt_invocations") }} as invocations
-    on issues.invocation_id = invocations.invocation_id
+left join {{ ref("elementary", "dbt_invocations") }} as invocations on issues.invocation_id = invocations.invocation_id

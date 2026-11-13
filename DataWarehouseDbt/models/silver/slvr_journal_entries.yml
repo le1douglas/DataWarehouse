@@ -10,8 +10,6 @@ models:
       # check, and silver's index (unique_key_index)
       unique_key: [date_time, device]
     columns:
-      - name: row_id
-        description: The key, assigned by bronze when the journal entry was received.
       - name: date_time
         description: When the journal entry was measured, in the timezone var, to the microsecond as the csv sends it.
       - name: device
@@ -19,9 +17,7 @@ models:
       - name: absolute_position
         description: Where it was measured, room, bench and relative position joined by _, such as 1.30_4_front_left_up.
       - name: ml
-        description: The volume.
-      # plain numeric on purpose: silver keeps every decimal the csv sends, gold rounds to 2
+        description: The amount of water.
       - name: ec
       - name: ph
       - name: temperature
-        description: The temperature.

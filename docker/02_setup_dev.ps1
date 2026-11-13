@@ -64,7 +64,7 @@ try {
     & docker @dev run --rm dbt debug
     Assert-Ok 'dbt debug'
 
-    Write-Host 'dev setup done. next: a load (meltano run tap-csv target-postgres, then its dbt build), see docs/INSTALLATION_GUIDE_DOCKER.md'
+    Write-Host 'dev setup done. next: a load (meltano run tap-csv-<dataset> target-postgres, then its dbt build), see docs/INSTALLATION_GUIDE_DOCKER.md'
 }
 finally {
     Pop-Location

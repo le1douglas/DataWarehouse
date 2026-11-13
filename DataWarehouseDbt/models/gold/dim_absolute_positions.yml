@@ -5,12 +5,16 @@ models:
       flattened so the attributes of the room and of the relative position are columns here. Published from
       ref_absolute_positions: change a room or its benches_total in seed_rooms.csv, a relative position value in
       seed_relative_position_values.csv, not here.
-    # a view that only publishes ref_absolute_positions, joined to ref_rooms and ref_relative_positions: its contract
-    # checks names and types, the data tests are in their yml files. see docs/CODING_STANDARDS.md
+    # a table that only publishes ref_absolute_positions, joined to ref_rooms and ref_relative_positions: its contract
+    # checks names and types, its primary key is here, the other data tests are in their yml files. see
+    # docs/CODING_STANDARDS.md
     columns:
       - name: absolute_position
         data_type: text
         description: "The key: room, bench and relative position joined by _, such as 1.30_4_front_left_up."
+        data_tests:
+          # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
+          - dbt_constraints.primary_key
       - name: room
         data_type: text
         description: The room, as text so 1.30 keeps its zero.

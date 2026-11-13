@@ -39,4 +39,19 @@ CREATE TABLE IF NOT EXISTS dw_bronze.brnz_journal_entries (
 );
 
 
+CREATE TABLE IF NOT EXISTS dw_bronze.brnz_plants_batches (
+    row_id UUID NOT NULL DEFAULT uuidv7(),
+    load_id UUID NOT NULL,
+    room TEXT,
+    strain TEXT,
+    pp_number TEXT,
+    date_veg_start TEXT,
+    date_flower_start TEXT,
+    date_flower_end TEXT,
+    plants_number TEXT,
+    CONSTRAINT pk_brnz_plants_batches PRIMARY KEY (row_id)
+);
+
+
+
 COMMIT;

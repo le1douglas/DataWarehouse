@@ -1,12 +1,15 @@
 models:
   - name: dim_rooms
     description: The growing rooms. Change a room in seed_rooms.csv, not here.
-    # a view that only publishes ref_rooms: its contract checks names and types, the data tests are in ref_rooms.yml.
-    # see docs/CODING_STANDARDS.md
+    # a table that only publishes ref_rooms: its contract checks names and types, its primary key is here, the other
+    # data tests are in ref_rooms.yml. see docs/CODING_STANDARDS.md
     columns:
       - name: room
         data_type: text
         description: The room, as text so 1.30 keeps its zero.
+        data_tests:
+          # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
+          - dbt_constraints.primary_key
       - name: room_time
         data_type: text
         description: The part of the day the room is measured in.
