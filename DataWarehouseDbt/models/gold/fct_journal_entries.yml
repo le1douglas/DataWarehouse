@@ -33,6 +33,9 @@ models:
               arguments:
                 pk_table_name: ref('dim_absolute_positions')
                 pk_column_name: absolute_position
+      - name: pp_number
+        data_type: text
+        description: The plants batch flowering in the room of the measurement on its day, null when there is none.
       - name: ml
         data_type: integer
         description: The volume.
