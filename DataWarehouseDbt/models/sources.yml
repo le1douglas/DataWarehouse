@@ -23,3 +23,16 @@ sources:
                 meta:
                   description: the file must have 40 rows
           
+
+      - name: brnz_plants_batches
+        description: csv of plants batches, one row per plants batch, each with its planned timeline.
+        data_tests:
+          # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
+          - dbt_expectations.expect_table_row_count_to_be_between:
+              arguments:
+                min_value: 1
+                row_condition: >-
+                  load_id = '{{ var("load_id") }}'::uuid
+              config:
+                meta:
+                  description: the file must have at least one row
