@@ -1,0 +1,44 @@
+models:
+  - name: fct_plants_batches
+    description: The plants batches, one row per pp_number, with a key to its room and its planned timeline.
+    # the keys are dbt_constraints tests: the package adds each one after its test passes (dbt_project.yml). the
+    # primary key is the business key, pp_number. row_id stays unique, to trace a row back to silver
+    data_tests:
+      - dbt_constraints.primary_key:
+          arguments:
+            column_names: [pp_number]
+    columns:
+      - name: row_id
+        data_type: uuid
+        description: The key assigned by bronze when the plants batch was received, to trace it back to silver.
+        data_tests:
+          - dbt_constraints.unique_key
+      - name: pp_number
+        data_type: text
+        description: What the grower calls the plants batch, PP- and six digits, such as PP-000366.
+      - name: room
+        data_type: text
+        description: The flowering room the plants batch is grown in.
+        data_tests:
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_rooms')
+                pk_column_name: room
+      - name: room_time
+        data_type: text
+        description: The part of the day the room is measured in, taken from dim_rooms.
+      - name: strain
+        data_type: text
+        description: The variety of the plants.
+      - name: date_veg_start
+        data_type: date
+        description: The planned start of the vegetative stage.
+      - name: date_flower_start
+        data_type: date
+        description: The planned start of the flowering stage.
+      - name: date_flower_end
+        data_type: date
+        description: The planned end of the flowering stage.
+      - name: plants_number
+        data_type: integer
+        description: How many plants the batch has.
