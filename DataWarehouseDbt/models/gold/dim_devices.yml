@@ -8,10 +8,7 @@ models:
         data_type: text
         data_tests:
           # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
-          - dbt_constraints.primary_key:
-              config:
-                meta:
-                  description: device is missing or not unique
+          - dbt_constraints.primary_key
       - name: manufacturer
         data_type: text
       - name: is_working

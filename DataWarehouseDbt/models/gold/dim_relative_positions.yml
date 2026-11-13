@@ -11,10 +11,7 @@ models:
         description: "The key: depth, horizontal and vertical joined by _, such as front_left_up."
         data_tests:
           # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
-          - dbt_constraints.primary_key:
-              config:
-                meta:
-                  description: relative_position is missing or not unique
+          - dbt_constraints.primary_key
       - name: depth
         data_type: text
         description: front or back.
