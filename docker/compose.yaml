@@ -50,6 +50,15 @@ x-airflow-env: &airflow_env
   # no login: whoever opens the ui is admin. the port is published on localhost only (airflow-api-server)
   AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
 
+# dbt's connection (DataWarehouseDbt/profiles.yml), for the airflow components that run dbt: the scheduler runs the
+# builds, the dag processor runs dbt ls for cosmos
+x-dbt-env: &dbt_env
+  DBT_HOST: *postgres_host
+  DBT_PORT: *postgres_port
+  DBT_DBNAME: *postgres_db
+  DBT_USER: *postgres_user
+  DBT_ENV_SECRET_PASSWORD: *postgres_password
+
 # what every airflow component shares: the image, the config and the task logs. the logs in one volume, so the ui in the
 # api server reads what the tasks wrote in the scheduler
 x-airflow: &airflow
@@ -119,24 +128,21 @@ services:
     ports:
       - "127.0.0.1:${AIRFLOW_PORT:?set AIRFLOW_PORT in the env file}:8080"
 
-  # reads the dag files into the metadata database
+  # reads the dag files into the metadata database. cosmos runs dbt ls here to draw a dbt build as one task per node,
+  # so it has dbt's env vars too: dbt ls does not connect, but the profile needs every value to render
   airflow-dag-processor:
     <<: *airflow
     command: ["dag-processor"]
+    environment:
+      <<: [*airflow_env, *dbt_env]
 
   # starts the runs, and with LocalExecutor runs every task itself, in this container: the only component that runs dbt
-  # and meltano, so the only one with their env vars and the input folder
+  # and meltano, so the only one with meltano's env vars and the input folder
   airflow-scheduler:
     <<: *airflow
     command: ["scheduler"]
     environment:
-      <<: *airflow_env
-      # dbt
-      DBT_HOST: *postgres_host
-      DBT_PORT: *postgres_port
-      DBT_DBNAME: *postgres_db
-      DBT_USER: *postgres_user
-      DBT_ENV_SECRET_PASSWORD: *postgres_password
+      <<: [*airflow_env, *dbt_env]
       # meltano's system database: its own state and run history, in the meltano database of the postgres service
       # (Database/00_create_meltano_database.sql) instead of the default sqlite file. the password is PGPASSWORD
       # (x-airflow-env), not in the uri, where an @ or / would break it

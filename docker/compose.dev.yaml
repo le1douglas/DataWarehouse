@@ -7,7 +7,7 @@ name: dw-dev
 # onedrive would sync, and writes through the windows mount are slow. one volume, mounted at /dbt-state, and dbt pointed
 # there: DBT_TARGET_PATH and DBT_LOG_PATH dbt reads by itself, DBT_PACKAGES_INSTALL_PATH DataWarehouseDbt/dbt_project.yml
 # reads. the volume starts empty: dbt deps (also run by dbt Power User on open) fills the packages.
-# written once here, for the airflow scheduler and the dev service
+# written once here, for the airflow scheduler and dag processor and the dev service
 x-dbt-state-env: &dbt_state_env
   DBT_TARGET_PATH: /dbt-state/target
   DBT_LOG_PATH: /dbt-state/logs
@@ -22,10 +22,14 @@ services:
   # the services build their runtime stage (compose.yaml), as prod does, with the repo mounted on top so edits apply
   # without a rebuild. the dev tools are in the dev service only
 
-  # reads the dag files: the repo's, live, so a saved dag shows in the ui without a rebuild
+  # reads the dag files: the repo's, live, so a saved dag shows in the ui without a rebuild. cosmos runs dbt ls here,
+  # with the packages of the dbt-state volume, as the scheduler
   airflow-dag-processor:
     volumes:
       - ..:/usr/app
+      - dbt-state:/dbt-state
+    environment:
+      <<: *dbt_state_env
 
   # runs the tasks, so dbt and meltano: the repo's dags and projects, live. hides the projects copied at build time, at
   # the same paths

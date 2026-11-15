@@ -8,3 +8,6 @@
 apache-airflow[postgres]==3.4.0
 # BashOperator, which runs dbt and meltano. its version comes from the constraints file
 apache-airflow-providers-standard
+# cosmos turns the dbt project into airflow tasks, one per model, seed or test. not in the constraints file, so its
+# version is written here. dbt is not installed with it: cosmos runs the dbt of its own venv (/opt/venvs/dbt)
+astronomer-cosmos==1.16.0
