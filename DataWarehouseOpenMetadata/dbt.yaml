@@ -1,0 +1,34 @@
+# dbt's lineage, sql, descriptions, tags and test results into openmetadata: "metadata ingest -c DataWarehouseOpenMetadata/dbt.yaml".
+# runs after postgres.yaml: it attaches to the tables that one made, and skips a model whose table openmetadata does not have.
+# reads the artifacts of the last dbt command in the dbt-state volume (docker/compose.dev.yaml): the manifest for the
+# models and their lineage, the run results for the tests. no catalog.json: dbt docs generate is not run, and the
+# column types already come from postgres.yaml.
+# OPENMETADATA_JWT_TOKEN is the token of the ingestion-bot, from docker/.env (docker/compose.dev.yaml)
+source:
+  type: dbt
+  # the warehouse's service, the serviceName of postgres.yaml: dbt's models are its tables
+  serviceName: DataWarehouse
+  sourceConfig:
+    config:
+      type: DBT
+      dbtConfigSource:
+        dbtConfigType: local
+        dbtManifestFilePath: /dbt-state/target/manifest.json
+        dbtRunResultsFilePath: /dbt-state/target/run_results.json
+      # the schemas postgres.yaml leaves out, so a warning about a missing table is a real one: dw_elementary (excluded
+      # there), and dw, where the manifest puts the run hooks of the packages, which are not tables
+      schemaFilterPattern:
+        excludes:
+          - ^dw_elementary$
+          - ^dw$
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  loggerLevel: INFO
+  openMetadataServerConfig:
+    # the server's name on the compose network: the dev container reaches it there, not on localhost
+    hostPort: http://openmetadata:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OPENMETADATA_JWT_TOKEN}

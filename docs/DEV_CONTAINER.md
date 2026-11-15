@@ -18,7 +18,9 @@ only) and **prod**.
     (`COMPOSE_PROFILES` in `.env.prod`), dev only with `--profile openmetadata`.
 - **Versions:** `docker/<image>/requirements.txt`, the only place a runtime library's version is written. The meltano
   plugins are pinned in `DataWarehouseMeltano/meltano.yml`, and the dbt packages in `DataWarehouseDbt/packages.yml`.
-  The stock images are pinned by their tag in `docker/compose.yaml`.
+  The stock images are pinned by their tag in `docker/compose.yaml`. One requirements file has no image yet:
+  `docker/openmetadata-ingestion/requirements.txt`, OpenMetadata's ingestion, which runs in the dev container only.
+  Its version is the server's plus a fourth digit, so the two change together.
 - **Volumes:** each environment has its own, prefixed by its project name (`dw-dev_*`, `dw-prod_*`):
   - `pgdata`, the database.
   - `work-in-progress`, at `/work_in_progress`: what a program has not finished yet, one subfolder per program, such
@@ -31,8 +33,10 @@ only) and **prod**.
 
 - **Image:** `docker/dev/Dockerfile`, the dev container. It has one venv per image under `/opt/venvs/`, each installed
   from that image's requirements file, so it has the same versions and no clashes. It adds one venv of tools
-  (`docker/dev/requirements.txt`) and pytest in the webapps venv (`docker/dev/requirements-test.txt`). All the venvs
-  are on `PATH`, and `python` is the webapps one. It also has `psql`, `pg_dump` and `pg_restore` at the server's
+  (`docker/dev/requirements.txt`), one of OpenMetadata's ingestion (`docker/openmetadata-ingestion/requirements.txt`,
+  the `metadata` command) and pytest in the webapps venv (`docker/dev/requirements-test.txt`). All the venvs are on
+  `PATH`, and `python` is the webapps one. The ingestion venv comes last, because it brings a newer dbt-core of its
+  own: `dbt` stays the dbt venv's. It also has `psql`, `pg_dump` and `pg_restore` at the server's
   major version, from PostgreSQL's own package source. That version is written in two places, the Dockerfile and
   the `postgres` image tag in `docker/compose.yaml`, which have to change together.
 - **Volumes**, declared only in `docker/compose.dev.yaml`, so they exist only as `dw-dev_*`:

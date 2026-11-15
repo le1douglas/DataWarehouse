@@ -61,6 +61,10 @@ POSTGRES_PORT=5432
 NICEGUI_PORT=8080
 # the port of the OpenMetadata ui and api, published to Windows
 OPENMETADATA_PORT=8585
+# the token of OpenMetadata's ingestion-bot, for the metadata command in the dev container (DataWarehouseOpenMetadata).
+# empty until OpenMetadata has started once: then copy it from its ui, Settings > Bots > ingestion-bot, and reopen the
+# dev container. it lives in the openmetadata database, so a reset of dev makes a new one
+OPENMETADATA_JWT_TOKEN=
 RELEASE=dev
 # windows folder of every csv to load, mounted read only into the meltano container at /user_input. one subfolder per
 # dataset, the file in it named in DataWarehouseMeltano/meltano.yml. it can move: change the line, no rebuild needed.

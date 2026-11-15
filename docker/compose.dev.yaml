@@ -112,6 +112,9 @@ services:
       PGPORT: "5432"
       PGDATABASE: ${POSTGRES_DB}
       PGUSER: ${POSTGRES_USER}
+      # openmetadata ingestion: DataWarehouseOpenMetadata/*.yaml read it. may be empty, an env file from before it
+      # existed too: then only the metadata command fails
+      OPENMETADATA_JWT_TOKEN: ${OPENMETADATA_JWT_TOKEN:-}
       # Claude Code keeps everything in the claude-config volume, its .claude.json too
       CLAUDE_CONFIG_DIR: /claude-config
     depends_on:

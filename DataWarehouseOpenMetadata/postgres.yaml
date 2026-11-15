@@ -1,0 +1,39 @@
+# the warehouse's tables and views into openmetadata: "metadata ingest -c DataWarehouseOpenMetadata/postgres.yaml".
+# runs before dbt.yaml: the dbt ingestion attaches its lineage only to tables this one has already made.
+# safe to run again: it updates what changed, and marks as deleted what is gone.
+# ${...} are env vars, filled in by metadata when it reads this file: the database login is dbt's (docker/compose.dev.yaml),
+# OPENMETADATA_JWT_TOKEN is the token of the ingestion-bot, from docker/.env (docker/compose.dev.yaml)
+source:
+  type: postgres
+  # the name of the warehouse in openmetadata, the first part of every table's name there:
+  # DataWarehouse.DataWarehouse.dw_gold.<table>. dbt.yaml points at the same name
+  serviceName: DataWarehouse
+  serviceConnection:
+    config:
+      type: Postgres
+      hostPort: ${DBT_HOST}:${DBT_PORT}
+      database: ${DBT_DBNAME}
+      username: ${DBT_USER}
+      authType:
+        password: ${DBT_ENV_SECRET_PASSWORD}
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      # the schemas dbt builds into, without Elementary's: its tables are the test results, not the warehouse
+      schemaFilterPattern:
+        includes:
+          - ^dw_
+        excludes:
+          - ^dw_elementary$
+      includeViews: true
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  loggerLevel: INFO
+  openMetadataServerConfig:
+    # the server's name on the compose network: the dev container reaches it there, not on localhost
+    hostPort: http://openmetadata:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OPENMETADATA_JWT_TOKEN}

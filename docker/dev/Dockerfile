@@ -33,11 +33,12 @@ COPY docker/dbt/requirements.txt /tmp/requirements/dbt.txt
 COPY docker/meltano/requirements.txt /tmp/requirements/meltano.txt
 COPY docker/webapps/requirements.txt /tmp/requirements/webapps.txt
 COPY docker/datastreamer/requirements.txt /tmp/requirements/datastreamer.txt
+COPY docker/openmetadata-ingestion/requirements.txt /tmp/requirements/openmetadata-ingestion.txt
 COPY docker/dev/requirements.txt /tmp/requirements/tools.txt
 COPY docker/dev/requirements-test.txt /tmp/requirements/test.txt
 
 # pytest goes into the webapps venv, so it can import them
-RUN for venv in dbt meltano webapps datastreamer tools; do \
+RUN for venv in dbt meltano webapps datastreamer openmetadata-ingestion tools; do \
         python -m venv /opt/venvs/$venv \
         && /opt/venvs/$venv/bin/pip install --no-cache-dir -r /tmp/requirements/$venv.txt || exit 1; \
     done \
@@ -45,8 +46,9 @@ RUN for venv in dbt meltano webapps datastreamer tools; do \
     && rm -rf /tmp/requirements
 
 # every command from any terminal. the webapps venv first, so "python" and "pytest" are the web apps' python.
-# dbt, meltano and the tools each run with the python of their own venv, whatever comes first
-ENV PATH=/opt/venvs/webapps/bin:/opt/venvs/tools/bin:/opt/venvs/dbt/bin:/opt/venvs/meltano/bin:/opt/venvs/datastreamer/bin:$PATH
+# dbt, meltano and the tools each run with the python of their own venv, whatever comes first.
+# openmetadata-ingestion last: it has a dbt of its own, so "dbt" stays the one of the dbt venv. "metadata" is its command
+ENV PATH=/opt/venvs/webapps/bin:/opt/venvs/tools/bin:/opt/venvs/dbt/bin:/opt/venvs/meltano/bin:/opt/venvs/datastreamer/bin:/opt/venvs/openmetadata-ingestion/bin:$PATH
 
 # dbt and meltano find their project from any folder. python finds the packages in src without installing them, print
 # output shows right away, and no __pycache__ is written into the mounted repo folder. no usage stats sent to meltano

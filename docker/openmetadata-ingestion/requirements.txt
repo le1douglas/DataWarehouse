@@ -1,0 +1,6 @@
+# the libraries of openmetadata's ingestion, the only place their versions are written. installed into its own venv by
+# docker/dev/Dockerfile. no image yet: ingestion runs in dev only, until prod needs it and a Dockerfile joins this file.
+# the version is the server's (x-openmetadata-image in docker/compose.yaml) plus a fourth digit: change them together.
+# its own venv: it brings its own dbt-core, newer than docker/dbt/requirements.txt.
+# the extras: postgres reads the warehouse's tables, dbt reads dbt's artifacts in /dbt-state/target for the lineage
+openmetadata-ingestion[postgres,dbt]==2.0.8.0
