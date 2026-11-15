@@ -28,6 +28,44 @@ x-postgres-db: &postgres_db ${POSTGRES_DB}
 x-postgres-user: &postgres_user ${POSTGRES_USER}
 x-postgres-password: &postgres_password ${POSTGRES_PASSWORD}
 
+# the config every airflow component shares, written once here. the scheduler adds the env vars of dbt and meltano
+x-airflow-env: &airflow_env
+  TZ: *timezone
+  # the time zone of the schedules and the ui, the same as every container's
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: *timezone
+  # tasks run in the scheduler container, one process each: no celery, no redis
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  # in the repo, mounted in dev (compose.dev.yaml), copied into the image for prod
+  AIRFLOW__CORE__DAGS_FOLDER: /usr/app/DataWarehouseAirflow/dags
+  # where a running task reports its state: the api server, by its service name
+  AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+  # the metadata database, the airflow database of the postgres service (Database/00_create_airflow_database.sql).
+  # the password is not in the uri, where an @ or / would break it: psycopg2 reads it from PGPASSWORD
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}@postgres:5432/airflow
+  PGPASSWORD: *postgres_password
+  # the key the components sign each other's tokens with: the same in all of them, or a task cannot report back.
+  # left empty, each component would make up its own
+  AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?set AIRFLOW_JWT_SECRET in the env file}
+  # no login: whoever opens the ui is admin. the port is published on localhost only (airflow-api-server)
+  AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+
+# what every airflow component shares: the image, the config and the task logs. the logs in one volume, so the ui in the
+# api server reads what the tasks wrote in the scheduler
+x-airflow: &airflow
+  build:
+    context: .. # the repo root, one up from this folder. docker/airflow/Dockerfile.dockerignore keeps only what the image needs
+    dockerfile: docker/airflow/Dockerfile
+    target: runtime # the only stage: dev builds it too, with the repo mounted on top (compose.dev.yaml)
+  image: airflow:${RELEASE}
+  environment: *airflow_env
+  volumes:
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
 services:
   postgres:
     # the major version is written twice: here and in postgresql-client-<major> in docker/dev/Dockerfile (psql in the
@@ -47,45 +85,62 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+      - ../Database/00_create_airflow_database.sql:/docker-entrypoint-initdb.d/00_create_airflow_database.sql:ro
       - ../Database/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
       - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
       # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
       # in the repo, ignored by git. a convenience for development, not the backups of prod
       - ../Database/dumps:/dumps
+    # ready once it answers on tcp: during the first start the entrypoint runs the init scripts on a server that listens
+    # only on its socket, so a check on the socket would pass before the databases exist
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     restart: unless-stopped
 
-  # a job: "docker compose run --rm dbt <command>" runs one dbt command, then the container exits
-  dbt:
-    build:
-      context: .. # the repo root, one up from this folder. docker/dbt/Dockerfile.dockerignore keeps only DataWarehouseDbt
-      dockerfile: docker/dbt/Dockerfile
-      target: runtime # the only stage: dev builds it too, its tools are in the dev image (compose.dev.yaml)
-    image: dbt:${RELEASE}
+  # airflow: runs every load, meltano then dbt. one image (docker/airflow/Dockerfile), one container per component, each
+  # with its own command. started by "up" and kept running, except airflow-init, which migrates the metadata database
+  # and exits. the ui at http://localhost on AIRFLOW_PORT
+  airflow-init:
+    <<: *airflow
+    command: ["db", "migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # the ui, the rest api, and the execution api the tasks report to
+  airflow-api-server:
+    <<: *airflow
+    command: ["api-server"]
+    # on localhost only: SIMPLE_AUTH_MANAGER_ALL_ADMINS (x-airflow-env) lets in whoever reaches the port
+    ports:
+      - "127.0.0.1:${AIRFLOW_PORT:?set AIRFLOW_PORT in the env file}:8080"
+
+  # reads the dag files into the metadata database
+  airflow-dag-processor:
+    <<: *airflow
+    command: ["dag-processor"]
+
+  # starts the runs, and with LocalExecutor runs every task itself, in this container: the only component that runs dbt
+  # and meltano, so the only one with their env vars and the input folder
+  airflow-scheduler:
+    <<: *airflow
+    command: ["scheduler"]
     environment:
-      TZ: *timezone # dbt itself always logs in UTC, whatever this says
+      <<: *airflow_env
+      # dbt
       DBT_HOST: *postgres_host
       DBT_PORT: *postgres_port
       DBT_DBNAME: *postgres_db
       DBT_USER: *postgres_user
       DBT_ENV_SECRET_PASSWORD: *postgres_password
-    depends_on:
-      - postgres
-    profiles: ["job"] # not started by "up", only by "run"
-
-  # a job: "docker compose run --rm meltano <command>" runs one meltano command, then the container exits
-  meltano:
-    build:
-      context: .. # the repo root, one up from this folder. docker/meltano/Dockerfile.dockerignore keeps only what the image needs
-      dockerfile: docker/meltano/Dockerfile
-      target: runtime
-    image: meltano:${RELEASE}
-    environment:
-      TZ: *timezone
-      # the system database: meltano's own state and run history, in the meltano database of the postgres service
-      # (Database/00_create_meltano_database.sql) instead of the default sqlite file.
-      # the password is not in the uri, where an @ or / would break it: psycopg reads it from PGPASSWORD
+      # meltano's system database: its own state and run history, in the meltano database of the postgres service
+      # (Database/00_create_meltano_database.sql) instead of the default sqlite file. the password is PGPASSWORD
+      # (x-airflow-env), not in the uri, where an @ or / would break it
       MELTANO_DATABASE_URI: postgresql+psycopg://${POSTGRES_USER}@postgres:5432/meltano
-      PGPASSWORD: *postgres_password
       # the warehouse, where target-postgres loads
       TARGET_POSTGRES_HOST: *postgres_host
       TARGET_POSTGRES_PORT: *postgres_port
@@ -95,6 +150,7 @@ services:
       # the input folder inside the container: tap-csv in DataWarehouseMeltano/meltano.yml reads each file from it
       USER_INPUT_MOUNT: *user_input_mount
     volumes:
+      - airflow-logs:/opt/airflow/logs
       # the input, read only, so meltano can never change an export. the long form, because the short one
       # ("source:target:ro") is a single string, where the anchor cannot go
       - type: bind
@@ -102,8 +158,10 @@ services:
         target: *user_input_mount
         read_only: true
     depends_on:
-      - postgres
-    profiles: ["job"] # not started by "up", only by "run"
+      airflow-init:
+        condition: service_completed_successfully
+      airflow-api-server:
+        condition: service_started
 
   # interactive: "docker compose run --rm datastreamer" takes the drip and drain readings of the OnePen until q.
   # src/bluelab_datastreamer/OnePen.cmd starts it with the bridge (onepen_bridge.py) on windows, at host.docker.internal:8765.
@@ -155,3 +213,4 @@ services:
 volumes:
   pgdata:
   work-in-progress:
+  airflow-logs:

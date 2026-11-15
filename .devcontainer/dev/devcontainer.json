@@ -1,4 +1,4 @@
-// the dev container: docker/dev/Dockerfile, every tool of the four images at the same versions plus the dev tools,
+// the dev container: docker/dev/Dockerfile, every tool of the three images at the same versions plus the dev tools,
 // with the whole repo at /usr/app. open with "Dev Containers: Reopen in Container".
 // Claude Code runs in here too, with the same terminal: one window for everything
 {
@@ -72,7 +72,7 @@
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
         },
-        // completion and validation of meltano.yml, from the schema of the meltano version in docker/meltano/requirements.txt
+        // completion and validation of meltano.yml, from the schema of the meltano version in docker/airflow/requirements-meltano.txt
         "yaml.schemas": {
           "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "DataWarehouseMeltano/meltano.yml"
         }

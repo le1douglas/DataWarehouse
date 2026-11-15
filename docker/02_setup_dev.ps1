@@ -1,6 +1,7 @@
-# dev setup: builds the dbt, webapps, meltano and dev images, starts postgres and the web apps, installs the dbt
-# packages and the meltano plugins and checks dbt's connection.
-# safe to run again: up and build change only what changed, dbt deps and meltano install reinstall the same versions.
+# dev setup: builds the airflow, webapps and dev images, starts postgres, creates the airflow database when it is missing,
+# starts airflow and the web apps, installs the dbt packages and the meltano plugins and checks dbt's connection.
+# safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
+# meltano install reinstall the same versions.
 # loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
@@ -30,38 +31,45 @@ try {
 
     if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
 
-    # before up, so up starts the web apps on the new image, not on the one of the last build
-    Write-Host 'building the dbt, webapps, meltano and dev images'
-    & docker @dev --profile dev build dbt webapps meltano dev
+    # before up, so up starts the services on the new images, not on the ones of the last build. the airflow services
+    # share one image: building airflow-init builds it for all of them
+    Write-Host 'building the airflow, webapps and dev images'
+    & docker @dev --profile dev build airflow-init webapps dev
     Assert-Ok 'the build'
 
-    Write-Host 'starting postgres and the web apps'
+    # postgres alone first: airflow-init needs the airflow database, which the init scripts make only on an empty volume.
+    # --wait returns once the healthcheck of docker/compose.yaml passes, which is checked over tcp, so after the init scripts
+    Write-Host 'starting postgres'
+    & docker @dev up -d --wait postgres
+    Assert-Ok 'starting postgres'
+
+    # a volume from before airflow has no airflow database: made with the same script the init folder runs
+    $exists = & docker @dev exec -T postgres psql -U postgres -d postgres -Atc "select 1 from pg_database where datname = 'airflow'"
+    Assert-Ok 'looking for the airflow database'
+    if ($exists -ne '1') {
+        Write-Host 'creating the airflow database'
+        & docker @dev exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/00_create_airflow_database.sql
+        Assert-Ok 'creating the airflow database'
+    }
+
+    # airflow-init migrates the airflow database first, then the other airflow services start
+    Write-Host 'starting airflow and the web apps'
     & docker @dev up -d
     Assert-Ok 'docker compose up'
 
-    # over tcp: during the first start the init scripts run on a server that listens on the socket only, so a plain
-    # pg_isready would answer before the DDL is done
-    Write-Host 'waiting for postgres'
-    $ready = $false
-    for ($i = 0; $i -lt 60; $i++) {
-        if (Test-Docker @dev exec -T postgres pg_isready -h localhost -U postgres) { $ready = $true; break }
-        Start-Sleep -Seconds 2
-    }
-    if (-not $ready) { throw 'postgres is not ready after 2 minutes: see the logs of dw-dev-postgres-1 in Docker Desktop' }
-
     # the repo mount hides the packages installed in the image, so dev keeps its own in the dbt-state volume
-    # (docker/compose.dev.yaml), which the dev container shares
+    # (docker/compose.dev.yaml), shared by the scheduler, which runs dbt, and the dev container
     Write-Host 'installing the dbt packages'
-    & docker @dev run --rm dbt deps
+    & docker @dev exec -T airflow-scheduler dbt deps
     Assert-Ok 'dbt deps'
 
     # the same for meltano: dev keeps its own plugins in the meltano-plugins volume (docker/compose.dev.yaml)
     Write-Host 'installing the meltano plugins'
-    & docker @dev run --rm meltano install
+    & docker @dev exec -T airflow-scheduler meltano install
     Assert-Ok 'meltano install'
 
     Write-Host 'checking the dbt connection'
-    & docker @dev run --rm dbt debug
+    & docker @dev exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
 
     Write-Host 'dev setup done. next: a load (meltano run tap-csv-<dataset> target-postgres, then its dbt build), see docs/INSTALLATION_GUIDE_DOCKER.md'

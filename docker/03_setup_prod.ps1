@@ -1,7 +1,9 @@
-# prod setup: builds the dbt, webapps, meltano and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
-# postgres and checks dbt's connection. the images are built from the tag's code: the repo is switched to the tag for the build
-# and back to where it was after, even when the build fails.
-# safe to run again: images of RELEASE that exist are not rebuilt, and up changes only what changed. loads nothing.
+# prod setup: builds the airflow, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
+# postgres, creates the airflow database when it is missing, starts the rest and checks dbt's connection. the images are
+# built from the tag's code: the repo is switched to the tag for the build and back to where it was after, even when the
+# build fails.
+# safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, and up
+# changes only what changed. loads nothing.
 # needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
@@ -35,7 +37,7 @@ try {
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "dbt:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "meltano:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
+    if ((Test-Docker image inspect "airflow:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {
@@ -55,7 +57,8 @@ try {
         git switch --detach $release
         Assert-Ok "git switch to $release"
         try {
-            & docker @prod build dbt webapps meltano datastreamer
+            # the airflow services share one image: building airflow-init builds it for all of them
+            & docker @prod build airflow-init webapps datastreamer
             Assert-Ok 'the build'
         }
         finally {
@@ -67,22 +70,29 @@ try {
         }
     }
 
+    # postgres alone first: airflow-init needs the airflow database, which the init scripts make only on an empty volume.
+    # --wait returns once the healthcheck of docker/compose.yaml passes, which is checked over tcp, so after the init scripts
     Write-Host 'starting postgres'
+    & docker @prod up -d --wait postgres
+    Assert-Ok 'starting postgres'
+
+    # a volume from before airflow has no airflow database: made with the same script the init folder runs
+    $exists = & docker @prod exec -T postgres psql -U postgres -d postgres -Atc "select 1 from pg_database where datname = 'airflow'"
+    Assert-Ok 'looking for the airflow database'
+    if ($exists -ne '1') {
+        Write-Host 'creating the airflow database'
+        & docker @prod exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/00_create_airflow_database.sql
+        Assert-Ok 'creating the airflow database'
+    }
+
+    # airflow-init migrates the airflow database first, then the other airflow services start
+    Write-Host 'starting airflow and the web apps'
     & docker @prod up -d
     Assert-Ok 'docker compose up'
 
-    # over tcp: during the first start the init scripts run on a server that listens on the socket only, so a plain
-    # pg_isready would answer before the DDL is done
-    Write-Host 'waiting for postgres'
-    $ready = $false
-    for ($i = 0; $i -lt 60; $i++) {
-        if (Test-Docker @prod exec -T postgres pg_isready -h localhost -U postgres) { $ready = $true; break }
-        Start-Sleep -Seconds 2
-    }
-    if (-not $ready) { throw 'postgres is not ready after 2 minutes: see the logs of dw-prod-postgres-1 in Docker Desktop' }
-
+    # the scheduler runs dbt, so its connection is the one that counts
     Write-Host 'checking the dbt connection'
-    & docker @prod run --rm dbt debug
+    & docker @prod exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
 
     Write-Host "prod setup done, on $release"
