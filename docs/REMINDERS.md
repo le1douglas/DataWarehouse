@@ -44,3 +44,10 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Row counts differ per dataset:** journal entries must have exactly 40 rows, plants batches at least one (`models/sources.yml`). The "A valid file has 40 rows" above is about journal entries only.
 - **Room slots of plants batches are checked on exact dates only:** two plants batches in one room with the same `date_flower_start` and `date_flower_end` are refused, overlapping ones are not, because the dates are estimates. `unique_columns_in_load_and_silver` reports it, within the load and against silver in one check (ignoring the rows the load replaces), with the `row_id` in `aud_issues`.
 - **The OnePen bridge is not versioned with prod:** `OnePen.cmd` runs the datastreamer from the image of the release in `docker/.env.prod`, but the bridge (`src/bluelab_datastreamer/onepen_bridge.py`) runs with `uv` on Windows, from whatever branch is checked out. That is fine while the protocol between the bridge and the datastreamer (`onepen.py`, `host.docker.internal:8765`) stays the same on every branch. A change to it means checking out the release before starting `OnePen.cmd`, or giving the bridge a version of its own.
+- **OpenMetadata and the prod dumps:** dev and prod each have an `openmetadata` database, next to `DataWarehouse` and
+  `meltano`, and each catalog describes its own environment's warehouse. The dev refresh restores a prod dump of
+  `DataWarehouse` only: the dev catalog then describes tables that may have changed until the next ingestion, and
+  restoring prod's `openmetadata` into dev would make the dev catalog describe prod. The dumps are not prod's backups,
+  and prod's `openmetadata` holds what people write in the ui (descriptions, owners, glossary terms), which the repo does
+  not have. Both need a decision before prod runs OpenMetadata. Like Meltano, it connects as `postgres` until the
+  conversation about roles: then it gets a role that owns only its own database.

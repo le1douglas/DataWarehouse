@@ -59,6 +59,8 @@ POSTGRES_PASSWORD=$devPassword
 POSTGRES_PORT=5432
 # the port of the web apps, published to Windows
 NICEGUI_PORT=8080
+# the port of the OpenMetadata ui and api, published to Windows
+OPENMETADATA_PORT=8585
 RELEASE=dev
 # windows folder of every csv to load, mounted read only into the meltano container at /user_input. one subfolder per
 # dataset, the file in it named in DataWarehouseMeltano/meltano.yml. it can move: change the line, no rebuild needed.
@@ -85,6 +87,10 @@ POSTGRES_PASSWORD=$prodPassword
 POSTGRES_PORT=5433
 # the port of the web apps, published to Windows: dev is on 8080
 NICEGUI_PORT=8081
+# the port of the OpenMetadata ui and api, published to Windows: dev is on 8585
+OPENMETADATA_PORT=8586
+# the compose profiles always on in prod: openmetadata runs with the rest. dev starts it only when asked
+COMPOSE_PROFILES=openmetadata
 # the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
 RELEASE=$release
 # windows folder of every csv to load, mounted read only into the meltano container at /user_input: the same files as dev

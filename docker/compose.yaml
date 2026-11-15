@@ -28,6 +28,32 @@ x-postgres-db: &postgres_db ${POSTGRES_DB}
 x-postgres-user: &postgres_user ${POSTGRES_USER}
 x-postgres-password: &postgres_password ${POSTGRES_PASSWORD}
 
+# the openmetadata release, written only here: the migration job and the server run the same image, and change together.
+# 2.0.8 needs elasticsearch 9.x (minimum 9.0.0, tested with 9.3.0)
+x-openmetadata-image: &openmetadata_image docker.getcollate.io/openmetadata/server:2.0.8
+
+# what the migration job and the server both need: the server's config (conf/openmetadata.yaml in the image) defaults to
+# mysql on localhost and elasticsearch on localhost, so only those are set here, the rest stays the image's default.
+# its database is openmetadata (Database/02_create_openmetadata_database.sql), on the same server as the warehouse.
+# DB_PARAMS is the value of openmetadata's own compose file. no airflow: ingestion runs as a command, so the server's
+# client for it is off
+x-openmetadata-env: &openmetadata_env
+  TZ: *timezone
+  DB_DRIVER_CLASS: org.postgresql.Driver
+  DB_SCHEME: postgresql
+  DB_PARAMS: allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+  DB_HOST: *postgres_host
+  DB_PORT: *postgres_port
+  OM_DATABASE: openmetadata
+  DB_USER: *postgres_user
+  DB_USER_PASSWORD: *postgres_password
+  SEARCH_TYPE: elasticsearch
+  ELASTICSEARCH_HOST: openmetadata-search
+  ELASTICSEARCH_PORT: "9200"
+  ELASTICSEARCH_SCHEME: http
+  PIPELINE_SERVICE_CLIENT_ENABLED: "false"
+  OPENMETADATA_HEAP_OPTS: -Xmx1G -Xms1G
+
 services:
   postgres:
     # the major version is written twice: here and in postgresql-client-<major> in docker/dev/Dockerfile (psql in the
@@ -49,6 +75,7 @@ services:
       - pgdata:/var/lib/postgresql
       - ../Database/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
       - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
+      - ../Database/02_create_openmetadata_database.sql:/docker-entrypoint-initdb.d/02_create_openmetadata_database.sql:ro
       # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
       # in the repo, ignored by git. a convenience for development, not the backups of prod
       - ../Database/dumps:/dumps
@@ -152,6 +179,67 @@ services:
       - postgres
     restart: unless-stopped
 
+  # openmetadata, three services in the openmetadata profile: dev starts them only when asked
+  # ("--profile openmetadata up -d"), prod always (COMPOSE_PROFILES in docker/.env.prod).
+  # the search engine of openmetadata, its index only: everything in it is rebuilt from the openmetadata database.
+  # not published to windows, only the server reads it
+  openmetadata-search:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.0
+    environment:
+      TZ: *timezone
+      discovery.type: single-node
+      # half of openmetadata's default of 1 GB: plenty for one warehouse, and docker has little memory
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      xpack.security.enabled: "false"
+    volumes:
+      - openmetadata-search-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: "curl -s http://localhost:9200/_cluster/health?pretty | grep status | grep -qE 'green|yellow' || exit 1"
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+    profiles: ["openmetadata"]
+
+  # a job, started by up before the server: creates or migrates the tables of the openmetadata database to the release
+  # of the image, then exits. safe to run again, it applies only the migrations not yet applied
+  openmetadata-migrate:
+    image: *openmetadata_image
+    command: ./bootstrap/openmetadata-ops.sh migrate
+    environment:
+      <<: *openmetadata_env
+    depends_on:
+      postgres:
+        condition: service_started
+      openmetadata-search:
+        condition: service_healthy
+    profiles: ["openmetadata"]
+
+  # a server: the openmetadata ui and api, at http://localhost on OPENMETADATA_PORT. its admin port (8586 inside) is
+  # not published
+  openmetadata:
+    image: *openmetadata_image
+    environment:
+      <<: *openmetadata_env
+    # one port per environment, so dev and prod can run side by side (as postgres does)
+    ports:
+      - "${OPENMETADATA_PORT:?set OPENMETADATA_PORT in the env file}:8585"
+    depends_on:
+      postgres:
+        condition: service_started
+      openmetadata-search:
+        condition: service_healthy
+      openmetadata-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8586/healthcheck"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+    profiles: ["openmetadata"]
+
 volumes:
   pgdata:
   work-in-progress:
+  openmetadata-search-data:

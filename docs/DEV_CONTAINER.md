@@ -12,13 +12,20 @@ only) and **prod**.
   - `webapps`: nicegui, SQLAlchemy and psycopg, with `src/webapps`.
   - `datastreamer`: the standard library only, with `src/bluelab_datastreamer`.
   - `postgres:18`: the stock image, configured in `docker/compose.yaml`.
+  - `openmetadata/server` and `elasticsearch`: OpenMetadata's stock images, configured in `docker/compose.yaml`.
+    The server runs twice: once as the `openmetadata-migrate` job, then as the `openmetadata` server. Its database
+    is `openmetadata` on the postgres service. All three are in the `openmetadata` profile: prod always starts it
+    (`COMPOSE_PROFILES` in `.env.prod`), dev only with `--profile openmetadata`.
 - **Versions:** `docker/<image>/requirements.txt`, the only place a runtime library's version is written. The meltano
   plugins are pinned in `DataWarehouseMeltano/meltano.yml`, and the dbt packages in `DataWarehouseDbt/packages.yml`.
+  The stock images are pinned by their tag in `docker/compose.yaml`.
 - **Volumes:** each environment has its own, prefixed by its project name (`dw-dev_*`, `dw-prod_*`):
   - `pgdata`, the database.
   - `work-in-progress`, at `/work_in_progress`: what a program has not finished yet, one subfolder per program, such
     as `journal_entries/drip_drain.csv` of the datastreamer. It outlives the container. The dev container mounts
     `dw-dev_work-in-progress` only.
+  - `openmetadata-search-data`, OpenMetadata's search index. Rebuilt from the `openmetadata` database, so it is lost
+    with it and never needs a backup.
 
 ## Dev: development only
 
@@ -44,8 +51,8 @@ only) and **prod**.
 ## Prod
 
 - The runtime images of the git tag in `RELEASE`, with nothing mounted. `docker/compose.prod.yaml` and `docker/.env.prod`.
-- The only volumes are `dw-prod_pgdata` and `dw-prod_work-in-progress`. Plugins and packages come from the image. `target` and `logs` are thrown away
-  with the container.
+- The only volumes are `dw-prod_pgdata`, `dw-prod_work-in-progress` and `dw-prod_openmetadata-search-data`. Plugins
+  and packages come from the image. `target` and `logs` are thrown away with the container.
 
 ## The dev container
 

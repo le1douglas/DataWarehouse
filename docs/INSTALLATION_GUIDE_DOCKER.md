@@ -68,6 +68,10 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
   - Writes the two env files in `docker/`: `.env` and `.env.prod`
   - Asks a password for dev, then for prod: no spaces, quotes, `$` or `#`
   - `RELEASE` in `.env.prod` is the newest git tag at that moment
+  - `OPENMETADATA_PORT` is 8585 in dev, 8586 in prod. `COMPOSE_PROFILES=openmetadata` in `.env.prod` only: prod
+    always runs OpenMetadata, dev only when asked (**OpenMetadata** in the daily workflow)
+  - Rerun for a new line: answer `y` and type the same passwords. Postgres takes the password only when its volume
+    is created, so a new one locks the services out (pitfall **Password changed in `.env`**)
   - Existing files: answer `N` to keep them and create only the missing ones
 
 ### Check
@@ -97,6 +101,8 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker image ls` → `dbt`, `webapps`, `meltano` and `dev`, tag `dev`
 - `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages are in it, not
   in the repo folder)
+- `docker exec dw-dev-postgres-1 psql -U postgres -l` → `DataWarehouse`, `meltano` and `openmetadata` (empty until
+  OpenMetadata first starts)
 - `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → creates Elementary's tables
   and `aud_issues`. On the empty bronze the row count data test fails and silver is skipped: that is expected
 
@@ -109,7 +115,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
   - Builds the `dbt`, `webapps` and `meltano` images of `RELEASE` from the tag's code, then switches the
     repo back
   - Images of `RELEASE` that exist are not rebuilt
-  - Starts postgres, runs `dbt debug`
+  - Starts postgres, the web app and OpenMetadata (`COMPOSE_PROFILES` in `.env.prod`), runs `dbt debug`
   - Safe to run again; stops at the first failing step
   - Ends with `prod setup done, on <RELEASE>`
 
@@ -118,7 +124,9 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - Docker Desktop → **Containers** → group `dw-prod` → `dw-prod-postgres-1` running
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → the same four tables as dev
-- `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse` and `meltano`
+- `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse`, `meltano` and `openmetadata`
+- Docker Desktop → group `dw-prod` → `dw-prod-openmetadata-1` running, `dw-prod-openmetadata-migrate-1` exited with
+  code 0. http://localhost:8586 → the OpenMetadata login
 - `docker image ls` → `dbt`, `webapps` and `meltano`, tag = `RELEASE`
 - `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod run --rm dbt debug`
   → `All checks passed!`
@@ -182,7 +190,7 @@ Setup is done.
 - Each step runs either from PowerShell (repo root) or in the VS Code terminal of the dev container (opens at `/usr/app`)
 - Stick to one of the two in a session: switching recreates postgres and drops Excel's connection (see pitfalls)
 - Prod: the same PowerShell commands with `-f docker/compose.prod.yaml --env-file docker/.env.prod` instead of
-  `-f docker/compose.dev.yaml`, and the web app on port 8081
+  `-f docker/compose.dev.yaml`, the web app on port 8081 and OpenMetadata on 8586
 
 **Load a file**
 
@@ -232,6 +240,23 @@ All in the dev container, from `/usr/app`:
 - `sqlfmt DataWarehouseDbt/models`
 - `meltano config print tap-csv` shows a plugin's config as the run sees it, env vars filled in
 
+### OpenMetadata
+
+- The catalog of the warehouse: http://localhost:8585 in dev, 8586 in prod. Its own database is `openmetadata`, on
+  the same server as the warehouse, its search index the volume `openmetadata-search-data`. No Airflow: ingestion
+  will run as a command
+- Dev starts it only when asked, about 3 GB of memory. From PowerShell:
+
+  ```powershell
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile openmetadata up -d
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile openmetadata stop openmetadata openmetadata-search
+  ```
+
+- Every `up` runs `openmetadata-migrate` first: it brings the `openmetadata` database to the release of the image
+  (2.0.8, in `docker/compose.yaml`), then exits. The server starts only when it ends with code 0
+- First login: `admin@open-metadata.org`, password `admin`. The login, the encryption key and the JWT keys are
+  OpenMetadata's public defaults: fine on this machine, not on a network
+
 ### Dev as a copy of prod
 
 - Both stacks up: `powershell -ExecutionPolicy Bypass -File Database\dumps\refresh_dev_from_prod.ps1`
@@ -247,13 +272,21 @@ All in the dev container, from `/usr/app`:
   Get-Content Database\00_create_meltano_database.sql | docker exec -i dw-prod-postgres-1 psql -U postgres -d postgres
   ```
 
+- The first release with OpenMetadata, on a prod database that already exists: the same for its database, before
+  `03_setup_prod.ps1` starts it. A new prod volume creates it by itself
+
+  ```powershell
+  Get-Content Database\02_create_openmetadata_database.sql | docker exec -i dw-prod-postgres-1 psql -U postgres -d postgres
+  ```
+
 ---
 
 ## Common pitfalls
 
 - **`docker` fails with `Docker Desktop is unable to start`, or a setup script with `docker does not answer`:** open
   Docker Desktop and wait until the engine runs; tick autostart (section 1).
-- **`set USER_INPUT_DIR / NICEGUI_PORT / USER_OUTPUT_DIR in the env file`:** `docker/.env` is missing or incomplete.
+- **`set USER_INPUT_DIR / NICEGUI_PORT / USER_OUTPUT_DIR / OPENMETADATA_PORT in the env file`:** `docker/.env` is
+  missing or incomplete. Compose checks every service, OpenMetadata's too when it is not started.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
 - **Prod `up` fails with `pull access denied for dbt` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
@@ -265,19 +298,21 @@ All in the dev container, from `/usr/app`:
 - **Reset dev** (deletes dev's database; the fix for the next three pitfalls): close the dev container window, then
 
   ```powershell
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job --profile dev down
-  docker volume rm dw-dev_pgdata dw-dev_meltano-plugins dw-dev_dbt-state
+  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job --profile dev --profile openmetadata down
+  docker volume rm dw-dev_pgdata dw-dev_meltano-plugins dw-dev_dbt-state dw-dev_openmetadata-search-data
   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
   ```
 
-  - Without the two `--profile`, `down` leaves the job and dev containers running on the old network
+  - Without the three `--profile`, `down` leaves the job, dev and OpenMetadata containers running on the old network
+  - The search index goes with the database: it indexes only what is in `openmetadata`
   - Also deletes the `meltano` database (Meltano's run history), dev's Meltano plugins and dbt packages: the setup
-    script makes them again
+    script makes them again. And the `openmetadata` database, with everything written in its ui: the next
+    `--profile openmetadata up` starts it empty
   - Not `down -v`: it would also delete `dw-dev_claude-config`, Claude Code's login, settings and memory
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
   `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.
-- **DDL changed, nothing happens:** `00_create_meltano_database.sql` and `01_create_schemas_and_tables.sql` run only on
-  an empty volume. Reset dev.
+- **DDL changed, nothing happens:** `00_create_meltano_database.sql`, `01_create_schemas_and_tables.sql` and
+  `02_create_openmetadata_database.sql` run only on an empty volume. Reset dev.
 - **The same `MELTANO_RUN_ID` for two runs:** both land in one load, which the row count data test refuses. Take a new id for every run.
 - **A Meltano plugin added or changed in `meltano.yml`, the run does not see it:** `meltano install` in the dev
   container. In dev the plugins live in the `dw-dev_meltano-plugins` volume, not in the repo: their venvs hold linux
