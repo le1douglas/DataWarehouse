@@ -1,0 +1,119 @@
+models:
+  - name: fct_journal_entries__daily
+    description: >-
+      The journal entries as the growers' daily sheet, one row per room per day: the drip (up) and the drain (down)
+      of the left and the right side, and the drain per plant and as a percentage of the drip.
+    # the keys are dbt_constraints tests: the package adds each one after its test passes (dbt_project.yml). the
+    # primary key also fails the build when a room has two batches on one day. two readings of one position on one
+    # day are not caught here: docs/REMINDERS.md
+    data_tests:
+      - dbt_constraints.primary_key:
+          arguments:
+            column_names: [room, date]
+    columns:
+      - name: room
+        data_type: text
+        description: The room.
+        data_tests:
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_rooms')
+                pk_column_name: room
+      - name: pp_number
+        data_type: text
+        description: The plants batch flowering in the room on that day, null when there is none.
+        data_tests:
+          # null when no batch is flowering: the test and the constraint only check the rows that have one
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_plants_batches')
+                pk_column_name: pp_number
+      - name: date
+        data_type: date
+        description: The day of the measurements, in Europe/Amsterdam.
+      - name: left_grosens_ec_low
+        data_type: text
+        description: The lowest ec of the GroSens sensor, left side. WIP until its data arrives.
+      - name: left_grosens_ec_high
+        data_type: text
+        description: The highest ec of the GroSens sensor, left side. WIP until its data arrives.
+      - name: left_grosens_wc_low
+        data_type: text
+        description: The lowest water content of the GroSens sensor, left side. WIP until its data arrives.
+      - name: left_grosens_wc_high
+        data_type: text
+        description: The highest water content of the GroSens sensor, left side. WIP until its data arrives.
+      - name: left_drip_ph
+        data_type: numeric(4,2)
+        description: The ph of the drip of one plant, left side.
+      - name: left_drip_ec
+        data_type: numeric(4,2)
+        description: The ec of the drip of one plant, left side.
+      - name: left_drip_ml
+        data_type: integer
+        description: The drip of one plant, left side.
+      - name: left_drip_remarks
+        data_type: text
+        description: A remark on the drip, left side, such as no runoff. Null until the source sends it.
+      - name: left_drain_ph
+        data_type: numeric(4,2)
+        description: The ph of the drain of 3 plants, left side.
+      - name: left_drain_ec
+        data_type: numeric(4,2)
+        description: The ec of the drain of 3 plants, left side.
+      - name: left_drain_ml
+        data_type: integer
+        description: The drain of 3 plants, left side.
+      - name: left_drain_remarks
+        data_type: text
+        description: A remark on the drain, left side, such as no runoff. Null until the source sends it.
+      - name: left_drain_ml_per_plant
+        data_type: integer
+        description: left_drain_ml / 3, rounded to whole ml.
+      - name: left_drain_percentage
+        data_type: numeric(5,1)
+        description: >-
+          The drain per plant as a percentage of the drip, rounded to 1 decimal. Null when the drip is missing or 0.
+      - name: right_grosens_ec_low
+        data_type: text
+        description: The lowest ec of the GroSens sensor, right side. WIP until its data arrives.
+      - name: right_grosens_ec_high
+        data_type: text
+        description: The highest ec of the GroSens sensor, right side. WIP until its data arrives.
+      - name: right_grosens_wc_low
+        data_type: text
+        description: The lowest water content of the GroSens sensor, right side. WIP until its data arrives.
+      - name: right_grosens_wc_high
+        data_type: text
+        description: The highest water content of the GroSens sensor, right side. WIP until its data arrives.
+      - name: right_drip_ph
+        data_type: numeric(4,2)
+        description: The ph of the drip of one plant, right side.
+      - name: right_drip_ec
+        data_type: numeric(4,2)
+        description: The ec of the drip of one plant, right side.
+      - name: right_drip_ml
+        data_type: integer
+        description: The drip of one plant, right side.
+      - name: right_drip_remarks
+        data_type: text
+        description: A remark on the drip, right side, such as no runoff. Null until the source sends it.
+      - name: right_drain_ph
+        data_type: numeric(4,2)
+        description: The ph of the drain of 3 plants, right side.
+      - name: right_drain_ec
+        data_type: numeric(4,2)
+        description: The ec of the drain of 3 plants, right side.
+      - name: right_drain_ml
+        data_type: integer
+        description: The drain of 3 plants, right side.
+      - name: right_drain_remarks
+        data_type: text
+        description: A remark on the drain, right side, such as no runoff. Null until the source sends it.
+      - name: right_drain_ml_per_plant
+        data_type: integer
+        description: right_drain_ml / 3, rounded to whole ml.
+      - name: right_drain_percentage
+        data_type: numeric(5,1)
+        description: >-
+          The drain per plant as a percentage of the drip, rounded to 1 decimal. Null when the drip is missing or 0.
