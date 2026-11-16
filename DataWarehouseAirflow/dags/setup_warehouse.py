@@ -12,7 +12,9 @@ from utils.dbt_task_group import dbt_task_group
 # the reference data and what is built on it: the seeds, ref_ models and gold. without anything downstream of silver:
 # silver takes the accepted load, so only a load's publish builds it and what reads it, and writes published
 _SELECT = ["resource_type:seed", "path:models/ref", "path:models/gold"]
-_EXCLUDE = ["path:models/silver+"]
+# and without staging: cosmos draws the tasks from the manifest without cautious indirect selection, so a staging test
+# reading a ref_ model would get a task here, and staging needs a load's load_id
+_EXCLUDE = ["path:models/silver+", "path:models/staging"]
 
 
 @dag(

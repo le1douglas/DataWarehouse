@@ -41,8 +41,13 @@ COPY DataWarehouseAirflow/ /usr/app/DataWarehouseAirflow/
 
 # the dbt libraries, and the meltano plugins at the version pinned in meltano.yml, into .meltano/.
 # meltano install needs no database connection: without MELTANO_DATABASE_URI at build time it writes a sqlite system
-# database, removed after, as the container uses postgres
+# database, removed after, as the container uses postgres.
+# dbt parse writes target/manifest.json, which cosmos draws the dbt tasks from (DataWarehouseAirflow/dags/utils/
+# dbt_task_group.py). it connects to nothing, but the profile and the project read env vars: placeholders, for this
+# command only, so none of them stays in the image
 RUN dbt deps \
+    && DBT_HOST=build DBT_PORT=0 DBT_DBNAME=build DBT_USER=build DBT_ENV_SECRET_PASSWORD=build TZ=Europe/Amsterdam \
+        dbt parse \
     && meltano install \
     && rm /usr/app/DataWarehouseMeltano/.meltano/meltano.db
 

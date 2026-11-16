@@ -12,6 +12,11 @@ _DBT_EXECUTABLE = "/opt/venvs/dbt/bin/dbt"
 # set by the image and by the dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile)
 _DBT_PROJECT_DIR = Path(os.environ["DBT_PROJECT_DIR"])
 _DBT_PROFILES_DIR = Path(os.environ["DBT_PROFILES_DIR"])
+# the manifest every dbt parse, compile or build writes, read to draw the tasks: no dbt ls when a task starts, as every
+# task parses its dag file again. in DBT_TARGET_PATH, dev's dbt-state volume, which any dbt command of the dev container
+# rewrites (docker/compose.dev.yaml); in prod, unset, the project's target, written by dbt parse at the image build
+# (docker/airflow/Dockerfile). a model added since the last parse has no task until dbt parses again
+_DBT_MANIFEST = _DBT_PROJECT_DIR / os.environ.get("DBT_TARGET_PATH", "target") / "manifest.json"
 
 
 def dbt_task_group(
@@ -30,6 +35,7 @@ def dbt_task_group(
         group_id=group_id,
         project_config=ProjectConfig(
             dbt_project_path=_DBT_PROJECT_DIR,
+            manifest_path=_DBT_MANIFEST,
             # the packages are installed already: by the image build in prod, in the dbt-state volume in dev
             install_dbt_deps=False,
             env_vars={
@@ -39,7 +45,8 @@ def dbt_task_group(
                 # default. cosmos's partial parse cache reads <project>/target as well
                 "DBT_TARGET_PATH": "target",
                 "DBT_LOG_PATH": "logs",
-                # dbt reads it by itself, in the dbt ls that draws the tasks and in every node's dbt build
+                # dbt reads it by itself, in every node's dbt build. cosmos draws the tasks from the manifest without
+                # it: should_detach_multiple_parents_tests below gives the same tasks
                 **({"DBT_INDIRECT_SELECTION": "cautious"} if cautious else {}),
             },
         ),
@@ -54,9 +61,8 @@ def dbt_task_group(
             dbt_executable_path=_DBT_EXECUTABLE,
         ),
         render_config=RenderConfig(
-            # the dag processor runs dbt ls to draw the tasks
-            load_method=LoadMode.DBT_LS,
-            dbt_executable_path=_DBT_EXECUTABLE,
+            # the tasks drawn from the manifest, by cosmos's own reading of select and exclude
+            load_method=LoadMode.DBT_MANIFEST,
             select=select,
             exclude=exclude or [],
             # a model and its tests in one task, dbt build of that node: a failed test fails the task
