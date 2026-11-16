@@ -5,6 +5,9 @@
 !DataWarehouseDbt
 !DataWarehouseMeltano
 !docker/pipeline/requirements*.txt
+# the apps' requirements, for the venvs of the dev stage only: runtime never copies them
+!docker/webapps/requirements.txt
+!docker/datastreamer/requirements.txt
 
 # written by dbt and meltano on Windows: the image runs dbt deps and meltano install itself, and target/ and logs/ are
 # written at run time

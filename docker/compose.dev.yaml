@@ -61,8 +61,11 @@ services:
   # opened by .devcontainer/dev, which starts it (with postgres). "up" does not
   dev:
     build:
-      context: .. # the repo root. docker/dev/Dockerfile.dockerignore keeps only the requirements files
-      dockerfile: docker/dev/Dockerfile
+      context: .. # the repo root. docker/pipeline/Dockerfile.dockerignore keeps only what the stages need
+      dockerfile: docker/pipeline/Dockerfile
+      # the dev stage: the pipeline's venvs, as runtime has them, plus the apps' venvs, the dev tools and psql
+      target: dev
+    # the toolbox, not the pipeline: its own name
     image: dev:dev
     # the same mounts as the services, so a load, a build or a reading behaves here as it does there
     volumes:

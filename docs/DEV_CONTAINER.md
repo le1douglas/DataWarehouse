@@ -33,7 +33,7 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
    `meltano install`, `WORKDIR` and `ENTRYPOINT ["airflow"]`. Compose still builds `target: runtime`.
    - Check: the build and `up` succeed; one load ends `published`. Passed 2026-11-16: `venvs` came from the cache, and
      the build took 47 s.
-4. **Make the dev container a stage of the pipeline image.** `FROM venvs AS dev` in `docker/pipeline/Dockerfile`, with
+4. ~~**Make the dev container a stage of the pipeline image.**~~ Done. `FROM venvs AS dev` in `docker/pipeline/Dockerfile`, with
    what `docker/dev/Dockerfile` adds today: the apt packages (psql at the server's major), the webapps, datastreamer
    and tools venvs, pytest in the webapps venv, `PATH` with the webapps venv first, and the env vars (`LANG`,
    `PYTHONPATH`, `AIRFLOW_HOME` and the rest). `ENTRYPOINT ["airflow"]` is set in `runtime` only, so `dev` does not
@@ -49,9 +49,13 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
        after `dbt parse` in the dev container; Cosmos tasks running at once do not share the `dbt-state` volume's
        `target` and `logs`.
      - One load ends `published`.
-5. **Write the apps' contract as exposures.** One exposure per app in the dbt project, `depends_on` the models it reads,
-   and a rule in `docs/CODING_STANDARDS.md`: an app that starts reading a model adds it to its exposure.
-   - Check: `dbt ls --select +exposure:webapps` lists what the web apps read; `dbt build` is unaffected.
+   - Passed 2026-11-16. Not checked on its own: Cosmos tasks running at once keeping their own `target` and `logs`
+     (the scheduler's image did not change in this step).
+5. ~~**Write the apps' contract as exposures.**~~ Done, for the one reader there is: the web apps read no model yet, so
+   the exposure is the Excel daily sheet (`excel_journal_entries_daily`, on `fct_journal_entries__daily`).
+   The rule is in `docs/CODING_STANDARDS.md`: a reader that starts reading a model adds it to its exposure.
+   - Check: `dbt ls --select +exposure:excel_journal_entries_daily` lists what the sheet reads; dbt parses. Passed
+     2026-11-16. Exposures are not built, so `dbt build` and the DAGs (Cosmos draws only nodes) are unaffected.
 6. **Give dev and prod their own input and output folders.** Four Windows folders, none inside another; their paths are
    the user's choice. Update `USER_INPUT_DIR` and `USER_OUTPUT_DIR` in `.env` and `.env.prod`, and the template and
    comments of `01_setup_env.ps1` ("the same files as dev"). The files are moved by the user.
@@ -135,9 +139,11 @@ release cycles can split whenever that is useful.
 
 A change on either side of a contract is a change to both, and is checked as one.
 
-The warehouse → apps contract is written down in the dbt project as **exposures**: one per app, listing the models it
-depends on. `dbt ls --select +exposure:<app>` lists everything an app relies on, and the dbt docs draw the apps at the
-end of the lineage, so a dbt change that touches a contract shows before it is built.
+The warehouse → apps contract is written down in the dbt project as **exposures** (`models/exposures.yml`): one per
+reader of gold, an app or a report such as the Excel daily sheet, listing the models it reads. `dbt ls --select
++exposure:<name>` lists everything a reader relies on, and the dbt docs draw the readers at the end of the lineage, so
+a dbt change that touches a contract shows before it is built. A reader gets its exposure when it first reads a model:
+the web apps read none yet.
 
 The datastreamer → warehouse contract is the dataset's input definition, as for any source: where the tap reads the file
 and the entity it loads into (`DataWarehouseMeltano/meltano.yml`), and the columns, types and data tests in
