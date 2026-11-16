@@ -20,7 +20,7 @@ RUN apt-get update \
 
 # one venv each: airflow's constraints would otherwise force their versions on dbt and
 # meltano. the versions are in each requirements file, the one place they are written
-COPY docker/pipeline/requirements.txt /tmp/requirements/airflow.txt
+COPY docker/pipeline/requirements-airflow.txt /tmp/requirements/airflow.txt
 COPY docker/pipeline/requirements-dbt.txt /tmp/requirements/dbt.txt
 COPY docker/pipeline/requirements-meltano.txt /tmp/requirements/meltano.txt
 RUN for venv in airflow dbt meltano; do \
@@ -94,15 +94,15 @@ RUN install -d /usr/share/postgresql-common/pgdg \
 
 # one venv per app, from the apps' own requirements files, so dev runs their versions, and the dev tools in one more.
 # pytest goes into the webapps venv, so it can import the web apps
-COPY docker/webapps/requirements.txt /tmp/requirements/webapps.txt
-COPY docker/datastreamer/requirements.txt /tmp/requirements/datastreamer.txt
+COPY docker/webapps/requirements-webapps.txt /tmp/requirements/webapps.txt
+COPY docker/datastreamer/requirements-datastreamer.txt /tmp/requirements/datastreamer.txt
 COPY docker/pipeline/requirements-tools.txt /tmp/requirements/tools.txt
-COPY docker/pipeline/requirements-test.txt /tmp/requirements/test.txt
+COPY docker/pipeline/requirements-pytest.txt /tmp/requirements/pytest.txt
 RUN for venv in webapps datastreamer tools; do \
         python -m venv /opt/venvs/$venv \
         && /opt/venvs/$venv/bin/pip install --no-cache-dir -r /tmp/requirements/$venv.txt || exit 1; \
     done \
-    && /opt/venvs/webapps/bin/pip install --no-cache-dir -r /tmp/requirements/test.txt \
+    && /opt/venvs/webapps/bin/pip install --no-cache-dir -r /tmp/requirements/pytest.txt \
     && rm -rf /tmp/requirements
 
 # every command from any terminal. the webapps venv first, so "python" and "pytest" are the web apps' python, then the

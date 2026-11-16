@@ -2,7 +2,7 @@
 # paths are relative to the repo root, not to this file
 *
 !src/bluelab_datastreamer/*.py
-!docker/datastreamer/requirements.txt
+!docker/datastreamer/requirements-datastreamer.txt
 
 # runs on windows, not in the container
 src/bluelab_datastreamer/onepen_bridge.py

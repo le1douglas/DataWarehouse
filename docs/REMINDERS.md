@@ -26,11 +26,11 @@ Unfinished business. The user parks these deliberately: mention the relevant one
 - **Absolute position tests are weak:** they check that each row's `absolute_position` exists, not that every bench of a room has each relative position exactly once. Such a rule cannot be a constraint and stays a data test if added.
 - **`is_working`** in `ref_devices` is informational: a device marked false still passes the relationship data test.
 - **Test results are append-only:** `test_result_rows` and `elementary_test_results` keep growing, which is fine at this volume.
-- **Python packages are not installed:** each image finds its package through `PYTHONPATH=/usr/app/src`, and its libraries are pinned in `docker/<image>/requirements.txt`. Revisit when two images share a package, or when the libraries should be declared once in `pyproject.toml` with a lock file: then `pip install .` in runtime and `pip install -e .` in dev.
+- **Python packages are not installed:** each image finds its package through `PYTHONPATH=/usr/app/src`, and its libraries are pinned in `docker/<image>/requirements-<venv>.txt`. Revisit when two images share a package, or when the libraries should be declared once in `pyproject.toml` with a lock file: then `pip install .` in runtime and `pip install -e .` in dev.
 - **No lockfile per image** (decided 2026-11-09 to postpone): only the top-level libraries are pinned, so pip picks the
   transitive versions again on every build. A rebuild already moved pydantic, and SQLAlchemy under meltano, and the dev
-  venvs can differ from the runtime images. The plan when it comes: `docker/<image>/requirements.in` edited by hand,
-  `requirements.txt` generated from it with every package pinned (`uv pip compile --python-platform linux
+  venvs can differ from the runtime images. The plan when it comes: `docker/<image>/requirements-<venv>.in` edited by hand,
+  `requirements-<venv>.txt` generated from it with every package pinned (`uv pip compile --python-platform linux
   --python-version 3.14`, run in the dev container), the Dockerfiles unchanged. What it costs: a regenerate step on every
   library change, and transitive fixes arrive only on a deliberate upgrade. It does not cover the base images, the
   meltano plugins' venvs (`pip_url` in `meltano.yml`) or the GitHub download of `dbt-core-experimental-parser` at

@@ -6,7 +6,7 @@ FROM python:3.14-slim AS runtime
 
 # only what the web apps need. the versions are in the requirements file, the one place they are written
 # (the dev stage of docker/pipeline/Dockerfile reads it too)
-COPY docker/webapps/requirements.txt /tmp/requirements.txt
+COPY docker/webapps/requirements-webapps.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app

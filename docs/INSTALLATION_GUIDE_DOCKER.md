@@ -339,4 +339,4 @@ All in the dev container, from `/usr/app`:
   do not need the database, add `--no-deps`.
 - **A script is blocked by the execution policy:** run it with `powershell -ExecutionPolicy Bypass -File <script>`.
 - **Libraries:** never `pip install` in the dev container terminal. Add the library to the image's
-  `docker/<image>/requirements.txt` (or `docker/pipeline/requirements-tools.txt` and `requirements-test.txt` for a dev tool) and rebuild.
+  `docker/<image>/requirements-<venv>.txt` (or `docker/pipeline/requirements-tools.txt` and `requirements-pytest.txt` for a dev tool) and rebuild.

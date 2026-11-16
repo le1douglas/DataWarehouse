@@ -7,7 +7,7 @@ FROM python:3.14-slim AS runtime
 # the libraries, from the requirements file, the one place their versions are written (the dev stage of
 # docker/pipeline/Dockerfile reads it too). none for now: the readings use only the standard library. the bridge to
 # the pen (onepen_bridge.py), which needs bleak, runs on windows, where the bluetooth adapter is, and is not in this image
-COPY docker/datastreamer/requirements.txt /tmp/requirements.txt
+COPY docker/datastreamer/requirements-datastreamer.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app

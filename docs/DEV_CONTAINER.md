@@ -56,11 +56,17 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
    The rule is in `docs/CODING_STANDARDS.md`: a reader that starts reading a model adds it to its exposure.
    - Check: `dbt ls --select +exposure:excel_journal_entries_daily` lists what the sheet reads; dbt parses. Passed
      2026-11-16. Exposures are not built, so `dbt build` and the DAGs (Cosmos draws only nodes) are unaffected.
-6. **Give dev and prod their own input and output folders.** Four Windows folders, none inside another; their paths are
+6. ~~**Give dev and prod their own input and output folders.**~~ Done: `user_input_dev`, `user_output_dev`,
+   `user_input_prod`, `user_output_prod` in the repo root. Passed 2026-11-16: a dev load read `user_input_dev`.
+   Renaming a mounted folder from inside a container breaks its view there: rename on Windows, then recreate the
+   containers. Four Windows folders, none inside another; their paths are
    the user's choice. Update `USER_INPUT_DIR` and `USER_OUTPUT_DIR` in `.env` and `.env.prod`, and the template and
    comments of `01_setup_env.ps1` ("the same files as dev"). The files are moved by the user.
    - Check: `docker compose config` of each environment shows its own folders; a dev load reads dev's folder only; a dev
      datastreamer run writes to dev's folder only.
+   - Also done, between steps 6 and 7: every requirements file named after its venv, `requirements-<venv>.txt`
+     (`airflow`, `dbt`, `meltano`, `tools`, `pytest` in `docker/pipeline/`; `webapps`, `datastreamer` in their own
+     folders). The paths in steps 2 and 4 are the names of their time.
 7. **Bring in OpenMetadata** from `feature-openmetadata`, in two steps.
    - 7a. The server and search in `compose.yaml` under the profile `openmetadata`, its database script, its port per
      environment, `PIPELINE_SERVICE_CLIENT_ENABLED=false`. Check: `--profile openmetadata up` starts it in dev; the UI
