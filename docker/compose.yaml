@@ -65,7 +65,7 @@ x-airflow: &airflow
   build:
     context: .. # the repo root, one up from this folder. docker/pipeline/Dockerfile.dockerignore keeps only what the image needs
     dockerfile: docker/pipeline/Dockerfile
-    target: runtime # the only stage: dev builds it too, with the repo mounted on top (compose.dev.yaml)
+    target: runtime # venvs plus the projects. dev builds it too, with the repo mounted on top (compose.dev.yaml)
   image: pipeline:${RELEASE}
   environment: *airflow_env
   volumes:

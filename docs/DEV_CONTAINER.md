@@ -28,10 +28,11 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
    `docker/pipeline/requirements-test.txt`. Update `docker/dev/Dockerfile`, `pyproject.toml`, `devcontainer.json`, and
    the requirements line of `CLAUDE.md`.
    - Check: the dev container rebuilds; `ruff --version` and `pytest --version` are unchanged. Passed 2026-11-16.
-3. **Split the pipeline Dockerfile into `venvs` and `runtime`**, with no change to what prod gets. `venvs`: the base
+3. ~~**Split the pipeline Dockerfile into `venvs` and `runtime`**~~ Done, with no change to what prod gets. `venvs`: the base
    image, git, the three venvs and their env vars. `runtime`: `FROM venvs`, then the projects, `dbt deps`, `dbt parse`,
    `meltano install`, `WORKDIR` and `ENTRYPOINT ["airflow"]`. Compose still builds `target: runtime`.
-   - Check: the build and `up` succeed; one load ends `published`.
+   - Check: the build and `up` succeed; one load ends `published`. Passed 2026-11-16: `venvs` came from the cache, and
+     the build took 47 s.
 4. **Make the dev container a stage of the pipeline image.** `FROM venvs AS dev` in `docker/pipeline/Dockerfile`, with
    what `docker/dev/Dockerfile` adds today: the apt packages (psql at the server's major), the webapps, datastreamer
    and tools venvs, pytest in the webapps venv, `PATH` with the webapps venv first, and the env vars (`LANG`,

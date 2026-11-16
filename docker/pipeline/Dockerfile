@@ -1,9 +1,14 @@
 # the pipeline: runs every load, airflow with meltano and dbt, the two of them in this image. compose starts one container per
 # airflow component (api server, scheduler, dag processor), each with its own command.
-# built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
-# runtime: only what it needs to run. prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml).
-# the same base as the other images, so the meltano plugin venvs find their python at the same path in dev
-FROM python:3.14-slim AS runtime
+# built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root.
+# two stages (docs/DEV_CONTAINER.md):
+# - venvs: the tools, airflow, dbt and meltano, each in its own venv, with the env vars they read. nothing of the repo
+#   but their requirements files, so a change to a model or a dag does not rebuild it
+# - runtime: venvs, plus the projects, the dags, the dbt packages and manifest and the meltano plugins. what compose
+#   builds (target: runtime): prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml)
+
+# venvs: the same base as the other images, so the meltano plugin venvs find their python at the same path in dev
+FROM python:3.14-slim AS venvs
 
 # git: dbt deps for packages from a git url, meltano install of a plugin whose pip_url is a git url.
 # the apt lists are removed after the install, so they do not stay in the image
@@ -32,6 +37,9 @@ ENV PATH=/opt/venvs/airflow/bin:/opt/venvs/dbt/bin:/opt/venvs/meltano/bin:$PATH 
     MELTANO_PROJECT_ROOT=/usr/app/DataWarehouseMeltano \
     MELTANO_SEND_ANONYMOUS_USAGE_STATS=false \
     PYTHONUNBUFFERED=1
+
+# runtime: the tools of venvs with what they run on
+FROM venvs AS runtime
 
 # the projects and the dags at the same paths as in the dev container, so the repo mounted at /usr/app in dev hides
 # them. the dags folder is AIRFLOW__CORE__DAGS_FOLDER in docker/compose.yaml
