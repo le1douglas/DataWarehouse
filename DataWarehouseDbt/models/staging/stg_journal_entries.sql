@@ -28,8 +28,10 @@ with
             -- the csv has no bench: every measurement is taken at bench 4 for now
             '4' as bench
         from {{ source("dw_bronze", "brnz_journal_entries") }}
-        -- one load only, the load_id var, so every data test judges that load alone. without the var, compilation fails
-        where load_id = '{{ var("load_id") }}'::uuid
+        -- the open load of the dataset only: landed while its audit judges it, accepted while it is published. airflow
+        -- ends every load in its run (DataWarehouseAirflow/dags/load_datasets.py), so there is at most one, and every
+        -- data test judges that load alone. no load_id is written here or passed as a var: ctl_loads chooses it
+        where load_id in ({{ loads_in_state(["landed", "accepted"]) }})
     ),
 
     assign_absolute_position as (

@@ -4,35 +4,15 @@ sources:
     description: The main source of data. The store of all raw data, exactly as received from the sources, one table per source.
                 It has meaning on its own. Everything is stored as text and almost nothing is asserted about it.
     tables:
+      # the data tests of a load, its row count included, are on staging (models/staging/stg_<dataset>.yml)
       - name: brnz_journal_entries
         description: csv of drip and drain measurements, one row per spot.
-        data_tests:
-          # nothing is checked before loading: a missing column arrives null and fails not_null in staging
-          #test rows amount.
-
-          #TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
-          - dbt_expectations.expect_table_row_count_to_equal:
-              arguments:
-                value: 40 # 10 rooms, 4 measurements per room. a file cut at a line end has fewer
-
-                # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
-                # TODO check if it sbetter to test every load that has not been tested, according to aud
-                row_condition: >-
-                  load_id = '{{ var("load_id") }}'::uuid
-              config:
-                meta:
-                  description: the file must have 40 rows
-          
-
       - name: brnz_plants_batches
         description: csv of plants batches, one row per plants batch, each with its planned timeline.
-        data_tests:
-          # one load only, the same as staging: the load_id var. a file without rows is 0 rows here
-          - dbt_expectations.expect_table_row_count_to_be_between:
-              arguments:
-                min_value: 1
-                row_condition: >-
-                  load_id = '{{ var("load_id") }}'::uuid
-              config:
-                meta:
-                  description: the file must have at least one row
+
+  - name: dw_control
+    description: The state of the loads, written only by Airflow (Database/01_create_schemas_and_tables.sql).
+    tables:
+      - name: ctl_loads
+        description: The current state of every load, one row per load, updated in place by Airflow. See
+                    macros/loads_in_state.sql.

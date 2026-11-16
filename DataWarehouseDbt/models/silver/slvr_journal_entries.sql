@@ -1,10 +1,5 @@
--- the published journal entries. no logic: staging has cast them, and its yml declares the columns and types that
--- select * passes on. incremental, as every silver model (dbt_project.yml): a row of the load replaces the row with
--- the same business key (unique_key in slvr_journal_entries.yml), so a newer upload of a measurement overrides the
--- older one.
--- the ref_ models are not selected from, but silver must depend on them: dbt build skips silver after a failed test
--- only when every model that test reads is upstream of silver, so without these a failed relationship test lets the
--- load in
--- depends_on: {{ ref("ref_devices") }}
--- depends_on: {{ ref("ref_absolute_positions") }}
-select * from {{ ref("stg_journal_entries") }}
+-- the published journal entries. no logic: staging has cast them, and its yml declares the columns and types. the
+-- rows of the accepted loads, see select_accepted_loads. incremental, as every silver model (dbt_project.yml): a row
+-- replaces the row with the same business key (unique_key in slvr_journal_entries.yml), so a newer upload of a
+-- measurement overrides the older one
+{{ select_accepted_loads(ref("stg_journal_entries")) }}

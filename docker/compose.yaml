@@ -114,7 +114,11 @@ services:
   # and exits. the ui at http://localhost on AIRFLOW_PORT
   airflow-init:
     <<: *airflow
-    command: ["db", "migrate"]
+    # after the migration, the pool publish with one slot: one publish at a time across every dataset, as two would
+    # build the same gold fact at once (DataWarehouseAirflow/dags/load_datasets.py). pools set creates or updates it
+    entrypoint: ["bash", "-c"]
+    command:
+      - airflow db migrate && airflow pools set publish 1 "one publish to silver and gold at a time"
     depends_on:
       postgres:
         condition: service_healthy

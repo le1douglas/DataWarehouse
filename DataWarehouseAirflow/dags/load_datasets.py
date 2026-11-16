@@ -1,48 +1,76 @@
-# the loads: one dag per dataset, load_<dataset>. meltano appends the dataset's csv to bronze, then cosmos runs the dbt
-# build of that load as one airflow task per node, so the ui shows which model or test refused it. dbt judges that load
-# alone and adds it to silver only when its data tests pass. one load is the two commands with one load_id, which every
-# bronze row gets
+# the loads: one dag per dataset, load_<dataset>, started by hand. write, audit, publish (docs/ARCHITECTURE_PROPOSAL.md,
+# SIMPLIFIED IMPLEMENTATION): meltano appends the dataset's csv to bronze, dbt tests the load, and only an accepted load
+# is published to silver and gold.
+# the state of every load is in dw_control.ctl_loads, one row per load, written only here: landed, then accepted or
+# refused, then published or failed. dbt reads it to choose the load staging holds (stg_<dataset>) and silver publishes
+# (slvr_<dataset>).
+# every run ends its load: a failure refuses it (audit) or fails it (publish), and the file is sent again. so a dataset
+# has at most one open load, landed or accepted, and the audit and the publish always see that one load alone
 import os
-from pathlib import Path
 from uuid import uuid7
 
+import psycopg2
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag, task
-from cosmos import (
-    DbtTaskGroup,
-    ExecutionConfig,
-    LoadMode,
-    ProfileConfig,
-    ProjectConfig,
-    RenderConfig,
-)
-from cosmos.constants import ExecutionMode, InvocationMode, SourceRenderingBehavior, TestBehavior
 
 # every dataset with a load. from its name come its meltano extractor, tap-csv-<dataset> with hyphens
-# (DataWarehouseMeltano/meltano.yml), and its bronze table, brnz_<dataset>, the dbt source the build starts from
-# (DataWarehouseDbt/models/sources.yml)
+# (DataWarehouseMeltano/meltano.yml), and its dbt models, stg_ and slvr_<dataset>
 _DATASETS = ["journal_entries", "plants_batches"]
 
-# dbt is in its own venv, not airflow's: cosmos runs it as a subprocess, never imports it
-_DBT_EXECUTABLE = "/opt/venvs/dbt/bin/dbt"
-# set by the image and by the dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile)
-_DBT_PROJECT_DIR = Path(os.environ["DBT_PROJECT_DIR"])
-_DBT_PROFILES_DIR = Path(os.environ["DBT_PROFILES_DIR"])
+# set by the image and by the dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile). dbt reads the project
+# from the folder it runs in, and DBT_PROFILES_DIR by itself
+_DBT_PROJECT_DIR = os.environ["DBT_PROJECT_DIR"]
+
+# one publish at a time across every dataset: gold joins silver tables of more than one dataset, so two publishes
+# would build the same fact at once. created with one slot by airflow-init (docker/compose.yaml)
+_PUBLISH_POOL = "publish"
+
+
+def _record(load_id: str, source: str, state: str) -> None:
+    # the new state of a load: its row is inserted when it is landed, and updated for every state after. the connection
+    # is dbt's (DataWarehouseDbt/profiles.yml), set on the scheduler (docker/compose.yaml)
+    connection = psycopg2.connect(
+        host=os.environ["DBT_HOST"],
+        port=os.environ["DBT_PORT"],
+        dbname=os.environ["DBT_DBNAME"],
+        user=os.environ["DBT_USER"],
+        password=os.environ["DBT_ENV_SECRET_PASSWORD"],
+    )
+    with connection, connection.cursor() as cursor:
+        if state == "landed":
+            cursor.execute(
+                "insert into dw_control.ctl_loads (load_id, source, state) values (%s, %s, %s)",
+                (load_id, source, state),
+            )
+        else:
+            cursor.execute(
+                "update dw_control.ctl_loads set state = %s, updated_at = clock_timestamp() where load_id = %s",
+                (state, load_id),
+            )
+            # a load that was never landed has no row: nothing to update is a mistake, not a state
+            if cursor.rowcount != 1:
+                raise RuntimeError(f"load {load_id}: {cursor.rowcount} rows in ctl_loads, expected 1")
+    connection.close()
 
 
 def _make_load_dag(dataset: str) -> None:
     extractor = "tap-csv-" + dataset.replace("_", "-")
-    bronze_table = "brnz_" + dataset
+
+    def _record_on_failure(state: str):
+        # a failure callback that ends the load in state. the task still fails, so airflow's failure alert is the
+        # notification, and nothing after it runs
+        def callback(context) -> None:
+            _record(context["ti"].xcom_pull(task_ids="make_load_id"), dataset, state)
+
+        return callback
 
     @dag(
         dag_id=f"load_{dataset}",
-        # started by hand from the ui, for now
         schedule=None,
         catchup=False,
-        # one load at a time: two builds at once leave silver wrong while both report success (docs/UPLOAD_REPORT.csv,
-        # 6.5 and 6.6)
+        # one load at a time per dataset, so it has at most one open load
         max_active_runs=1,
-        # no retries: a failed meltano run may have loaded the rows anyway, and a failed build may have reached silver
-        # (docs/UPLOAD_REPORT.csv, 7.2 and 12.2). a retry would load or judge the file twice, so a person looks first
+        # no retries: a failed run ends its load, the file is sent again as a new load
         default_args={"retries": 0},
         tags=["load", dataset],
     )
@@ -52,50 +80,50 @@ def _make_load_dag(dataset: str) -> None:
             # time ordered, the same kind of id as postgres' uuidv7()
             return str(uuid7())
 
-        @task.bash
-        def extract_load(load_id: str) -> str:
-            # meltano writes MELTANO_RUN_ID into every bronze row as load_id
-            return f"MELTANO_RUN_ID={load_id} meltano run {extractor} target-postgres"
-
-        build = DbtTaskGroup(
-            group_id="build",
-            project_config=ProjectConfig(
-                dbt_project_path=_DBT_PROJECT_DIR,
-                # the packages are installed already: by the image build in prod, in the dbt-state volume in dev
-                install_dbt_deps=False,
-            ),
-            profile_config=ProfileConfig(
-                profile_name="DataWarehouseDbt",
-                target_name="dw",
-                profiles_yml_filepath=_DBT_PROFILES_DIR / "profiles.yml",
-            ),
-            execution_config=ExecutionConfig(
-                execution_mode=ExecutionMode.LOCAL,
-                invocation_mode=InvocationMode.SUBPROCESS,
-                dbt_executable_path=_DBT_EXECUTABLE,
-            ),
-            render_config=RenderConfig(
-                # the dag processor runs dbt ls to draw the tasks. dbt parses without the load_id var, only compiling
-                # staging needs it
-                load_method=LoadMode.DBT_LS,
-                dbt_executable_path=_DBT_EXECUTABLE,
-                select=[f"source:dw_bronze.{bronze_table}+"],
-                # one dbt build per node, its tests in the same task: a failed test fails the task, and everything after
-                # it is not run, as with one dbt build. silver is added only when staging passes
-                test_behavior=TestBehavior.BUILD,
-                # the source's own tests in a task before staging: the row count test refuses a file without rows.
-                # without this cosmos leaves sources out, and that test would never run
-                source_rendering_behavior=SourceRenderingBehavior.WITH_TESTS_OR_FRESHNESS,
-            ),
-            operator_args={
-                # every dbt command of this run gets the same load_id, so staging holds only this load. rendered when
-                # the task runs, from the id make_load_id returned
-                "vars": {"load_id": "{{ ti.xcom_pull(task_ids='make_load_id') }}"},
-            },
+        # meltano writes MELTANO_RUN_ID into every bronze row as load_id. if it fails, no event is written: rows it
+        # may have loaded are never landed, so dbt never reads them
+        ingest = BashOperator(
+            task_id="ingest",
+            bash_command=f"meltano run {extractor} target-postgres",
+            env={"MELTANO_RUN_ID": "{{ ti.xcom_pull(task_ids='make_load_id') }}"},
+            append_env=True,
         )
 
+        @task
+        def landed(load_id: str) -> None:
+            # the rows are in bronze: from now on the load is under audit
+            _record(load_id, dataset, "landed")
+
+        # the staging view, built so it matches the code, and every data test of the load. any failure, a
+        # failed data test or an error of dbt, refuses the load whole: the file is fixed where it came from and sent
+        # again. what failed, row by row, is in elementary's test_result_rows
+        audit = BashOperator(
+            task_id="audit",
+            bash_command=f"dbt build --select stg_{dataset}",
+            cwd=_DBT_PROJECT_DIR,
+            on_failure_callback=_record_on_failure("refused"),
+        )
+
+        @task
+        def accepted(load_id: str) -> None:
+            _record(load_id, dataset, "accepted")
+
+        # silver merges the accepted load, then gold is built on it. a failure fails the load: silver may hold it
+        # already, so a person looks before the file is sent again
+        publish = BashOperator(
+            task_id="publish",
+            bash_command=f"dbt build --select slvr_{dataset}+",
+            cwd=_DBT_PROJECT_DIR,
+            pool=_PUBLISH_POOL,
+            on_failure_callback=_record_on_failure("failed"),
+        )
+
+        @task
+        def published(load_id: str) -> None:
+            _record(load_id, dataset, "published")
+
         load_id = make_load_id()
-        extract_load(load_id) >> build
+        load_id >> ingest >> landed(load_id) >> audit >> accepted(load_id) >> publish >> published(load_id)
 
     load()
 

@@ -20,6 +20,7 @@ How code in this repository is named and written. Domain terms are defined in `d
   | `dw_snapshots` | `snap_` |
   | `dw_seeds` | `seed_` |
   | `dw_gold` | `dim_` for the dimensions, `fct_` for the facts |
+  | `dw_control` | `ctl_`, the tables only Airflow writes |
 
 - A prefix never contains an underscore: the prefix ends at the first `_`, the detail starts at `__`. Prefixes do not need the same length.
 - Tables and dbt models: `<prefix>_<dataset>` (`dw_bronze.brnz_journal_entries`, `slvr_journal_entries`). The dbt file name is the relation name; no `alias` and no `generate_alias_name` or `generate_schema_name` override. The folder decides materialisation and schema in `dbt_project.yml`.

@@ -14,7 +14,7 @@ BEGIN
     END IF;
 END $$;
 -- Creates only what dbt does not: the schema and tables that meltano loads into.
--- dbt creates dw_audit, dw_silver, dw_snapshots, dw_seeds and dw_gold, and everything inside them, and the staging views in dw_bronze.
+-- dbt creates dw_silver, dw_seeds and dw_gold, and everything inside them, and the staging views in dw_bronze.
 
 CREATE SCHEMA IF NOT EXISTS dw_bronze;
 
@@ -50,6 +50,23 @@ CREATE TABLE IF NOT EXISTS dw_bronze.brnz_plants_batches (
     date_flower_end TEXT,
     plants_number TEXT,
     CONSTRAINT pk_brnz_plants_batches PRIMARY KEY (row_id)
+);
+
+
+CREATE SCHEMA IF NOT EXISTS dw_control;
+
+-- the current state of every load, one row per load, written only by airflow
+-- (DataWarehouseAirflow/dags/load_datasets.py) and read by dbt to choose the load staging holds and silver publishes.
+-- inserted when the load is landed, then updated in place: accepted or refused, then published or failed
+-- (docs/ARCHITECTURE_PROPOSAL.md, SIMPLIFIED IMPLEMENTATION).
+-- the path a load took is in airflow's run history, its rows in bronze. source is the dataset the load belongs to
+-- (journal_entries). no key and no check: only airflow writes it, inserting a load_id once.
+-- updated_at is when state last changed
+CREATE TABLE IF NOT EXISTS dw_control.ctl_loads (
+    load_id UUID NOT NULL,
+    source TEXT NOT NULL,
+    state TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
 

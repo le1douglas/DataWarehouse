@@ -19,8 +19,10 @@ with
             regexp_replace(nullif(date_flower_end, ''), '^(\d{2})/(\d{2})/(\d{4})$', '\3-\2-\1') as date_flower_end,
             nullif(plants_number, '') as plants_number
         from {{ source("dw_bronze", "brnz_plants_batches") }}
-        -- one load only, the load_id var, so every data test judges that load alone. without the var, compilation fails
-        where load_id = '{{ var("load_id") }}'::uuid
+        -- the open load of the dataset only: landed while its audit judges it, accepted while it is published. airflow
+        -- ends every load in its run (DataWarehouseAirflow/dags/load_datasets.py), so there is at most one, and every
+        -- data test judges that load alone. no load_id is written here or passed as a var: ctl_loads chooses it
+        where load_id in ({{ loads_in_state(["landed", "accepted"]) }})
     )
 
     {{ cast_select("mapped") }}

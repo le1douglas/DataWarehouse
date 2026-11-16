@@ -1,7 +1,7 @@
 {#
-    the rows of the latest load whose key is already in slvr_<dataset> under another row_id: silver's delete+insert
-    replaces those rows with these. meant as a warning, so every override is listed in elementary. the key is silver's
-    own unique_key, so this lists exactly what silver replaces.
+    the rows of the load in staging whose key is already in slvr_<dataset> under another row_id: silver's
+    delete+insert replaces those rows with these. meant as a warning, so every override is listed in elementary. the
+    key is silver's own unique_key, so this lists exactly what silver replaces.
     silver is read from the graph, not with ref: a ref would run this test after silver, when the old rows are already
     replaced. before silver's table exists, nothing is replaced.
     the test runs on stg_<dataset>, and reads the dataset from that name. a dataset without silver is a mistake in the yml

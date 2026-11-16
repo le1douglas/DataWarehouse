@@ -292,3 +292,162 @@ warehouse replaceable.
 - Landing zone: MinIO self-hosted, or a cloud bucket.
 - Where quarantined rows are reviewed, and by whom.
 - `control.loads` in the warehouse, or a separate operational database.
+
+## SIMPLIFIED IMPLEMENTATION
+
+The minimum that keeps the main idea: Airflow records whether each load passes, and nothing reaches silver without a
+pass. Postgres, Meltano and dbt stay. Everything else waits.
+
+### What is built
+
+- **`control.loads`** in the warehouse, one row per event, written only by Airflow: `load_id`, `source`, `state`,
+  `recorded_at`. A load's state is its latest event.
+- **Four states**: `landed`, `accepted`, `refused`, `published`. A load that fails is refused whole; the file is fixed
+  where it came from.
+- **One DAG per source**, `max_active_runs=1`, retries off.
+- **Audit models** over bronze, selecting the loads whose state is `landed`. No view holds a `load_id`, no `--vars`.
+- **Silver incremental**, merging the `accepted` loads not yet `published`, in `load_id` order, by business key.
+- **Gold built inside publish**, in an Airflow pool of 1, so two sources never build a shared fact at once.
+- **A manual setup DAG**: `dbt build` of seeds, `ref_` models, dims, and Elementary's tables.
+- **dbt run as plain commands** (BashOperator).
+
+```mermaid
+stateDiagram-v2
+    [*] --> landed: meltano run finished
+    landed --> accepted: every test passes
+    landed --> refused: a test fails
+    accepted --> published: silver and gold built
+    refused --> [*]
+    published --> [*]
+```
+
+### The DAG
+
+```mermaid
+flowchart LR
+    ingest["ingest<br/>meltano run, load_id = uuidv7"] --> audit["audit<br/>dbt test, audit models"]
+    audit --> verdict["verdict<br/>read run_results.json"]
+    verdict -->|pass| publish["publish<br/>dbt build silver+, pool of 1"]
+    verdict -->|fail| fail["refused, task fails, alert"]
+```
+
+1. **ingest**: `meltano run tap-csv-<dataset> target-postgres` with `MELTANO_RUN_ID` set to a new uuidv7. Writes
+   `landed`.
+2. **audit**: `dbt test --select <the source's audit models>`. Its exit code is ignored; the verdict reads the results.
+3. **verdict**: reads `target/run_results.json`. Every test passes: writes `accepted`. A test fails: writes `refused`
+   and fails the task, so the Airflow failure alert is the notification. An error in dbt fails the task with no event:
+   the load stays `landed`, to be rerun by hand.
+
+   `run_results.json` is dbt's own artifact, so the verdict does not depend on Elementary. Elementary's `on-run-end`
+   hook runs inside the same `dbt test`, though: the verdict reads only the test entries and ignores the exit code, so
+   a failing hook cannot change it. **To revisit and confirm when implementing**: that `run_results.json` is complete
+   when the hook fails, or else turn Elementary's hooks off for the audit run.
+4. **publish**: `dbt build --select <the source's silver models>+`, the dbt build of silver and everything after it.
+   Writes `published`.
+
+### Removed
+
+- The `load_id` var in staging, and the build that fails on purpose without it.
+- `-- depends_on: ref_*` and dbt skip-on-failure as the gate.
+- The bootstrap build that fails on purpose (replaced by the setup DAG).
+- Snapshots.
+
+### Build order
+
+1. `control.loads` DDL.
+2. Audit models selecting from `control.loads`; the staging var and gate workarounds removed.
+3. Silver incremental from `control.loads`; snapshots removed.
+4. The setup DAG.
+5. The per-source DAG: ingest, audit, verdict, publish.
+6. One source end to end: a good file reaches gold, a bad file is refused and never reaches silver.
+
+### Later
+
+| What | Section |
+|---|---|
+| Retries, and steps checked to be idempotent | 1, 4 |
+| Landing zone, checksum, `duplicate` | 4, 6 |
+| Delivery checks before bronze, `rejected` | 3, 5 |
+| `source_row_number` | 6 |
+| Quarantine, per-source refusal policy | 5, 7 |
+| dlt, schema contracts | 7, 14 |
+| Gold in its own DAG, triggered by silver assets, incremental | 9 |
+| Silver rebuild by replaying published loads; history from bronze | 6, 8 |
+| Cosmos task groups | 9 |
+| Scheduled pick-up of landed loads without a verdict | 9 |
+| An issues view for people, joined to `ctl_loads` (`aud_issues` was removed) | 13 |
+| `indexes` model config instead of the `pg_index` post-hook | 8, 13 |
+| OpenLineage, OpenMetadata, CI | 11 |
+| Portable SQL, a replaceable warehouse | 10 |
+| Roles | 12 |
+
+### As built
+
+Steps 1 to 6 done on `feature-airflow`. `control.loads` is `dw_control.ctl_loads`, after the naming standard.
+
+**Every run ends its load**, so a dataset has at most one open load (`landed` or `accepted`). Staging holds that load
+only: the data tests judge it while it is `landed`, silver reads it once it is `accepted`.
+
+**`ctl_loads` holds one row per load, its current state**, updated in place, not one row per event. The path a load
+took is in Airflow's run history, its rows in bronze. The audit's exit code
+is the verdict: any failure, a failed test or an error of dbt, refuses the load, and the file is sent again. A failed
+publish ends the load as `failed`, a fifth state, for a person to look at. `refused` and `failed` are written by the
+failing task's failure callback.
+
+```mermaid
+flowchart LR
+    csv["csv file"]
+
+    subgraph dag["Airflow: load_&lt;dataset&gt;, one run at a time"]
+        ingest["ingest<br/>meltano run"]
+        audit["audit<br/>dbt build stg_"]
+        verdict{"verdict<br/>audit exit code"}
+        publish["publish<br/>dbt build slvr_+<br/>pool publish, 1 slot"]
+    end
+
+    subgraph wh["Postgres: DataWarehouse"]
+        ctl[("dw_control.ctl_loads<br/>one row per load, its state")]
+        bronze[("dw_bronze.brnz_<br/>every load, append-only")]
+        stg["stg_ views<br/>the open load, typed<br/>every data test"]
+        silver[("slvr_<br/>loads accepted")]
+        gold[("gold<br/>dims and facts")]
+    end
+
+    setup["Airflow: setup_warehouse, by hand<br/>dbt build<br/>seeds, ref_, dims, Elementary"]
+
+    csv --> ingest --> bronze
+    ingest -.->|landed| ctl
+    bronze --> stg --> silver --> gold
+    ctl -.->|landed or accepted| stg
+    ctl -.->|accepted| silver
+    stg --> audit --> verdict
+    verdict -.->|accepted / refused| ctl
+    verdict -->|accepted| publish
+    verdict -->|refused: task fails, publish skipped| stop(["file fixed at the source"])
+    publish -.->|on failure: failed| ctl
+    publish --> silver
+    publish -.->|published| ctl
+    setup --> gold
+
+    %% the normal path, a good file from csv to gold, in green
+    classDef ok fill:#d4edda,stroke:#28a745,color:#155724
+    class csv,ingest,bronze,stg,audit,verdict,publish,silver,gold ok
+    linkStyle 0,1,3,4,5,8,9,11,14 stroke:#28a745,stroke-width:3px
+```
+
+| Piece | Where |
+|---|---|
+| `dw_control.ctl_loads` | `Database/01_create_schemas_and_tables.sql` |
+| Loads in a state | `macros/loads_in_state.sql` |
+| `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
+| `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
+| The load dag: ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
+| The setup dag, its dbt selection written in it | `DataWarehouseAirflow/dags/setup_warehouse.py` |
+| The `publish` pool | `airflow-init` in `docker/compose.yaml` |
+
+Removed: the `load_id` var, `-- depends_on: ref_*`, the bootstrap build that fails on purpose, snapshots (tables
+dropped), `aud_issues` and `dw_audit`, the source row-count tests (now on `stg_`), and Cosmos from the load dag (kept installed for
+later).
+
+Tested end to end on `journal_entries`: a good file went landed, accepted, published and reached gold; a file with a
+bad `ph` and an unknown device was refused on those two tests, and silver and gold did not change.
