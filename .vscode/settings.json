@@ -1,3 +1,5 @@
 {
-    "python.terminal.useEnvFile": true
+    "python.terminal.useEnvFile": true,
+    // airflow puts the dags folder on the python path, so the dags import utils/ from it: pylance needs the same
+    "python.analysis.extraPaths": ["DataWarehouseAirflow/dags"]
 }

@@ -7,20 +7,19 @@
 # every run ends its load: a failure refuses it (audit) or fails it (publish), and the file is sent again. so a dataset
 # has at most one open load, landed or accepted, and the audit and the publish always see that one load alone. a
 # database outage between a dbt step and its state write can still leave one open: the next run stops before ingest
+# the dbt steps, audit and publish, are cosmos task groups: one airflow task per dbt node, so the ui shows which model
+# or test refused or failed the load
 import os
 from uuid import uuid7
 
 import psycopg2
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag, task
+from utils.dbt_task_group import dbt_task_group
 
 # every dataset with a load. from its name come its meltano extractor, tap-csv-<dataset> with hyphens
 # (DataWarehouseMeltano/meltano.yml), and its dbt models, stg_ and slvr_<dataset>
 _DATASETS = ["journal_entries", "plants_batches"]
-
-# set by the image and by the dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile). dbt reads the project
-# from the folder it runs in, and DBT_PROFILES_DIR by itself
-_DBT_PROJECT_DIR = os.environ["DBT_PROJECT_DIR"]
 
 # one publish at a time across every dataset: gold joins silver tables of more than one dataset, so two publishes
 # would build the same fact at once. created with one slot by airflow-init (docker/compose.yaml)
@@ -40,6 +39,7 @@ def _connect():
         user=os.environ["DBT_USER"],
         password=os.environ["DBT_ENV_SECRET_PASSWORD"],
     )
+
 
 # checks if there is a load that is stuck in an open state
 def _open_loads(source: str) -> list[tuple[str, str]]:
@@ -128,12 +128,12 @@ def _make_load_dag(dataset: str) -> None:
 
         # the staging view, built so it matches the code, and every data test of the load. any failure, a
         # failed data test or an error of dbt, refuses the load whole: the file is fixed where it came from and sent
-        # again. what failed, row by row, is in elementary's test_result_rows
-        audit = BashOperator(
-            task_id="audit",
-            bash_command=f"dbt build --select stg_{dataset}",
-            cwd=_DBT_PROJECT_DIR,
-            on_failure_callback=_record_on_failure("refused"),
+        # again. what failed, row by row, is in elementary's test_result_rows. the tasks after a failed one end
+        # upstream_failed, which runs no callback, so the load is refused once
+        audit = dbt_task_group(
+            "audit",
+            [f"stg_{dataset}"],
+            operator_args={"on_failure_callback": _record_on_failure("refused")},
         )
 
         @task
@@ -141,13 +141,12 @@ def _make_load_dag(dataset: str) -> None:
             _record(load_id, dataset, "accepted")
 
         # silver merges the accepted load, then gold is built on it. a failure fails the load: silver may hold it
-        # already, so a person looks before the file is sent again
-        publish = BashOperator(
-            task_id="publish",
-            bash_command=f"dbt build --select slvr_{dataset}+",
-            cwd=_DBT_PROJECT_DIR,
-            pool=_PUBLISH_POOL,
-            on_failure_callback=_record_on_failure("failed"),
+        # already, so a person looks before the file is sent again. the pool is taken per node, not per publish: two
+        # datasets' publishes can take turns between nodes, but never build the same node at once
+        publish = dbt_task_group(
+            "publish",
+            [f"slvr_{dataset}+"],
+            operator_args={"on_failure_callback": _record_on_failure("failed"), "pool": _PUBLISH_POOL},
         )
 
         @task
