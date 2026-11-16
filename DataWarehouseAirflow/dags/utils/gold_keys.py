@@ -21,7 +21,7 @@ def gold_keys(**operator_args) -> BashOperator:
         task_id="gold_keys",
         bash_command=f"dbt test --select {_SELECT}",
         # dbt reads the project from the folder it runs in, and DBT_PROFILES_DIR by itself. set by the image and by the
-        # dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile)
+        # dev container (docker/pipeline/Dockerfile, docker/dev/Dockerfile)
         cwd=os.environ["DBT_PROJECT_DIR"],
         **operator_args,
     )

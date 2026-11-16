@@ -28,14 +28,14 @@ RUN install -d /usr/share/postgresql-common/pgdg \
     && rm -rf /var/lib/apt/lists/*
 
 # one venv per requirements file of the runtime images: the same versions, and no clash between the libraries of
-# airflow, dbt, meltano and nicegui. the dev tools in one more venv, from docker/dev
-COPY docker/airflow/requirements.txt /tmp/requirements/airflow.txt
-COPY docker/airflow/requirements-dbt.txt /tmp/requirements/dbt.txt
-COPY docker/airflow/requirements-meltano.txt /tmp/requirements/meltano.txt
+# airflow, dbt, meltano and nicegui. the dev tools in one more venv, from docker/pipeline/requirements-tools.txt
+COPY docker/pipeline/requirements.txt /tmp/requirements/airflow.txt
+COPY docker/pipeline/requirements-dbt.txt /tmp/requirements/dbt.txt
+COPY docker/pipeline/requirements-meltano.txt /tmp/requirements/meltano.txt
 COPY docker/webapps/requirements.txt /tmp/requirements/webapps.txt
 COPY docker/datastreamer/requirements.txt /tmp/requirements/datastreamer.txt
-COPY docker/dev/requirements.txt /tmp/requirements/tools.txt
-COPY docker/dev/requirements-test.txt /tmp/requirements/test.txt
+COPY docker/pipeline/requirements-tools.txt /tmp/requirements/tools.txt
+COPY docker/pipeline/requirements-test.txt /tmp/requirements/test.txt
 
 # pytest goes into the webapps venv, so it can import them
 RUN for venv in airflow dbt meltano webapps datastreamer tools; do \
@@ -54,7 +54,7 @@ ENV PATH=/opt/venvs/webapps/bin:/opt/venvs/tools/bin:/opt/venvs/dbt/bin:/opt/ven
 # LANG: the slim image sets no locale, so programs other than python (psql, perl, less) fall back to ascii. C.UTF-8 is
 # built into the image, nothing to install. the Dev Container keeps vs code's terminal from overriding it
 # (terminal.integrated.detectLocale)
-# airflow keeps its config and logs in AIRFLOW_HOME, the same path as in the airflow image
+# airflow keeps its config and logs in AIRFLOW_HOME, the same path as in the pipeline image
 ENV LANG=C.UTF-8 \
     AIRFLOW_HOME=/opt/airflow \
     DBT_PROJECT_DIR=/usr/app/DataWarehouseDbt \

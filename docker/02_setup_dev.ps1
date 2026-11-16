@@ -1,4 +1,4 @@
-# dev setup: builds the airflow, webapps and dev images, starts postgres, creates the airflow database when it is missing,
+# dev setup: builds the pipeline, webapps and dev images, starts postgres, creates the airflow database when it is missing,
 # starts airflow and the web apps, installs the dbt packages and the meltano plugins, writes the dbt manifest and checks
 # dbt's connection.
 # safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
@@ -34,7 +34,7 @@ try {
 
     # before up, so up starts the services on the new images, not on the ones of the last build. the airflow services
     # share one image: building airflow-init builds it for all of them
-    Write-Host 'building the airflow, webapps and dev images'
+    Write-Host 'building the pipeline, webapps and dev images'
     & docker @dev --profile dev build airflow-init webapps dev
     Assert-Ok 'the build'
 

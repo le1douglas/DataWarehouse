@@ -1,10 +1,10 @@
-# build context of the airflow image (the repo root): only the dags, the dbt and meltano projects and the requirements
+# build context of the pipeline image (the repo root): only the dags, the dbt and meltano projects and the requirements
 # files go in. paths are relative to the repo root, not to this file
 *
 !DataWarehouseAirflow
 !DataWarehouseDbt
 !DataWarehouseMeltano
-!docker/airflow/requirements*.txt
+!docker/pipeline/requirements*.txt
 
 # written by dbt and meltano on Windows: the image runs dbt deps and meltano install itself, and target/ and logs/ are
 # written at run time

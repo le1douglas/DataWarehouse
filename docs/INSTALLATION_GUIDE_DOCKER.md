@@ -80,7 +80,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ## 4. Dev stack: `02_setup_dev.ps1`
 
 - `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
-  - Builds the `airflow`, `webapps` and `dev` images, starts postgres, creates the `airflow` database when it is
+  - Builds the `pipeline`, `webapps` and `dev` images, starts postgres, creates the `airflow` database when it is
     missing, starts Airflow and the web app, and runs `dbt deps`, `dbt parse`, `meltano install` and `dbt debug` in the
     Airflow scheduler. `dbt parse` writes the dbt manifest the DAGs are drawn from
     (`DataWarehouseAirflow/dags/utils/dbt_task_group.py`); any later dbt command in dev rewrites it
@@ -101,7 +101,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-dev-postgres-1 psql -U postgres -l` → `DataWarehouse`, `airflow` and `meltano`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d meltano -c "\dt"` → `alembic_version`, `plugin_settings`, `runs`,
   `state`: Meltano's own tables, created by `meltano install`
-- `docker image ls` → `airflow`, `webapps` and `dev`, tag `dev`
+- `docker image ls` → `pipeline`, `webapps` and `dev`, tag `dev`
 - `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages and the
   manifest are in it, not in the repo folder), `dw-dev_airflow-logs`
 - In the Airflow UI, trigger `setup_warehouse` (see **Daily workflow**): it builds the seeds, the `ref_` models, the
@@ -113,8 +113,8 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - No uncommitted changes (commit or stash first): the build switches the repo to the tag
 - `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1`
-  - Builds the `airflow`, `webapps` and `datastreamer` images of `RELEASE` from the tag's code, then switches the
-    repo back. The `airflow` image holds dbt, Meltano, their projects and the dbt manifest (`dbt parse` at build)
+  - Builds the `pipeline`, `webapps` and `datastreamer` images of `RELEASE` from the tag's code, then switches the
+    repo back. The `pipeline` image holds dbt, Meltano, their projects and the dbt manifest (`dbt parse` at build)
   - Images of `RELEASE` that exist are not rebuilt
   - Starts postgres, creates the `airflow` database when it is missing, starts Airflow and the web app, runs `dbt debug`
     in the Airflow scheduler
@@ -127,7 +127,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → the same tables as dev
 - `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse`, `airflow` and `meltano`
-- `docker image ls` → `airflow`, `webapps` and `datastreamer`, tag = `RELEASE`
+- `docker image ls` → `pipeline`, `webapps` and `datastreamer`, tag = `RELEASE`
 - Airflow UI at `http://localhost:8091` (`AIRFLOW_PORT` in `docker/.env.prod`)
 - `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod exec airflow-scheduler dbt debug`
   → `All checks passed!`
@@ -282,8 +282,8 @@ All in the dev container, from `/usr/app`:
 - **`set USER_INPUT_DIR / NICEGUI_PORT / USER_OUTPUT_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
-- **Prod `up` fails with `pull access denied for airflow` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
-- **`03_setup_prod.ps1` fails on `docker/airflow/Dockerfile` not found:** `RELEASE` is a tag from before Airflow. Tag
+- **Prod `up` fails with `pull access denied for pipeline` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
+- **`03_setup_prod.ps1` fails on `docker/pipeline/Dockerfile` not found:** `RELEASE` is a tag from before the pipeline image. Tag
   a release that has it.
 - **`no_open_load` fails with `has an open load`:** an earlier run stopped between a dbt step and its state write (a
   database outage), and left its load `landed` or `accepted`. Look at it in `dw_control.ctl_loads`, end it by hand
@@ -339,4 +339,4 @@ All in the dev container, from `/usr/app`:
   do not need the database, add `--no-deps`.
 - **A script is blocked by the execution policy:** run it with `powershell -ExecutionPolicy Bypass -File <script>`.
 - **Libraries:** never `pip install` in the dev container terminal. Add the library to the image's
-  `docker/<image>/requirements.txt` (or `docker/dev/requirements*.txt` for a dev tool) and rebuild.
+  `docker/<image>/requirements.txt` (or `docker/pipeline/requirements-tools.txt` and `requirements-test.txt` for a dev tool) and rebuild.

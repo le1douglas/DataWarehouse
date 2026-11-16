@@ -1,4 +1,4 @@
-# airflow: runs every load, meltano then dbt, with the two of them in this image. compose starts one container per
+# the pipeline: runs every load, airflow with meltano and dbt, the two of them in this image. compose starts one container per
 # airflow component (api server, scheduler, dag processor), each with its own command.
 # built from the repo root (build context in docker/compose.yaml), so paths below are relative to the repo root
 # runtime: only what it needs to run. prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml).
@@ -13,9 +13,9 @@ RUN apt-get update \
 
 # one venv each, as in docker/dev/Dockerfile: airflow's constraints would otherwise force their versions on dbt and
 # meltano. the versions are in each requirements file, the one place they are written
-COPY docker/airflow/requirements.txt /tmp/requirements/airflow.txt
-COPY docker/airflow/requirements-dbt.txt /tmp/requirements/dbt.txt
-COPY docker/airflow/requirements-meltano.txt /tmp/requirements/meltano.txt
+COPY docker/pipeline/requirements.txt /tmp/requirements/airflow.txt
+COPY docker/pipeline/requirements-dbt.txt /tmp/requirements/dbt.txt
+COPY docker/pipeline/requirements-meltano.txt /tmp/requirements/meltano.txt
 RUN for venv in airflow dbt meltano; do \
         python -m venv /opt/venvs/$venv \
         && /opt/venvs/$venv/bin/pip install --no-cache-dir -r /tmp/requirements/$venv.txt || exit 1; \

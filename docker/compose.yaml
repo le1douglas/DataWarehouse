@@ -63,10 +63,10 @@ x-dbt-env: &dbt_env
 # api server reads what the tasks wrote in the scheduler
 x-airflow: &airflow
   build:
-    context: .. # the repo root, one up from this folder. docker/airflow/Dockerfile.dockerignore keeps only what the image needs
-    dockerfile: docker/airflow/Dockerfile
+    context: .. # the repo root, one up from this folder. docker/pipeline/Dockerfile.dockerignore keeps only what the image needs
+    dockerfile: docker/pipeline/Dockerfile
     target: runtime # the only stage: dev builds it too, with the repo mounted on top (compose.dev.yaml)
-  image: airflow:${RELEASE}
+  image: pipeline:${RELEASE}
   environment: *airflow_env
   volumes:
     - airflow-logs:/opt/airflow/logs
@@ -109,7 +109,7 @@ services:
       retries: 12
     restart: unless-stopped
 
-  # airflow: runs every load, meltano then dbt. one image (docker/airflow/Dockerfile), one container per component, each
+  # airflow: runs every load, meltano then dbt. one image (docker/pipeline/Dockerfile), one container per component, each
   # with its own command. started by "up" and kept running, except airflow-init, which migrates the metadata database
   # and exits. the ui at http://localhost on AIRFLOW_PORT
   airflow-init:

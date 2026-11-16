@@ -67,12 +67,12 @@
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
         "python.testing.pytestArgs": ["tests"],
-        // the ruff of docker/dev/requirements.txt, not the one bundled with the extension
+        // the ruff of docker/pipeline/requirements-tools.txt, not the one bundled with the extension
         "ruff.path": ["/opt/venvs/tools/bin/ruff"],
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
         },
-        // completion and validation of meltano.yml, from the schema of the meltano version in docker/airflow/requirements-meltano.txt
+        // completion and validation of meltano.yml, from the schema of the meltano version in docker/pipeline/requirements-meltano.txt
         "yaml.schemas": {
           "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "DataWarehouseMeltano/meltano.yml"
         }

@@ -35,7 +35,7 @@ def setup_warehouse():
         task_id="elementary",
         bash_command="dbt build --select package:elementary",
         # dbt reads the project from the folder it runs in, and DBT_PROFILES_DIR by itself. set by the image and by the
-        # dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile)
+        # dev container (docker/pipeline/Dockerfile, docker/dev/Dockerfile)
         cwd=os.environ["DBT_PROJECT_DIR"],
     )
 

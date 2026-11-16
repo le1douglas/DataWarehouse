@@ -1,4 +1,4 @@
-# prod setup: builds the airflow, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
+# prod setup: builds the pipeline, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
 # postgres, creates the airflow database when it is missing, starts the rest and checks dbt's connection. the images are
 # built from the tag's code: the repo is switched to the tag for the build and back to where it was after, even when the
 # build fails.
@@ -37,7 +37,7 @@ try {
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "airflow:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
+    if ((Test-Docker image inspect "pipeline:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {

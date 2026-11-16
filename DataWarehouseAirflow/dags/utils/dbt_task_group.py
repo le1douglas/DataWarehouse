@@ -9,13 +9,13 @@ from cosmos.constants import ExecutionMode, InvocationMode, TestBehavior
 
 # dbt is in its own venv, not airflow's: cosmos runs it as a subprocess, never imports it
 _DBT_EXECUTABLE = "/opt/venvs/dbt/bin/dbt"
-# set by the image and by the dev container (docker/airflow/Dockerfile, docker/dev/Dockerfile)
+# set by the image and by the dev container (docker/pipeline/Dockerfile, docker/dev/Dockerfile)
 _DBT_PROJECT_DIR = Path(os.environ["DBT_PROJECT_DIR"])
 _DBT_PROFILES_DIR = Path(os.environ["DBT_PROFILES_DIR"])
 # the manifest every dbt parse, compile or build writes, read to draw the tasks: no dbt ls when a task starts, as every
 # task parses its dag file again. in DBT_TARGET_PATH, dev's dbt-state volume, which any dbt command of the dev container
 # rewrites (docker/compose.dev.yaml); in prod, unset, the project's target, written by dbt parse at the image build
-# (docker/airflow/Dockerfile). a model added since the last parse has no task until dbt parses again
+# (docker/pipeline/Dockerfile). a model added since the last parse has no task until dbt parses again
 _DBT_MANIFEST = _DBT_PROJECT_DIR / os.environ.get("DBT_TARGET_PATH", "target") / "manifest.json"
 
 

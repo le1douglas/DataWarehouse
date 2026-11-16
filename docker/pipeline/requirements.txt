@@ -1,5 +1,5 @@
 # the libraries of airflow, the only place their versions are written. installed into its own venv by the runtime stage
-# of docker/airflow/Dockerfile.
+# of docker/pipeline/Dockerfile.
 # airflow pins its whole dependency tree in a constraints file, one per airflow and python version: without it pip
 # resolves newer libraries than the ones airflow was tested with, and it breaks. the version is written twice, in the
 # package and in the url, which have to change together, as has the python of the url with the base image
