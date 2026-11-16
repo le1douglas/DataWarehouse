@@ -5,7 +5,8 @@
 # refused, then published or failed. dbt reads it to choose the load staging holds (stg_<dataset>) and silver publishes
 # (slvr_<dataset>).
 # every run ends its load: a failure refuses it (audit) or fails it (publish), and the file is sent again. so a dataset
-# has at most one open load, landed or accepted, and the audit and the publish always see that one load alone
+# has at most one open load, landed or accepted, and the audit and the publish always see that one load alone. a
+# database outage between a dbt step and its state write can still leave one open: the next run stops before ingest
 import os
 from uuid import uuid7
 
@@ -26,16 +27,37 @@ _DBT_PROJECT_DIR = os.environ["DBT_PROJECT_DIR"]
 _PUBLISH_POOL = "publish"
 
 
-def _record(load_id: str, source: str, state: str) -> None:
-    # the new state of a load: its row is inserted when it is landed, and updated for every state after. the connection
-    # is dbt's (DataWarehouseDbt/profiles.yml), set on the scheduler (docker/compose.yaml)
-    connection = psycopg2.connect(
+# the states of a load still under way: staging holds it (stg_<dataset>)
+_OPEN_STATES = ("landed", "accepted")
+
+
+def _connect():
+    # dbt's connection (DataWarehouseDbt/profiles.yml), set on the scheduler (docker/compose.yaml)
+    return psycopg2.connect(
         host=os.environ["DBT_HOST"],
         port=os.environ["DBT_PORT"],
         dbname=os.environ["DBT_DBNAME"],
         user=os.environ["DBT_USER"],
         password=os.environ["DBT_ENV_SECRET_PASSWORD"],
     )
+
+# checks if there is a load that is stuck in an open state
+def _open_loads(source: str) -> list[tuple[str, str]]:
+    # the load_id and state of every open load of the dataset
+    connection = _connect()
+    with connection, connection.cursor() as cursor:
+        cursor.execute(
+            "select load_id::text, state from dw_control.ctl_loads where source = %s and state in %s order by load_id",
+            (source, _OPEN_STATES),
+        )
+        rows = cursor.fetchall()
+    connection.close()
+    return rows
+
+
+def _record(load_id: str, source: str, state: str) -> None:
+    # the new state of a load: its row is inserted when it is landed, and updated for every state after
+    connection = _connect()
     with connection, connection.cursor() as cursor:
         if state == "landed":
             cursor.execute(
@@ -75,6 +97,16 @@ def _make_load_dag(dataset: str) -> None:
         tags=["load", dataset],
     )
     def load():
+        @task
+        def no_open_load() -> None:
+            # a load left landed or accepted by an outage between a dbt step and its state write would sit in staging
+            # next to the new one, and the audit would judge both. the run stops before anything is loaded: a person
+            # looks at the open load and ends it in ctl_loads, refused or failed, then the file is sent again
+            open_loads = _open_loads(dataset)
+            if open_loads:
+                listed = ", ".join(f"{load_id} ({state})" for load_id, state in open_loads)
+                raise RuntimeError(f"{dataset} has an open load, end it in dw_control.ctl_loads first: {listed}")
+
         @task
         def make_load_id() -> str:
             # time ordered, the same kind of id as postgres' uuidv7()
@@ -123,6 +155,7 @@ def _make_load_dag(dataset: str) -> None:
             _record(load_id, dataset, "published")
 
         load_id = make_load_id()
+        no_open_load() >> load_id
         load_id >> ingest >> landed(load_id) >> audit >> accepted(load_id) >> publish >> published(load_id)
 
     load()

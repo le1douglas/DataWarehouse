@@ -363,30 +363,45 @@ flowchart LR
 
 ### Later
 
+Reviewed after the simplifications in As built (every run ends its load, one row per load), most useful first.
+
+| What | Why it still matters | Section |
+|---|---|---|
+| Retries on `audit` only | Views and tests only, safe to rerun; the failure callback runs after the last try, so a blip no longer refuses a good file. `ingest` stays without: a retry loads the rows twice | 1, 4 |
+| `source_row_number` | A refused file is fixed at the source: the line, not only the value | 6 |
+| Silver rebuild from the published loads; history from bronze | Silver cannot be rebuilt (`full_refresh: false`), and without snapshots a row's history is only in bronze and `ctl_loads`. Needs its own path: staging holds the open load only | 6, 8 |
+| Landing zone, checksum, `duplicate` | A file sent twice loads twice: harmless to silver (merge by business key), kept twice in bronze | 4, 6 |
+| Delivery checks before bronze, `rejected` | Encoding, header and shape faults (`SampleData/drip_drain_csv/malformed_csv`) are not all caught | 3, 5 |
+| Cosmos task groups | To be used | 9 |
+| `indexes` model config instead of the `pg_index` post-hook | Cleanup of `unique_key_index` | 8, 13 |
+| OpenLineage, OpenMetadata, CI | OpenMetadata is planned; CI catches a broken build before a merge | 11 |
+| Roles | Everything runs as one user | 12 |
+| Portable SQL, a replaceable warehouse | What was added is portable already | 10 |
+
+Open decisions:
+
 | What | Section |
 |---|---|
-| Retries, and steps checked to be idempotent | 1, 4 |
-| Landing zone, checksum, `duplicate` | 4, 6 |
-| Delivery checks before bronze, `rejected` | 3, 5 |
-| `source_row_number` | 6 |
-| Quarantine, per-source refusal policy | 5, 7 |
+| An issues view for people, joined to `ctl_loads`: only when someone other than the developer reads failures (`aud_issues` was removed) | 13 |
 | dlt, schema contracts | 7, 14 |
-| Gold in its own DAG, triggered by silver assets, incremental | 9 |
-| Silver rebuild by replaying published loads; history from bronze | 6, 8 |
-| Cosmos task groups | 9 |
-| Scheduled pick-up of landed loads without a verdict | 9 |
-| An issues view for people, joined to `ctl_loads` (`aud_issues` was removed) | 13 |
-| `indexes` model config instead of the `pg_index` post-hook | 8, 13 |
-| OpenLineage, OpenMetadata, CI | 11 |
-| Portable SQL, a replaceable warehouse | 10 |
-| Roles | 12 |
+
+Dropped:
+
+| What | Why |
+|---|---|
+| Scheduled pick-up of landed loads without a verdict | Every run ends its load (As built) |
+| Quarantine, per-source refusal policy | A failing load is refused whole and fixed at the source |
+| Gold in its own DAG, triggered by silver assets | The `publish` pool keeps two publishes apart, and gold builds in seconds |
 
 ### As built
 
 Steps 1 to 6 done on `feature-airflow`. `control.loads` is `dw_control.ctl_loads`, after the naming standard.
 
 **Every run ends its load**, so a dataset has at most one open load (`landed` or `accepted`). Staging holds that load
-only: the data tests judge it while it is `landed`, silver reads it once it is `accepted`.
+only: the data tests judge it while it is `landed`, silver reads it once it is `accepted`. A database outage between a
+dbt step and its state write can still leave a load open, so every run starts with `no_open_load`: it fails, before
+anything is loaded, when the dataset has a `landed` or `accepted` load. A person ends that load in `ctl_loads`, `refused`
+or `failed`, and the file is sent again.
 
 **`ctl_loads` holds one row per load, its current state**, updated in place, not one row per event. The path a load
 took is in Airflow's run history, its rows in bronze. The audit's exit code
@@ -441,7 +456,7 @@ flowchart LR
 | Loads in a state | `macros/loads_in_state.sql` |
 | `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
 | `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
-| The load dag: ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
+| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
 | The setup dag, its dbt selection written in it | `DataWarehouseAirflow/dags/setup_warehouse.py` |
 | The `publish` pool | `airflow-init` in `docker/compose.yaml` |
 
