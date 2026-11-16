@@ -36,6 +36,12 @@ models:
       - name: pp_number
         data_type: text
         description: The plants batch flowering in the room of the measurement on its day, null when there is none.
+        data_tests:
+          # null when no batch is flowering: the test and the constraint only check the rows that have one
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_plants_batches')
+                pk_column_name: pp_number
       - name: ml
         data_type: integer
         description: The volume.

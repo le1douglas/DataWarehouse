@@ -372,7 +372,6 @@ Reviewed after the simplifications in As built (every run ends its load, one row
 | Silver rebuild from the published loads; history from bronze | Silver cannot be rebuilt (`full_refresh: false`), and without snapshots a row's history is only in bronze and `ctl_loads`. Needs its own path: staging holds the open load only | 6, 8 |
 | Landing zone, checksum, `duplicate` | A file sent twice loads twice: harmless to silver (merge by business key), kept twice in bronze | 4, 6 |
 | Delivery checks before bronze, `rejected` | Encoding, header and shape faults (`SampleData/drip_drain_csv/malformed_csv`) are not all caught | 3, 5 |
-| Cosmos task groups | To be used | 9 |
 | `indexes` model config instead of the `pg_index` post-hook | Cleanup of `unique_key_index` | 8, 13 |
 | OpenLineage, OpenMetadata, CI | OpenMetadata is planned; CI catches a broken build before a merge | 11 |
 | Roles | Everything runs as one user | 12 |
@@ -408,6 +407,17 @@ took is in Airflow's run history, its rows in bronze. The audit's exit code
 is the verdict: any failure, a failed test or an error of dbt, refuses the load, and the file is sent again. A failed
 publish ends the load as `failed`, a fifth state, for a person to look at. `refused` and `failed` are written by the
 failing task's failure callback.
+
+**dbt runs through Cosmos**, not as plain BashOperator commands: `audit` and `publish` are Cosmos task groups
+(`DataWarehouseAirflow/dags/utils/dbt_task_group.py`), one Airflow task per dbt node, each a `dbt build` of that node
+and its tests, so the UI shows which model or test refused or failed the load. The tasks are drawn from the dbt
+manifest, not from `dbt ls`: written by `dbt parse` at the image build in prod, and by any dbt command in dev (the
+`dbt-state` volume, `02_setup_dev.ps1` runs `dbt parse`). A model added since the last parse has no task. The failure
+callback is on every task of the group; the tasks after a failed one end `upstream_failed`, which runs no callback.
+The `publish` pool is taken per node, not per publish: two datasets' publishes can take turns between nodes, but never
+build the same node at once. `setup_warehouse` builds Elementary's tables in one plain `dbt build` first, then the
+rest as a Cosmos group with cautious indirect selection, so staging's tests, which read `ref_` models, are left to a
+load's audit.
 
 ```mermaid
 flowchart LR
@@ -456,13 +466,15 @@ flowchart LR
 | Loads in a state | `macros/loads_in_state.sql` |
 | `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
 | `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
-| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
+| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published, gold_keys | `DataWarehouseAirflow/dags/load_datasets.py` |
 | The setup dag, its dbt selection written in it | `DataWarehouseAirflow/dags/setup_warehouse.py` |
+| A dbt build as a Cosmos task group, drawn from the manifest | `DataWarehouseAirflow/dags/utils/dbt_task_group.py` |
+| `gold_keys`, the last task of both dags: gold's key tests, so dbt_constraints adds back every key a build dropped | `DataWarehouseAirflow/dags/utils/gold_keys.py` |
 | The `publish` pool | `airflow-init` in `docker/compose.yaml` |
 
 Removed: the `load_id` var, `-- depends_on: ref_*`, the bootstrap build that fails on purpose, snapshots (tables
-dropped), `aud_issues` and `dw_audit`, the source row-count tests (now on `stg_`), and Cosmos from the load dag (kept installed for
-later).
+dropped), `aud_issues` and `dw_audit`, and the source row-count tests (now on `stg_`).
 
 Tested end to end on `journal_entries`: a good file went landed, accepted, published and reached gold; a file with a
-bad `ph` and an unknown device was refused on those two tests, and silver and gold did not change.
+bad `ph` and an unknown device was refused on those two tests, and silver and gold did not change. Not yet tested
+through the DAG: `plants_batches`, whose publish rebuilds `dim_plants_batches` and `fct_journal_entries`.

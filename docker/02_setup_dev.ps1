@@ -1,8 +1,9 @@
 # dev setup: builds the airflow, webapps and dev images, starts postgres, creates the airflow database when it is missing,
-# starts airflow and the web apps, installs the dbt packages and the meltano plugins and checks dbt's connection.
+# starts airflow and the web apps, installs the dbt packages and the meltano plugins, writes the dbt manifest and checks
+# dbt's connection.
 # safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
-# meltano install reinstall the same versions.
-# loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
+# meltano install reinstall the same versions, dbt parse rewrites the manifest.
+# loads nothing: the setup_warehouse dag, then a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
 $ErrorActionPreference = 'Stop'
@@ -63,6 +64,12 @@ try {
     & docker @dev exec -T airflow-scheduler dbt deps
     Assert-Ok 'dbt deps'
 
+    # the manifest the dags are drawn from (DataWarehouseAirflow/dags/utils/dbt_task_group.py), in the same volume,
+    # read by the dag processor: without it the load dags do not import. after dbt deps, which the parse needs
+    Write-Host 'writing the dbt manifest'
+    & docker @dev exec -T airflow-scheduler dbt parse
+    Assert-Ok 'dbt parse'
+
     # the same for meltano: dev keeps its own plugins in the meltano-plugins volume (docker/compose.dev.yaml)
     Write-Host 'installing the meltano plugins'
     & docker @dev exec -T airflow-scheduler meltano install
@@ -72,7 +79,7 @@ try {
     & docker @dev exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
 
-    Write-Host 'dev setup done. next: a load (meltano run tap-csv-<dataset> target-postgres, then its dbt build), see docs/INSTALLATION_GUIDE_DOCKER.md'
+    Write-Host 'dev setup done. next: the setup_warehouse dag, then a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)'
 }
 finally {
     Pop-Location

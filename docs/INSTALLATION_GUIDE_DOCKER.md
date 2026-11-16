@@ -80,25 +80,32 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 ## 4. Dev stack: `02_setup_dev.ps1`
 
 - `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
-  - Builds the `dbt`, `webapps`, `meltano` and `dev` images, starts postgres and the web app, runs `dbt deps`,
-    `meltano install` and `dbt debug`
+  - Builds the `airflow`, `webapps` and `dev` images, starts postgres, creates the `airflow` database when it is
+    missing, starts Airflow and the web app, and runs `dbt deps`, `dbt parse`, `meltano install` and `dbt debug` in the
+    Airflow scheduler. `dbt parse` writes the dbt manifest the DAGs are drawn from
+    (`DataWarehouseAirflow/dags/utils/dbt_task_group.py`); any later dbt command in dev rewrites it
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
 
 ### Check
 
-- Docker Desktop → **Containers** → group `dw-dev` → `dw-dev-postgres-1` running
+- Docker Desktop → **Containers** → group `dw-dev` → `dw-dev-postgres-1`, `dw-dev-airflow-api-server-1`,
+  `dw-dev-airflow-scheduler-1`, `dw-dev-airflow-dag-processor-1` running, `dw-dev-airflow-init-1` exited
+- Airflow UI at `http://localhost:8090` (`AIRFLOW_PORT` in `docker/.env`), no login: the DAGs `setup_warehouse`,
+  `load_journal_entries` and `load_plants_batches`, and **Admin** → **Pools** → `publish` with 1 slot
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SELECT now();"` → Amsterdam offset (`+01`
   winter, `+02` summer)
-- `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → `brnz_journal_entries`
+- `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → `brnz_journal_entries`,
+  `brnz_plants_batches` and `ctl_loads`
+- `docker exec dw-dev-postgres-1 psql -U postgres -l` → `DataWarehouse`, `airflow` and `meltano`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d meltano -c "\dt"` → `alembic_version`, `plugin_settings`, `runs`,
   `state`: Meltano's own tables, created by `meltano install`
-- `docker image ls` → `dbt`, `webapps`, `meltano` and `dev`, tag `dev`
-- `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages are in it, not
-  in the repo folder)
-- `docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build` → creates Elementary's tables
-  and `aud_issues`. On the empty bronze the row count data test fails and silver is skipped: that is expected
+- `docker image ls` → `airflow`, `webapps` and `dev`, tag `dev`
+- `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages and the
+  manifest are in it, not in the repo folder), `dw-dev_airflow-logs`
+- In the Airflow UI, trigger `setup_warehouse` (see **Daily workflow**): it builds the seeds, the `ref_` models, the
+  dims not downstream of silver and Elementary's tables. A new database needs it before its first load
 
 ---
 
@@ -106,10 +113,11 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - No uncommitted changes (commit or stash first): the build switches the repo to the tag
 - `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1`
-  - Builds the `dbt`, `webapps` and `meltano` images of `RELEASE` from the tag's code, then switches the
-    repo back
+  - Builds the `airflow`, `webapps` and `datastreamer` images of `RELEASE` from the tag's code, then switches the
+    repo back. The `airflow` image holds dbt, Meltano, their projects and the dbt manifest (`dbt parse` at build)
   - Images of `RELEASE` that exist are not rebuilt
-  - Starts postgres, runs `dbt debug`
+  - Starts postgres, creates the `airflow` database when it is missing, starts Airflow and the web app, runs `dbt debug`
+    in the Airflow scheduler
   - Safe to run again; stops at the first failing step
   - Ends with `prod setup done, on <RELEASE>`
 
@@ -117,10 +125,11 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - Docker Desktop → **Containers** → group `dw-prod` → `dw-prod-postgres-1` running
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
-- `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → the same four tables as dev
-- `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse` and `meltano`
-- `docker image ls` → `dbt`, `webapps` and `meltano`, tag = `RELEASE`
-- `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod run --rm dbt debug`
+- `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → the same tables as dev
+- `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse`, `airflow` and `meltano`
+- `docker image ls` → `airflow`, `webapps` and `datastreamer`, tag = `RELEASE`
+- Airflow UI at `http://localhost:8091` (`AIRFLOW_PORT` in `docker/.env.prod`)
+- `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod exec airflow-scheduler dbt debug`
   → `All checks passed!`
 
 ---
@@ -184,45 +193,62 @@ Setup is done.
 - Prod: the same PowerShell commands with `-f docker/compose.prod.yaml --env-file docker/.env.prod` instead of
   `-f docker/compose.dev.yaml`, and the web app on port 8081
 
+**Set up the warehouse**
+
+- On a new database, before its first load, and again after a seed or a `ref_` model or dim changes: trigger the DAG
+  `setup_warehouse` in the Airflow UI. It builds everything a load does not: the seeds, the `ref_` models, the dims
+  not downstream of silver and Elementary's tables
+- Not while a load runs: it rebuilds the `ref_` views one by one, and an audit reading them at that moment errors and
+  refuses its load
+
 **Load a file**
 
-- A load is one dataset, two commands with the same id, until an orchestrator runs them: Meltano appends the file to
-  bronze, then `dbt build` judges that load alone and adds it to silver only when its data tests pass
+- A load is one dataset, one run of its DAG, `load_<dataset>`, started by hand in the Airflow UI (dev
+  `http://localhost:8090`, prod `http://localhost:8091`): the DAG → **Trigger**. A new DAG starts paused: unpause it
+  first. From the dev container, `airflow dags trigger load_<dataset>` does the same
 - Each dataset has its own file in `USER_INPUT_DIR` (`docker/.env`), its own extractor in
   `DataWarehouseMeltano/meltano.yml` and its own bronze table. Dev and prod read the same folder:
 
-  | Dataset | File | Extractor | Bronze table |
-  | --- | --- | --- | --- |
-  | Journal entries | `journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
-  | Plants batches | `plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
+  | Dataset | DAG | File | Extractor | Bronze table |
+  | --- | --- | --- | --- | --- |
+  | Journal entries | `load_journal_entries` | `journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
+  | Plants batches | `load_plants_batches` | `plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
 
-- PowerShell, a new id for every load, `<dataset>` and `<table>` from the table above:
-
-  ```powershell
-  $id = docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -tAc "select uuidv7();"
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm -e MELTANO_RUN_ID=$id meltano run tap-csv-<dataset> target-postgres
-  docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm dbt build --select source:dw_bronze.<table>+ --vars "{load_id: $id}"
-  ```
-
-- Dev container, from any folder (a bare `psql` reaches the warehouse: `PGHOST` and the rest are set):
-
-  ```bash
-  id=$(psql -tAc "select uuidv7()")
-  MELTANO_RUN_ID=$id meltano run tap-csv-<dataset> target-postgres
-  dbt build --select source:dw_bronze.<table>+ --vars "{load_id: $id}"
-  ```
+- The run, one task after the other (`DataWarehouseAirflow/dags/load_datasets.py`):
+  - `no_open_load`: stops the run when the dataset has a load still `landed` or `accepted` (see pitfalls)
+  - `make_load_id`, `ingest`: a new uuidv7, and Meltano appends the file to bronze with it as `load_id` on every row
+  - `landed`, `audit`: `stg_<dataset>` holds that load alone, and its data tests judge it. One Airflow task per dbt
+    node, so the UI shows which test refused it
+  - `accepted`, `publish`: silver merges the load, then gold is built on it, in the `publish` pool (one at a time
+    across every dataset)
+  - `published`, then `gold_keys`: gold's key tests, which add back any key of gold a build dropped. Its failure
+    fails the run but leaves the load published
+- The state of every load is one row in `dw_control.ctl_loads`, written only by the DAG:
+  `select * from dw_control.ctl_loads order by load_id desc;`
+- Passed: `published`, silver holds the load. A row with the same key as one already in silver replaces it, with a
+  warning
+- Refused: a data test failed or dbt errored in `audit`. The load stays in bronze as a record of what arrived, and
+  silver keeps what it had. Fix the file where it came from and trigger the DAG again: every run is a new load
+- Failed: `publish` failed. Silver may hold the load already: look before sending the file again
 - `tap-csv` alone is the base the extractors inherit from: it has no file, so running it fails
-- Every bronze row gets the id as `load_id`. Without `MELTANO_RUN_ID` nothing is loaded
-- Passed: silver holds the load. A row with the same key as one already in silver replaces it, with a warning
-- Failed: the build reports the failing data tests, the load stays in bronze as a record of what arrived, and silver
-  keeps what it had. Fix the file where it came from and load it again, with a new id
 - Each Meltano run is a row in `runs` of the `meltano` database
 
-**See what failed, warned or errored in any run**
+**See what failed or warned in a load**
 
-```sql
-select * from dw_audit.aud_issues where invocation_id = '<the run>';
-```
+- The Airflow UI: the run → the red task → its log
+- Row by row, from Elementary's tables, with the load's `load_id` (from `ctl_loads`, or the `make_load_id` task) and
+  `<table>` from the table above:
+
+  ```sql
+  select r.table_name, r.column_name, r.test_short_name, r.status, rr.result_row
+  from dw_elementary.elementary_test_results as r
+  inner join dw_elementary.test_result_rows as rr on rr.elementary_test_results_id = r.id
+  inner join dw_bronze.<table> as b on b.row_id = (rr.result_row::json ->> 'row_id')::uuid
+  where r.status in ('fail', 'warn') and b.load_id = '<load_id>';
+  ```
+
+- A test that errored has no rows: it is in `dw_elementary.elementary_test_results` with status `error`, and in the
+  task log
 
 ### Dev tools (optional)
 
@@ -256,9 +282,19 @@ All in the dev container, from `/usr/app`:
 - **`set USER_INPUT_DIR / NICEGUI_PORT / USER_OUTPUT_DIR in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
-- **Prod `up` fails with `pull access denied for dbt` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
-- **`03_setup_prod.ps1` fails on `docker/meltano/Dockerfile` not found:** `RELEASE` is a tag from before Meltano. Tag
+- **Prod `up` fails with `pull access denied for airflow` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.
+- **`03_setup_prod.ps1` fails on `docker/airflow/Dockerfile` not found:** `RELEASE` is a tag from before Airflow. Tag
   a release that has it.
+- **`no_open_load` fails with `has an open load`:** an earlier run stopped between a dbt step and its state write (a
+  database outage), and left its load `landed` or `accepted`. Look at it in `dw_control.ctl_loads`, end it by hand
+  (`update dw_control.ctl_loads set state = 'refused', updated_at = clock_timestamp() where load_id = '<load_id>';`,
+  or `'failed'` when its publish had started), then trigger the DAG again.
+- **A good file is refused with `could not translate host name "postgres"`, or another connection error:** postgres
+  was recreated during the run (see the compose pitfall below). The audit has no retries: trigger the DAG again.
+- **No load DAGs in the Airflow UI, an import error about `manifest.json`:** dev has no dbt manifest yet. Run
+  `dbt parse` in the dev container, or `02_setup_dev.ps1` again.
+- **A new dbt model or test has no task in the DAG:** the manifest is from before it. Any dbt command in the dev
+  container (`dbt parse`) rewrites it; in prod it comes with the next image.
 - **`03_setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
 - **Port 5432 already in use:** a PostgreSQL installed on Windows (old setup). Stop it: `Get-Service *postgres*`,
   then `Stop-Service <name>` and set it to **Manual** in Services.
@@ -266,19 +302,19 @@ All in the dev container, from `/usr/app`:
 
   ```powershell
   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml --profile job --profile dev down
-  docker volume rm dw-dev_pgdata dw-dev_meltano-plugins dw-dev_dbt-state
+  docker volume rm dw-dev_pgdata dw-dev_meltano-plugins dw-dev_dbt-state dw-dev_airflow-logs
   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
   ```
 
   - Without the two `--profile`, `down` leaves the job and dev containers running on the old network
-  - Also deletes the `meltano` database (Meltano's run history), dev's Meltano plugins and dbt packages: the setup
-    script makes them again
+  - Also deletes the `airflow` database (every DAG run), the `meltano` database (Meltano's run history), dev's Meltano
+    plugins, dbt packages and manifest: the setup script makes them again. Then `setup_warehouse` before the first
+    load
   - Not `down -v`: it would also delete `dw-dev_claude-config`, Claude Code's login, settings and memory
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
   `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.
 - **DDL changed, nothing happens:** `00_create_meltano_database.sql` and `01_create_schemas_and_tables.sql` run only on
   an empty volume. Reset dev.
-- **The same `MELTANO_RUN_ID` for two runs:** both land in one load, which the row count data test refuses. Take a new id for every run.
 - **A Meltano plugin added or changed in `meltano.yml`, the run does not see it:** `meltano install` in the dev
   container. In dev the plugins live in the `dw-dev_meltano-plugins` volume, not in the repo: their venvs hold linux
   symlinks that Windows and OneDrive cannot read, and that broke the image build when they were in

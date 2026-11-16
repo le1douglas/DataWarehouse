@@ -16,6 +16,7 @@ import psycopg2
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag, task
 from utils.dbt_task_group import dbt_task_group
+from utils.gold_keys import gold_keys
 
 # every dataset with a load. from its name come its meltano extractor, tap-csv-<dataset> with hyphens
 # (DataWarehouseMeltano/meltano.yml), and its dbt models, stg_ and slvr_<dataset>
@@ -153,9 +154,14 @@ def _make_load_dag(dataset: str) -> None:
         def published(load_id: str) -> None:
             _record(load_id, dataset, "published")
 
+        # gold's keys, after the load is published: a missing key is not the load's fault, so a failure here fails the
+        # run but leaves the load published. in the publish pool, so its alter tables never run next to another
+        # dataset's build of gold
+        keys = gold_keys(pool=_PUBLISH_POOL)
+
         load_id = make_load_id()
         no_open_load() >> load_id
-        load_id >> ingest >> landed(load_id) >> audit >> accepted(load_id) >> publish >> published(load_id)
+        load_id >> ingest >> landed(load_id) >> audit >> accepted(load_id) >> publish >> published(load_id) >> keys
 
     load()
 
