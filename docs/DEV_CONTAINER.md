@@ -71,8 +71,26 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
    - 7a. The server and search in `compose.yaml` under the profile `openmetadata`, its database script, its port per
      environment, `PIPELINE_SERVICE_CLIENT_ENABLED=false`. Check: `--profile openmetadata up` starts it in dev; the UI
      opens.
-   - 7b. Ingestion: an `openmetadata` venv in the `venvs` stage (on the branch it was in the dev image only), and a DAG
-     that runs `metadata ingest`. Check: the DAG fills the catalog with the warehouse's tables and the dbt lineage.
+   - 7b. Ingestion, a DAG that runs `metadata ingest` for the warehouse's tables, then for the dbt lineage and tests.
+     **Open decision, to take before 7b** (7a is the same either way): where the ingestion runs.
+     - **A. A venv in our pipeline image** (`requirements-openmetadata.txt`, in the `venvs` stage), called by a
+       BashOperator, as dbt and Meltano are. No Docker socket. But a vendor's code in our image, against section 1:
+       its upgrades ride on our releases and our Python, and the venv adds about 745 MB to an image of about 1.7 GB.
+     - **B. OpenMetadata's own `openmetadata/ingestion-base` image**, run by a DockerOperator: the vendor's image
+       unchanged, its own Python and version. Costs the Docker socket in the scheduler (acceptable: an orchestrator has
+       more privilege), and each run's wiring: the compose network, and the dbt files mounted in.
+     - **C. OpenMetadata's bundled ingestion Airflow**: the vendor's intended setup, with scheduling from its UI, but a
+       second Airflow and the most memory. Kept only for completeness.
+     - Tested 2026-11-17 for A: `openmetadata-ingestion[postgres,dbt]==2.0.8.0` installs on Python 3.14.8, `metadata`
+       runs, its postgres and dbt sources import, and its parser reads dev's `manifest.json` (v12) and
+       `run_results.json` (v6). Its `dbt` extra brings dbt-core 1.12.7, which fails to import on 3.14
+       (`mashumaro==3.10` pinned by OpenMetadata, ours is 3.17); the ingestion never imports it, but the venv must stay
+       apart from ours, last on `PATH`, and a later release that starts using dbt-core would break until the pin moves.
+       Not tested: a run against a server, which needs 7a.
+     - Open either way: in prod the dbt files the ingestion reads (`manifest.json`, `run_results.json`) persist
+       nowhere: the manifest is in the image, but `target` is thrown away with the container and each Cosmos task works
+       in a copy of its own. They need a place that outlives a run before prod can ingest dbt.
+     - Check, once decided: the DAG fills the catalog with the warehouse's tables and the dbt lineage.
 
 Left for later: the env vars listed twice in `compose.dev.yaml` (the `env_file` idea).
 

@@ -92,7 +92,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - Docker Desktop → **Containers** → group `dw-dev` → `dw-dev-postgres-1`, `dw-dev-airflow-api-server-1`,
   `dw-dev-airflow-scheduler-1`, `dw-dev-airflow-dag-processor-1` running, `dw-dev-airflow-init-1` exited
 - Airflow UI at `http://localhost:8090` (`AIRFLOW_PORT` in `docker/.env`), no login: the DAGs `setup_warehouse`,
-  `load_journal_entries` and `load_plants_batches`, and **Admin** → **Pools** → `publish` with 1 slot
+  `refresh_metadata`, `load_journal_entries` and `load_plants_batches`, and **Admin** → **Pools** → `publish` with 1 slot
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SELECT now();"` → Amsterdam offset (`+01`
   winter, `+02` summer)
@@ -200,6 +200,9 @@ Setup is done.
   not downstream of silver and Elementary's tables
 - Not while a load runs: it rebuilds the `ref_` views one by one, and an audit reading them at that moment errors and
   refuses its load
+- Before an OpenMetadata ingestion, or before a new Excel or Power BI model: trigger the DAG `refresh_metadata`. It
+  adds gold's primary, unique and foreign keys, which these tools read and a build of gold drops. A key whose table
+  is not built yet fails the run, after the others are added
 
 **Load a file**
 
@@ -221,8 +224,7 @@ Setup is done.
     node, so the UI shows which test refused it
   - `accepted`, `publish`: silver merges the load, then gold is built on it, in the `publish` pool (one at a time
     across every dataset)
-  - `published`, then `gold_keys`: gold's key tests, which add back any key of gold a build dropped. Its failure
-    fails the run but leaves the load published
+  - `published`: the load is in silver and gold
 - The state of every load is one row in `dw_control.ctl_loads`, written only by the DAG:
   `select * from dw_control.ctl_loads order by load_id desc;`
 - Passed: `published`, silver holds the load. A row with the same key as one already in silver replaces it, with a

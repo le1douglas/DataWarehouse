@@ -1,7 +1,7 @@
 models:
   - name: fct_journal_entries
     description: The journal entries, one row per measurement, with a key to each dimension and the measures.
-    # the keys are dbt_constraints tests: the package adds each one after its test passes (dbt_project.yml). the
+    # the keys are dbt_constraints tests: refresh_metadata adds each one after its test passes (dbt_project.yml). the
     # primary key is the business key, the terms an analyst knows: a device cannot measure twice in one second, so
     # it holds after date_time is truncated to the second. row_id stays unique, to trace a row back to silver
     data_tests:

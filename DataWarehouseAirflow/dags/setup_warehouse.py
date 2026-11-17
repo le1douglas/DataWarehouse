@@ -8,7 +8,6 @@ from datetime import datetime
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag
 from utils.dbt_task_group import dbt_task_group
-from utils.gold_keys import gold_keys
 
 # the reference data and what is built on it: the seeds, ref_ models and gold. without anything downstream of silver:
 # silver takes the accepted load, so only a load's publish builds it and what reads it, and writes published
@@ -43,11 +42,7 @@ def setup_warehouse():
     # ref_ models still run, each in its own task
     build = dbt_task_group("build", _SELECT, _EXCLUDE, cautious=True)
 
-    # every dim built again here drops the foreign keys of facts pointing at it, and the cautious build
-    # does not run the fact'eyss tests: gold_k adds them back
-    keys = gold_keys()
-
-    elementary >> build >> keys
+    elementary >> build
 
 
 setup_warehouse()

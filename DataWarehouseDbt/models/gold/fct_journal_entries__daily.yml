@@ -3,7 +3,7 @@ models:
     description: >-
       The journal entries as the growers' daily sheet, one row per room per day: the drip (up) and the drain (down)
       of the left and the right side, and the drain per plant and as a percentage of the drip.
-    # the keys are dbt_constraints tests: the package adds each one after its test passes (dbt_project.yml). the
+    # the keys are dbt_constraints tests: refresh_metadata adds each one after its test passes (dbt_project.yml). the
     # primary key also fails the build when a room has two batches on one day. two readings of one position on one
     # day are not caught here: docs/REMINDERS.md
     data_tests:

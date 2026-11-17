@@ -466,10 +466,10 @@ flowchart LR
 | Loads in a state | `macros/loads_in_state.sql` |
 | `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
 | `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
-| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published, gold_keys | `DataWarehouseAirflow/dags/load_datasets.py` |
+| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
 | The setup dag, its dbt selection written in it | `DataWarehouseAirflow/dags/setup_warehouse.py` |
 | A dbt build as a Cosmos task group, drawn from the manifest | `DataWarehouseAirflow/dags/utils/dbt_task_group.py` |
-| `gold_keys`, the last task of both dags: gold's key tests, so dbt_constraints adds back every key a build dropped | `DataWarehouseAirflow/dags/utils/gold_keys.py` |
+| Gold's keys, by hand, for its readers: every key test with dbt_constraints on, which adds every missing key | `DataWarehouseAirflow/dags/refresh_metadata.py` |
 | The `publish` pool | `airflow-init` in `docker/compose.yaml` |
 
 Removed: the `load_id` var, `-- depends_on: ref_*`, the bootstrap build that fails on purpose, snapshots (tables
