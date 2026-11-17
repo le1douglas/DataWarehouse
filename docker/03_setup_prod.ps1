@@ -2,7 +2,8 @@
 # postgres, creates the airflow database when it is missing, starts the rest (airflow-init refreshes airflow's manifest
 # into the release's folder of the dbt-state volume), checks dbt's connection and builds everything no load builds (the
 # dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the tag's code: the repo is switched
-# to the tag for the build and back to where it was after, even when the build fails.
+# to the tag for the build and back to where it was after, even when the build fails. the steps both setups share are
+# in setup_common.ps1.
 # safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, up changes
 # only what changed, and the setup build rebuilds the seeds, the ref_ models and the dims over them: a release that
 # changes one of them is set up by running this again. not while a load runs: up recreates the scheduler, and
@@ -11,29 +12,14 @@
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
 
-# windows powershell 5.1 does not stop on a failed native command, so every docker and git call is checked with Assert-Ok
-function Assert-Ok([string]$step) {
-    if ($LASTEXITCODE -ne 0) { throw "$step failed (exit code $LASTEXITCODE)" }
-}
-
-# true when the docker command succeeds, its output hidden. Continue only inside this function: with Stop, powershell
-# 5.1 turns a redirected stderr line of a native command into an error that ends the script
-function Test-Docker {
-    $ErrorActionPreference = 'Continue'
-    & docker @args 2>&1 | Out-Null
-    return $LASTEXITCODE -eq 0
-}
+. "$PSScriptRoot\setup_common.ps1"
 
 $prod = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.prod.yaml", "--env-file", "docker/.env.prod")
 
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    if (-not (Test-Path 'docker\.env.prod')) {
-        throw 'missing: docker\.env.prod. run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1'
-    }
-
-    if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
+    Assert-Ready 'docker\.env.prod'
 
     $line = Select-String -Path docker\.env.prod -Pattern '^RELEASE=(.+)$' | Select-Object -First 1
     if (-not $line) { throw 'no RELEASE= line in docker\.env.prod' }
@@ -73,39 +59,9 @@ try {
         }
     }
 
-    # postgres alone first: airflow-init needs the airflow database, which the init scripts make only on an empty volume.
-    # --wait returns once the healthcheck of docker/compose.yaml passes, which is checked over tcp, so after the init scripts
-    Write-Host 'starting postgres'
-    & docker @prod up -d --wait postgres
-    Assert-Ok 'starting postgres'
+    Start-Warehouse $prod
 
-    # a volume from before airflow has no airflow database: made with the same script the init folder runs
-    $exists = & docker @prod exec -T postgres psql -U postgres -d postgres -Atc "select 1 from pg_database where datname = 'airflow'"
-    Assert-Ok 'looking for the airflow database'
-    if ($exists -ne '1') {
-        Write-Host 'creating the airflow database'
-        & docker @prod exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/00_create_airflow_database.sql
-        Assert-Ok 'creating the airflow database'
-    }
-
-    # airflow-init migrates the airflow database first, then the other airflow services start
-    Write-Host 'starting airflow and the web apps'
-    & docker @prod up -d
-    Assert-Ok 'docker compose up'
-
-    # the scheduler runs dbt, so its connection is the one that counts
-    Write-Host 'checking the dbt connection'
-    & docker @prod exec -T airflow-scheduler dbt debug
-    Assert-Ok 'dbt debug'
-
-    # elementary's tables, the seeds, the ref_ models and the dims over them, in one dbt build: one dbt process creates
-    # each schema once, before any node runs. in the scheduler, from the project in its image, the release's. its own
-    # target and logs, setup-build (x-dbt-env in docker/compose.yaml), so it never writes airflow's manifest. a load's
-    # publish never builds these nodes, so the two can run at once: postgres makes a reader wait. the variables are the
-    # container's: single quotes keep them from powershell, bash expands them
-    Write-Host 'building the seeds, the ref_ models, the dims and elementary'
-    & docker @prod exec -T airflow-scheduler bash -c 'dbt build --selector setup --target-path $DBT_STATE_DIR/setup-build/target --log-path $DBT_STATE_DIR/setup-build/logs'
-    Assert-Ok 'dbt build --selector setup'
+    Invoke-SetupBuild $prod
 
     Write-Host "prod setup done, on $release"
 }
