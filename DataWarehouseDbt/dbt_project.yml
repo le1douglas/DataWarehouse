@@ -23,12 +23,13 @@ test-paths: ["tests"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 
-# where dbt deps installs the packages. dev sets the env var to the dbt-state volume (docker/compose.dev.yaml), as it
-# sets DBT_TARGET_PATH and DBT_LOG_PATH, which dbt reads by itself. prod sets none of them: the folders next to this file
+# where dbt deps installs the packages. dev sets the env var to the dbt-state volume (docker/compose.dev.yaml); prod
+# does not: the folder next to this file, in the image. DBT_TARGET_PATH and DBT_LOG_PATH, which dbt reads by itself,
+# point at the interactive folder of the dbt-state volume, in dev and prod (x-dbt-env in docker/compose.yaml)
 packages-install-path: "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
 
-# directories to be removed by `dbt clean`, wherever the env vars put them. in dev they are outside the project, so
-# dbt clean needs --no-clean-project-files-only there
+# directories to be removed by `dbt clean`, wherever the env vars put them: the interactive target and dev's packages,
+# never another role's folder. outside the project, so dbt clean needs --no-clean-project-files-only
 clean-targets:
   - "{{ env_var('DBT_TARGET_PATH', 'target') }}"
   - "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"

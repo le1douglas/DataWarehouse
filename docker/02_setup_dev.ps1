@@ -1,9 +1,11 @@
 # dev setup: builds the pipeline, webapps and dev images, starts postgres, creates the airflow database when it is missing,
-# starts airflow and the web apps, installs the dbt packages and the meltano plugins, writes the dbt manifest, checks
-# dbt's connection and builds everything no load builds (the dbt selector setup, DataWarehouseDbt/selectors.yml).
+# starts airflow and the web apps (airflow-init installs the dbt packages and refreshes airflow's manifest), installs
+# the meltano plugins, checks dbt's connection and builds everything no load builds (the dbt selector setup,
+# DataWarehouseDbt/selectors.yml).
 # safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
-# meltano install reinstall the same versions, dbt parse rewrites the manifest, and the setup build rebuilds the seeds,
-# the ref_ models and the dims over them: run it again after one of them changes.
+# meltano install reinstall the same versions, airflow's manifest is refreshed, and the setup build rebuilds the seeds,
+# the ref_ models and the dims over them: run it again after one of them changes. not while a load runs: up refreshes
+# airflow's manifest, and can recreate the scheduler.
 # loads nothing: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
@@ -54,22 +56,11 @@ try {
         Assert-Ok 'creating the airflow database'
     }
 
-    # airflow-init migrates the airflow database first, then the other airflow services start
+    # airflow-init first: it migrates the airflow database, installs dev's dbt packages and refreshes airflow's manifest
+    # (docker/compose.yaml), then the other airflow services start. up fails when airflow-init does
     Write-Host 'starting airflow and the web apps'
     & docker @dev up -d
     Assert-Ok 'docker compose up'
-
-    # the repo mount hides the packages installed in the image, so dev keeps its own in the dbt-state volume
-    # (docker/compose.dev.yaml), shared by the scheduler, which runs dbt, and the dev container
-    Write-Host 'installing the dbt packages'
-    & docker @dev exec -T airflow-scheduler dbt deps
-    Assert-Ok 'dbt deps'
-
-    # the manifest the dags are drawn from (DataWarehouseAirflow/dags/utils/dbt_task_group.py), in the same volume,
-    # read by the dag processor: without it the load dags do not import. after dbt deps, which the parse needs
-    Write-Host 'writing the dbt manifest'
-    & docker @dev exec -T airflow-scheduler dbt parse
-    Assert-Ok 'dbt parse'
 
     # the same for meltano: dev keeps its own plugins in the meltano-plugins volume (docker/compose.dev.yaml)
     Write-Host 'installing the meltano plugins'
@@ -81,10 +72,12 @@ try {
     Assert-Ok 'dbt debug'
 
     # elementary's tables, the seeds, the ref_ models and the dims over them, in one dbt build: one dbt process creates
-    # each schema once, before any node runs. in the scheduler, which runs dbt for the dags, with the same packages and
-    # manifest. a load's publish never builds these nodes, so the two can run at once: postgres makes a reader wait
+    # each schema once, before any node runs. in the scheduler, which runs dbt for the dags, with the same packages. its
+    # own target and logs, setup-build (x-dbt-env in docker/compose.yaml), so it never writes airflow's manifest. a
+    # load's publish never builds these nodes, so the two can run at once: postgres makes a reader wait. the variables
+    # are the container's: single quotes keep them from powershell, bash expands them
     Write-Host 'building the seeds, the ref_ models, the dims and elementary'
-    & docker @dev exec -T airflow-scheduler dbt build --selector setup
+    & docker @dev exec -T airflow-scheduler bash -c 'dbt build --selector setup --target-path $DBT_STATE_DIR/setup-build/target --log-path $DBT_STATE_DIR/setup-build/logs'
     Assert-Ok 'dbt build --selector setup'
 
     Write-Host 'dev setup done. next: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)'

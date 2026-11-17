@@ -29,8 +29,13 @@ _KEY_TESTS = "test_name:primary_key test_name:unique_key test_name:foreign_key"
 def refresh_metadata():
     BashOperator(
         task_id="keys",
-        # the package's hooks run only in this dbt invocation. dbt test builds nothing, so they drop no key
-        bash_command=f"dbt test --select {_KEY_TESTS} --vars '{{dbt_constraints_enabled: true}}'",
+        # the package's hooks run only in this dbt invocation. dbt test builds nothing, so they drop no key.
+        # its own target and logs, metadata-export (x-dbt-env in docker/compose.yaml), which openmetadata and the erd
+        # read: never airflow's manifest. its --vars force a full parse, which stays in this folder's partial parse
+        bash_command=(
+            f"dbt test --select {_KEY_TESTS} --vars '{{dbt_constraints_enabled: true}}'"
+            " --target-path $DBT_METADATA_EXPORT_DIR/target --log-path $DBT_METADATA_EXPORT_DIR/logs"
+        ),
         # dbt reads the project from the folder it runs in, and DBT_PROFILES_DIR by itself. set by the image and by the
         # dev container (the venvs stage of docker/pipeline/Dockerfile)
         cwd=os.environ["DBT_PROJECT_DIR"],

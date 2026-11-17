@@ -1,10 +1,12 @@
 # prod setup: builds the pipeline, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
-# postgres, creates the airflow database when it is missing, starts the rest, checks dbt's connection and builds
-# everything no load builds (the dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the
-# tag's code: the repo is switched to the tag for the build and back to where it was after, even when the build fails.
+# postgres, creates the airflow database when it is missing, starts the rest (airflow-init refreshes airflow's manifest
+# into the release's folder of the dbt-state volume), checks dbt's connection and builds everything no load builds (the
+# dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the tag's code: the repo is switched
+# to the tag for the build and back to where it was after, even when the build fails.
 # safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, up changes
 # only what changed, and the setup build rebuilds the seeds, the ref_ models and the dims over them: a release that
-# changes one of them is set up by running this again. loads nothing: a load dag, in the airflow ui
+# changes one of them is set up by running this again. not while a load runs: up recreates the scheduler, and
+# refreshes airflow's manifest. loads nothing: a load dag, in the airflow ui
 # needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
@@ -97,10 +99,12 @@ try {
     Assert-Ok 'dbt debug'
 
     # elementary's tables, the seeds, the ref_ models and the dims over them, in one dbt build: one dbt process creates
-    # each schema once, before any node runs. in the scheduler, from the project in its image, the release's. a load's
-    # publish never builds these nodes, so the two can run at once: postgres makes a reader wait
+    # each schema once, before any node runs. in the scheduler, from the project in its image, the release's. its own
+    # target and logs, setup-build (x-dbt-env in docker/compose.yaml), so it never writes airflow's manifest. a load's
+    # publish never builds these nodes, so the two can run at once: postgres makes a reader wait. the variables are the
+    # container's: single quotes keep them from powershell, bash expands them
     Write-Host 'building the seeds, the ref_ models, the dims and elementary'
-    & docker @prod exec -T airflow-scheduler dbt build --selector setup
+    & docker @prod exec -T airflow-scheduler bash -c 'dbt build --selector setup --target-path $DBT_STATE_DIR/setup-build/target --log-path $DBT_STATE_DIR/setup-build/logs'
     Assert-Ok 'dbt build --selector setup'
 
     Write-Host "prod setup done, on $release"

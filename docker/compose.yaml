@@ -50,17 +50,33 @@ x-airflow-env: &airflow_env
   # no login: whoever opens the ui is admin. the port is published on localhost only (airflow-api-server)
   AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
 
-# dbt's connection (DataWarehouseDbt/profiles.yml), for the airflow components that run dbt: the scheduler runs the
-# builds, the dag processor runs dbt ls for cosmos
+# dbt's connection (DataWarehouseDbt/profiles.yml) and folders, for the airflow components that run or read dbt:
+# airflow-init refreshes airflow's manifest, the dag processor and every task draw the dags from it, the scheduler runs
+# the builds. the connection: the profile needs every value to render, even for a dbt parse, which does not connect
 x-dbt-env: &dbt_env
   DBT_HOST: *postgres_host
   DBT_PORT: *postgres_port
   DBT_DBNAME: *postgres_db
   DBT_USER: *postgres_user
   DBT_ENV_SECRET_PASSWORD: *postgres_password
+  # what dbt writes, in the dbt-state volume, one folder per role, each its own target and logs, so no dbt command
+  # overwrites what another reads. per release: a release reads only its own airflow manifest, and a rollback finds its
+  # folder unchanged. dev's release is dev. the roles, in $DBT_STATE_DIR:
+  #   airflow-manifest  airflow's manifest, which the dags are drawn from (DataWarehouseAirflow/dags/utils/
+  #                     dbt_task_group.py). written only by airflow-init below, on every up
+  #   setup-build       the setup build of docker/02_setup_dev.ps1 and docker/03_setup_prod.ps1
+  #   interactive       any dbt command that names no target of its own: dbt debug, and in dev your commands and dbt
+  #                     power user
+  # cosmos tasks keep their own target in their own temp copy of the project (dbt_task_group.py)
+  DBT_STATE_DIR: /dbt-state/${RELEASE}
+  DBT_TARGET_PATH: /dbt-state/${RELEASE}/interactive/target
+  DBT_LOG_PATH: /dbt-state/${RELEASE}/interactive/logs
+  # the one role outside the releases: it describes the database, which every release shares. refresh_metadata writes
+  # it (DataWarehouseAirflow/dags/refresh_metadata.py), openmetadata and the erd read it
+  DBT_METADATA_EXPORT_DIR: /dbt-state/metadata-export
 
-# what every airflow component shares: the image, the config and the task logs. the logs in one volume, so the ui in the
-# api server reads what the tasks wrote in the scheduler
+# what every airflow component shares: the image, the config, the task logs and dbt's folders. the logs in one volume,
+# so the ui in the api server reads what the tasks wrote in the scheduler
 x-airflow: &airflow
   build:
     context: .. # the repo root, one up from this folder. docker/pipeline/Dockerfile.dockerignore keeps only what the image needs
@@ -70,6 +86,9 @@ x-airflow: &airflow
   environment: *airflow_env
   volumes:
     - airflow-logs:/opt/airflow/logs
+    # what dbt writes, a folder per release and role (x-dbt-env). compose prefixes it with the project name, so dev
+    # (dw-dev) and prod (dw-prod) each have their own
+    - dbt-state:/dbt-state
   depends_on:
     airflow-init:
       condition: service_completed_successfully
@@ -110,15 +129,27 @@ services:
     restart: unless-stopped
 
   # airflow: runs every load, meltano then dbt. one image (docker/pipeline/Dockerfile), one container per component, each
-  # with its own command. started by "up" and kept running, except airflow-init, which migrates the metadata database
-  # and exits. the ui at http://localhost on AIRFLOW_PORT
+  # with its own command. started by "up" and kept running, except airflow-init, which prepares them and exits. the ui
+  # at http://localhost on AIRFLOW_PORT
   airflow-init:
     <<: *airflow
-    # after the migration, the pool publish with one slot: one publish at a time across every dataset, as two would
-    # build the same gold fact at once (DataWarehouseAirflow/dags/load_datasets.py). pools set creates or updates it
+    environment:
+      <<: [*airflow_env, *dbt_env]
+    # the migration of the metadata database, then the pool publish with one slot: one publish at a time across every
+    # dataset, as two would build the same gold fact at once (DataWarehouseAirflow/dags/load_datasets.py). pools set
+    # creates or updates it.
+    # then airflow's manifest, refreshed on every up, before the other components start: they wait for this one, so the
+    # dags never start without it. a dbt parse, which connects to nothing, into airflow-manifest (x-dbt-env). so an up
+    # during a load could change its dags under it: no up while a load runs.
+    # dev keeps its dbt packages in the volume (DBT_PACKAGES_INSTALL_PATH, compose.dev.yaml), installed here first; prod
+    # has them in the image. $$ leaves the variables to bash
     entrypoint: ["bash", "-c"]
     command:
-      - airflow db migrate && airflow pools set publish 1 "one publish to silver and gold at a time"
+      - >-
+        airflow db migrate
+        && airflow pools set publish 1 "one publish to silver and gold at a time"
+        && { [ -z "$$DBT_PACKAGES_INSTALL_PATH" ] || dbt deps --log-path $$DBT_STATE_DIR/airflow-manifest/logs; }
+        && dbt parse --target-path $$DBT_STATE_DIR/airflow-manifest/target --log-path $$DBT_STATE_DIR/airflow-manifest/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,8 +163,8 @@ services:
     ports:
       - "127.0.0.1:${AIRFLOW_PORT:?set AIRFLOW_PORT in the env file}:8080"
 
-  # reads the dag files into the metadata database. cosmos runs dbt ls here to draw a dbt build as one task per node,
-  # so it has dbt's env vars too: dbt ls does not connect, but the profile needs every value to render
+  # reads the dag files into the metadata database. cosmos draws a dbt build as one task per node here, from airflow's
+  # manifest, so it has dbt's env vars too
   airflow-dag-processor:
     <<: *airflow
     command: ["dag-processor"]
@@ -161,6 +192,7 @@ services:
       USER_INPUT_MOUNT: *user_input_mount
     volumes:
       - airflow-logs:/opt/airflow/logs
+      - dbt-state:/dbt-state
       # the input, read only, so meltano can never change an export. the long form, because the short one
       # ("source:target:ro") is a single string, where the anchor cannot go
       - type: bind
@@ -224,3 +256,4 @@ volumes:
   pgdata:
   work-in-progress:
   airflow-logs:
+  dbt-state:

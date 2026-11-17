@@ -87,9 +87,9 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
        (`mashumaro==3.10` pinned by OpenMetadata, ours is 3.17); the ingestion never imports it, but the venv must stay
        apart from ours, last on `PATH`, and a later release that starts using dbt-core would break until the pin moves.
        Not tested: a run against a server, which needs 7a.
-     - Open either way: in prod the dbt files the ingestion reads (`manifest.json`, `run_results.json`) persist
-       nowhere: the manifest is in the image, but `target` is thrown away with the container and each Cosmos task works
-       in a copy of its own. They need a place that outlives a run before prod can ingest dbt.
+     - The dbt files the ingestion reads have their place, in dev and prod alike: `/dbt-state/metadata-export` of the
+       `dbt-state` volume, written by `refresh_metadata` (2026-11-17). Still missing there: `catalog.json`
+       (`docs/REMINDERS.md`).
      - Check, once decided: the DAG fills the catalog with the warehouse's tables and the dbt lineage.
 
 Left for later: the env vars listed twice in `compose.dev.yaml` (the `env_file` idea).
@@ -268,7 +268,7 @@ the difference between the two environments is visible in two small files.
 | **Postgres** | own container, `pgdata` volume, port; restores prod dumps from `/dumps` (read only) | own container, `pgdata` volume, port; writes the dumps |
 | **Database access** | the dev credentials | the prod credentials. Dev could reach prod's port, but the passwords differ |
 | **Airflow** | own metadata db, logs volume, UI port, JWT secret; DAGs read live | own of each; DAGs from the image |
-| **dbt** | `target`, `logs`, packages in the `dbt-state` volume | packages and manifest from the image; `target`, `logs` discarded with the container |
+| **dbt** | the `dbt-state` volume: a folder per role in `/dbt-state/dev`, packages in `/dbt-state/dev/packages` | the `dbt-state` volume: a folder per role in `/dbt-state/<RELEASE>`; packages from the image |
 | **Meltano** | own system db; plugins in the `meltano-plugins` volume | own system db; plugins from the image |
 | **Web apps** | own port; reload on save | own port; the released image |
 | **Datastreamer** | own `work-in-progress` volume | own `work-in-progress` volume |
@@ -284,7 +284,7 @@ the difference between the two environments is visible in two small files.
 | `pgdata` | both | the database | `/var/lib/postgresql` |
 | `work-in-progress` | both | what a program has not finished yet, one subfolder per program | `/work_in_progress` |
 | `airflow-logs` | both | the task logs, written by the scheduler, read by the UI | `/opt/airflow/logs` |
-| `dbt-state` | dev | `dbt_packages`, `target` (with the manifest the DAGs are drawn from), `logs` | `/dbt-state` |
+| `dbt-state` | both | what dbt writes, one folder per role, each a target and logs: in `<RELEASE>/`, `airflow-manifest` (the manifest the DAGs are drawn from, written by `airflow-init`), `setup-build`, `interactive`, and dev's `packages`; `metadata-export`, shared by the releases (`x-dbt-env` in `docker/compose.yaml`) | `/dbt-state` |
 | `meltano-plugins` | dev | the plugin venvs, shared by the scheduler and the dev container | `DataWarehouseMeltano/.meltano` |
 | `claude-config` | dev | Claude Code's login, settings, skills, memory | `/claude-config` |
 

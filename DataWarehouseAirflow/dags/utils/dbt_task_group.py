@@ -12,11 +12,11 @@ _DBT_EXECUTABLE = "/opt/venvs/dbt/bin/dbt"
 # set by the image and by the dev container (the venvs stage of docker/pipeline/Dockerfile)
 _DBT_PROJECT_DIR = Path(os.environ["DBT_PROJECT_DIR"])
 _DBT_PROFILES_DIR = Path(os.environ["DBT_PROFILES_DIR"])
-# the manifest every dbt parse, compile or build writes, read to draw the tasks: no dbt ls when a task starts, as every
-# task parses its dag file again. in DBT_TARGET_PATH, dev's dbt-state volume, which any dbt command of the dev container
-# rewrites (docker/compose.dev.yaml); in prod, unset, the project's target, written by dbt parse at the image build
-# (docker/pipeline/Dockerfile). a model added since the last parse has no task until dbt parses again
-_DBT_MANIFEST = _DBT_PROJECT_DIR / os.environ.get("DBT_TARGET_PATH", "target") / "manifest.json"
+# airflow's manifest, read to draw the tasks: no dbt ls when a task starts, as every task parses its dag file again. in
+# the release's airflow-manifest folder of the dbt-state volume, written only by airflow-init on every up
+# (x-dbt-env in docker/compose.yaml): no other dbt command writes it, so none can change it under a running load. a
+# model added since the last refresh has no task until airflow's manifest is refreshed again
+_DBT_MANIFEST = Path(os.environ["DBT_STATE_DIR"]) / "airflow-manifest" / "target" / "manifest.json"
 
 
 def dbt_task_group(
@@ -40,9 +40,9 @@ def dbt_task_group(
             install_dbt_deps=False,
             env_vars={
                 # relative to the project: cosmos runs every task in its own temp copy of the project, so each writes
-                # its own target and logs. dev points both at the shared dbt-state volume (docker/compose.dev.yaml),
-                # where tasks running at once broke each other's partial parse. prod sets neither, so this is its
-                # default. cosmos's partial parse cache reads <project>/target as well
+                # its own target and logs, which cosmos removes with the copy. compose points both at the shared
+                # interactive folder of the dbt-state volume (docker/compose.yaml), where tasks running at once broke
+                # each other's partial parse. cosmos's partial parse cache reads <project>/target as well
                 "DBT_TARGET_PATH": "target",
                 "DBT_LOG_PATH": "logs",
                 # dbt reads it by itself, in every node's dbt build. cosmos draws the tasks from the manifest without

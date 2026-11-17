@@ -81,9 +81,11 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - `powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1`
   - Builds the `pipeline`, `webapps` and `dev` images, starts postgres, creates the `airflow` database when it is
-    missing, starts Airflow and the web app, and runs `dbt deps`, `dbt parse`, `meltano install` and `dbt debug` in the
-    Airflow scheduler. `dbt parse` writes the dbt manifest the DAGs are drawn from
-    (`DataWarehouseAirflow/dags/utils/dbt_task_group.py`); any later dbt command in dev rewrites it
+    missing, starts Airflow and the web app, runs `meltano install` and `dbt debug` in the Airflow scheduler, and ends
+    with the setup build. `airflow-init`, started by `up` before the other Airflow components, installs the dbt packages
+    and refreshes Airflow's manifest, which the DAGs are drawn from
+    (`DataWarehouseAirflow/dags/utils/dbt_task_group.py`), into `/dbt-state/dev/airflow-manifest` (see
+    **Daily workflow**)
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
 
@@ -102,8 +104,10 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-dev-postgres-1 psql -U postgres -d meltano -c "\dt"` → `alembic_version`, `plugin_settings`, `runs`,
   `state`: Meltano's own tables, created by `meltano install`
 - `docker image ls` → `pipeline`, `webapps` and `dev`, tag `dev`
-- `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages and the
-  manifest are in it, not in the repo folder), `dw-dev_airflow-logs`
+- `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (what dbt writes, and dev's
+  dbt packages, not in the repo folder), `dw-dev_airflow-logs`
+- `docker exec dw-dev-airflow-scheduler-1 ls /dbt-state /dbt-state/dev` → `dev` (and `metadata-export` once
+  `refresh_metadata` has run); `airflow-manifest`, `interactive`, `packages`, `setup-build`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dn dw_*"` → `dw_bronze`, `dw_control`,
   `dw_elementary`, `dw_gold`, `dw_seeds` and `dw_silver`: the script's last step, `dbt build --selector setup`, built
   the seeds, the `ref_` models, the dims not downstream of silver and Elementary's tables. The database is ready for
@@ -116,10 +120,12 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - No uncommitted changes (commit or stash first): the build switches the repo to the tag
 - `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1`
   - Builds the `pipeline`, `webapps` and `datastreamer` images of `RELEASE` from the tag's code, then switches the
-    repo back. The `pipeline` image holds dbt, Meltano, their projects and the dbt manifest (`dbt parse` at build)
+    repo back. The `pipeline` image holds dbt, Meltano, their projects and the dbt packages; its build runs
+    `dbt parse` to check the project
   - Images of `RELEASE` that exist are not rebuilt
-  - Starts postgres, creates the `airflow` database when it is missing, starts Airflow and the web app, runs `dbt debug`
-    in the Airflow scheduler
+  - Starts postgres, creates the `airflow` database when it is missing, starts Airflow and the web app (`airflow-init`
+    refreshes Airflow's manifest into `/dbt-state/<RELEASE>/airflow-manifest` of `dw-prod_dbt-state`), runs `dbt debug`
+    in the Airflow scheduler, and ends with the setup build
   - Safe to run again; stops at the first failing step
   - Ends with `prod setup done, on <RELEASE>`
 
@@ -207,7 +213,22 @@ Setup is done.
   one. The facts and `dim_plants_batches` take a changed seed at their dataset's next publish
 - Before an OpenMetadata ingestion, or before a new Excel or Power BI model: trigger the DAG `refresh_metadata`. It
   adds gold's primary, unique and foreign keys, which these tools read and a build of gold drops. A key whose table
-  is not built yet fails the run, after the others are added
+  is not built yet fails the run, after the others are added. It writes to `/dbt-state/metadata-export`
+
+**Refresh Airflow's manifest**
+
+- The load DAGs are drawn from Airflow's manifest, in `/dbt-state/<RELEASE>/airflow-manifest` of the `dbt-state`
+  volume, not from the dbt project: a new, renamed or removed model or test reaches them only when it is refreshed
+- Refreshed by `airflow-init` on every `up`, so by `02_setup_dev.ps1` and `03_setup_prod.ps1` too. In the dev
+  container, without an `up`:
+  `dbt parse --target-path $DBT_STATE_DIR/airflow-manifest/target --log-path $DBT_STATE_DIR/airflow-manifest/logs`
+- Never while a load runs, and no `up` while a load runs: it would change the DAG under the load. No other dbt
+  command writes it: your commands and dbt Power User write to `interactive`, the setup build to `setup-build`
+- The ERD of the dev container (dbterd) reads `/dbt-state/metadata-export`. To draw the current project:
+  `dbt docs generate --target-path $DBT_METADATA_EXPORT_DIR/target --log-path $DBT_METADATA_EXPORT_DIR/logs`
+- Each prod release has its own folder, `/dbt-state/<RELEASE>`, so a rollback finds its manifest unchanged. Old ones
+  are not removed by anything: once a release is not coming back,
+  `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod exec airflow-scheduler rm -r /dbt-state/<old RELEASE>`
 
 **Load a file**
 
@@ -298,10 +319,11 @@ All in the dev container, from `/usr/app`:
   or `'failed'` when its publish had started), then trigger the DAG again.
 - **A good file is refused with `could not translate host name "postgres"`, or another connection error:** postgres
   was recreated during the run (see the compose pitfall below). The audit has no retries: trigger the DAG again.
-- **No load DAGs in the Airflow UI, an import error about `manifest.json`:** dev has no dbt manifest yet. Run
-  `dbt parse` in the dev container, or `02_setup_dev.ps1` again.
-- **A new dbt model or test has no task in the DAG:** the manifest is from before it. Any dbt command in the dev
-  container (`dbt parse`) rewrites it; in prod it comes with the next image.
+- **No load DAGs in the Airflow UI, an import error about `manifest.json`:** Airflow's manifest is missing:
+  `airflow-init` failed, or the release's folder is new. Look at the `airflow-init` container's log, then run
+  `02_setup_dev.ps1` (or `03_setup_prod.ps1`) again.
+- **A new dbt model or test has no task in the DAG:** Airflow's manifest is from before it. Refresh it (see
+  **Daily workflow**); in prod it comes with the next release.
 - **`03_setup_prod.ps1` stops with `uncommitted changes`:** commit or stash, then run it again.
 - **Port 5432 already in use:** a PostgreSQL installed on Windows (old setup). Stop it: `Get-Service *postgres*`,
   then `Stop-Service <name>` and set it to **Manual** in Services.
@@ -315,7 +337,7 @@ All in the dev container, from `/usr/app`:
 
   - Without the two `--profile`, `down` leaves the job and dev containers running on the old network
   - Also deletes the `airflow` database (every DAG run), the `meltano` database (Meltano's run history), dev's Meltano
-    plugins, dbt packages and manifest: the setup script makes them again, and builds the seeds, the `ref_` models,
+    plugins, and everything in `dbt-state` (dbt packages, Airflow's manifest, the other roles' folders): the setup script makes them again, and builds the seeds, the `ref_` models,
     the dims and Elementary's tables before the first load
   - Not `down -v`: it would also delete `dw-dev_claude-config`, Claude Code's login, settings and memory
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
@@ -334,9 +356,9 @@ All in the dev container, from `/usr/app`:
   **Data Source Settings** → edit the credentials.
 - **`dbt run`:** use `dbt build`. `dbt run` on a view drops every view on top of it (`CASCADE`).
 - **`dbt_utils` not found in dev:** `dbt deps` in the dev container (or run `02_setup_dev.ps1`, section 4). The
-  packages live in the `dw-dev_dbt-state` volume, which starts empty.
+  packages live in `/dbt-state/dev/packages` of the `dw-dev_dbt-state` volume, which starts empty.
 - **`dbt clean` in dev refuses the folders:** they are in `/dbt-state`, outside the project. Run
-  `dbt clean --no-clean-project-files-only`.
+  `dbt clean --no-clean-project-files-only`. It clears `interactive` and the packages, never the other roles.
 - **`psql -c` from PowerShell loses double quotes** (`"DataWarehouse"`): pipe the SQL through stdin,
   `"SELECT ...;" | docker exec -i dw-dev-postgres-1 psql -U postgres -d DataWarehouse`, or use Git Bash.
 - **Git Bash turns a container path into a Windows one** (`--workdir /usr/app` becomes `C:/.../Git/usr/app`): put

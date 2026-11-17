@@ -411,8 +411,9 @@ failing task's failure callback.
 **dbt runs through Cosmos**, not as plain BashOperator commands: `audit` and `publish` are Cosmos task groups
 (`DataWarehouseAirflow/dags/utils/dbt_task_group.py`), one Airflow task per dbt node, each a `dbt build` of that node
 and its tests, so the UI shows which model or test refused or failed the load. The tasks are drawn from the dbt
-manifest, not from `dbt ls`: written by `dbt parse` at the image build in prod, and by any dbt command in dev (the
-`dbt-state` volume, `02_setup_dev.ps1` runs `dbt parse`). A model added since the last parse has no task. The failure
+manifest, not from `dbt ls`: Airflow's manifest, in `/dbt-state/<RELEASE>/airflow-manifest` of the `dbt-state`
+volume, written only by `airflow-init` on every `up`. Every other dbt command has a target of its own, so none
+rewrites it under a running load. A model added since the last refresh has no task. The failure
 callback is on every task of the group; the tasks after a failed one end `upstream_failed`, which runs no callback.
 The `publish` pool is taken per node, not per publish: two datasets' publishes can take turns between nodes, but never
 build the same node at once. What no load builds, the seeds, the `ref_` models, the dims over them and Elementary's

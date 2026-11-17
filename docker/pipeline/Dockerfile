@@ -4,8 +4,8 @@
 # three stages (docs/DEV_CONTAINER.md):
 # - venvs: the tools, airflow, dbt and meltano, each in its own venv, with the env vars they read. nothing of the repo
 #   but their requirements files, so a change to a model or a dag does not rebuild it
-# - runtime: venvs, plus the projects, the dags, the dbt packages and manifest and the meltano plugins. what compose
-#   builds (target: runtime): prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml)
+# - runtime: venvs, plus the projects, the dags, the dbt packages (the project checked by a dbt parse) and the meltano
+#   plugins. what compose builds (target: runtime): prod uses it as is, dev mounts the repo on top (docker/compose.dev.yaml)
 # - dev: venvs, plus the venvs of the apps, the dev tools and psql. the dev container (target: dev in
 #   docker/compose.dev.yaml), never used by prod
 
@@ -52,9 +52,10 @@ COPY DataWarehouseAirflow/ /usr/app/DataWarehouseAirflow/
 # the dbt libraries, and the meltano plugins at the version pinned in meltano.yml, into .meltano/.
 # meltano install needs no database connection: without MELTANO_DATABASE_URI at build time it writes a sqlite system
 # database, removed after, as the container uses postgres.
-# dbt parse writes target/manifest.json, which cosmos draws the dbt tasks from (DataWarehouseAirflow/dags/utils/
-# dbt_task_group.py). it connects to nothing, but the profile and the project read env vars: placeholders, for this
-# command only, so none of them stays in the image
+# dbt parse checks the project: a release whose project does not parse never becomes an image. its manifest is not
+# airflow's: airflow-init refreshes that one into the dbt-state volume on every up (x-dbt-env in docker/compose.yaml).
+# it connects to nothing, but the profile and the project read env vars: placeholders, for this command only, so none
+# of them stays in the image
 RUN dbt deps \
     && DBT_HOST=build DBT_PORT=0 DBT_DBNAME=build DBT_USER=build DBT_ENV_SECRET_PASSWORD=build TZ=Europe/Amsterdam \
         dbt parse \
