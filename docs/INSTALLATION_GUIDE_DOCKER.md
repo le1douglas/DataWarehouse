@@ -91,7 +91,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - Docker Desktop → **Containers** → group `dw-dev` → `dw-dev-postgres-1`, `dw-dev-airflow-api-server-1`,
   `dw-dev-airflow-scheduler-1`, `dw-dev-airflow-dag-processor-1` running, `dw-dev-airflow-init-1` exited
-- Airflow UI at `http://localhost:8090` (`AIRFLOW_PORT` in `docker/.env`), no login: the DAGs `setup_warehouse`,
+- Airflow UI at `http://localhost:8090` (`AIRFLOW_PORT` in `docker/.env`), no login: the DAGs
   `refresh_metadata`, `load_journal_entries` and `load_plants_batches`, and **Admin** → **Pools** → `publish` with 1 slot
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "SELECT now();"` → Amsterdam offset (`+01`
@@ -104,8 +104,10 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker image ls` → `pipeline`, `webapps` and `dev`, tag `dev`
 - `docker volume ls` → `dw-dev_pgdata`, `dw-dev_meltano-plugins`, `dw-dev_dbt-state` (the dbt packages and the
   manifest are in it, not in the repo folder), `dw-dev_airflow-logs`
-- In the Airflow UI, trigger `setup_warehouse` (see **Daily workflow**): it builds the seeds, the `ref_` models, the
-  dims not downstream of silver and Elementary's tables. A new database needs it before its first load
+- `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dn dw_*"` → `dw_bronze`, `dw_control`,
+  `dw_elementary`, `dw_gold`, `dw_seeds` and `dw_silver`: the script's last step, `dbt build --selector setup`, built
+  the seeds, the `ref_` models, the dims not downstream of silver and Elementary's tables. The database is ready for
+  its first load
 
 ---
 
@@ -195,11 +197,14 @@ Setup is done.
 
 **Set up the warehouse**
 
-- On a new database, before its first load, and again after a seed or a `ref_` model or dim changes: trigger the DAG
-  `setup_warehouse` in the Airflow UI. It builds everything a load does not: the seeds, the `ref_` models, the dims
-  not downstream of silver and Elementary's tables
-- Not while a load runs: it rebuilds the `ref_` views one by one, and an audit reading them at that moment errors and
-  refuses its load
+- A new database is set up by the setup script (`02_setup_dev.ps1`, `03_setup_prod.ps1`): its last step,
+  `dbt build --selector setup`, builds everything a load does not: the seeds, the `ref_` models, the dims not
+  downstream of silver and Elementary's tables
+- After a seed or a `ref_` model or dim changes: run the setup script again. In the dev container,
+  `dbt build --selector setup` alone does the same
+- It may run while a load runs: it never builds what a load builds (staging, silver and what reads silver). It swaps
+  each `ref_` view and dim in one transaction, and a load reading one at that moment waits for it, then reads the new
+  one. The facts and `dim_plants_batches` take a changed seed at their dataset's next publish
 - Before an OpenMetadata ingestion, or before a new Excel or Power BI model: trigger the DAG `refresh_metadata`. It
   adds gold's primary, unique and foreign keys, which these tools read and a build of gold drops. A key whose table
   is not built yet fails the run, after the others are added
@@ -310,8 +315,8 @@ All in the dev container, from `/usr/app`:
 
   - Without the two `--profile`, `down` leaves the job and dev containers running on the old network
   - Also deletes the `airflow` database (every DAG run), the `meltano` database (Meltano's run history), dev's Meltano
-    plugins, dbt packages and manifest: the setup script makes them again. Then `setup_warehouse` before the first
-    load
+    plugins, dbt packages and manifest: the setup script makes them again, and builds the seeds, the `ref_` models,
+    the dims and Elementary's tables before the first load
   - Not `down -v`: it would also delete `dw-dev_claude-config`, Claude Code's login, settings and memory
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
   `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.

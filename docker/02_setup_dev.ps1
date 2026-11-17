@@ -1,9 +1,10 @@
 # dev setup: builds the pipeline, webapps and dev images, starts postgres, creates the airflow database when it is missing,
-# starts airflow and the web apps, installs the dbt packages and the meltano plugins, writes the dbt manifest and checks
-# dbt's connection.
+# starts airflow and the web apps, installs the dbt packages and the meltano plugins, writes the dbt manifest, checks
+# dbt's connection and builds everything no load builds (the dbt selector setup, DataWarehouseDbt/selectors.yml).
 # safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
-# meltano install reinstall the same versions, dbt parse rewrites the manifest.
-# loads nothing: the setup_warehouse dag, then a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)
+# meltano install reinstall the same versions, dbt parse rewrites the manifest, and the setup build rebuilds the seeds,
+# the ref_ models and the dims over them: run it again after one of them changes.
+# loads nothing: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
 $ErrorActionPreference = 'Stop'
@@ -79,7 +80,14 @@ try {
     & docker @dev exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
 
-    Write-Host 'dev setup done. next: the setup_warehouse dag, then a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)'
+    # elementary's tables, the seeds, the ref_ models and the dims over them, in one dbt build: one dbt process creates
+    # each schema once, before any node runs. in the scheduler, which runs dbt for the dags, with the same packages and
+    # manifest. a load's publish never builds these nodes, so the two can run at once: postgres makes a reader wait
+    Write-Host 'building the seeds, the ref_ models, the dims and elementary'
+    & docker @dev exec -T airflow-scheduler dbt build --selector setup
+    Assert-Ok 'dbt build --selector setup'
+
+    Write-Host 'dev setup done. next: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)'
 }
 finally {
     Pop-Location

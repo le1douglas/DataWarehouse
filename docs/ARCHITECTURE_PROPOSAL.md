@@ -415,9 +415,10 @@ manifest, not from `dbt ls`: written by `dbt parse` at the image build in prod, 
 `dbt-state` volume, `02_setup_dev.ps1` runs `dbt parse`). A model added since the last parse has no task. The failure
 callback is on every task of the group; the tasks after a failed one end `upstream_failed`, which runs no callback.
 The `publish` pool is taken per node, not per publish: two datasets' publishes can take turns between nodes, but never
-build the same node at once. `setup_warehouse` builds Elementary's tables in one plain `dbt build` first, then the
-rest as a Cosmos group with cautious indirect selection, so staging's tests, which read `ref_` models, are left to a
-load's audit.
+build the same node at once. What no load builds, the seeds, the `ref_` models, the dims over them and Elementary's
+tables, is not a DAG: the setup scripts end with one plain `dbt build --selector setup` (`selectors.yml`), with
+cautious indirect selection, so staging's tests, which read `ref_` models, are left to a load's audit. One dbt process
+creates each schema once: Cosmos tasks starting at once on a new database raced to create the same schema.
 
 ```mermaid
 flowchart LR
@@ -438,7 +439,7 @@ flowchart LR
         gold[("gold<br/>dims and facts")]
     end
 
-    setup["Airflow: setup_warehouse, by hand<br/>dbt build<br/>seeds, ref_, dims, Elementary"]
+    setup["setup script<br/>dbt build --selector setup<br/>seeds, ref_, dims, Elementary"]
 
     csv --> ingest --> bronze
     ingest -.->|landed| ctl
@@ -467,7 +468,7 @@ flowchart LR
 | `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
 | `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
 | The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
-| The setup dag, its dbt selection written in it | `DataWarehouseAirflow/dags/setup_warehouse.py` |
+| The setup build, its dbt selection, run by the setup scripts | `DataWarehouseDbt/selectors.yml`, `docker/02_setup_dev.ps1`, `docker/03_setup_prod.ps1` |
 | A dbt build as a Cosmos task group, drawn from the manifest | `DataWarehouseAirflow/dags/utils/dbt_task_group.py` |
 | Gold's keys, by hand, for its readers: every key test with dbt_constraints on, which adds every missing key | `DataWarehouseAirflow/dags/refresh_metadata.py` |
 | The `publish` pool | `airflow-init` in `docker/compose.yaml` |

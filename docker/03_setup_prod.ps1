@@ -1,9 +1,10 @@
 # prod setup: builds the pipeline, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
-# postgres, creates the airflow database when it is missing, starts the rest and checks dbt's connection. the images are
-# built from the tag's code: the repo is switched to the tag for the build and back to where it was after, even when the
-# build fails.
-# safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, and up
-# changes only what changed. loads nothing.
+# postgres, creates the airflow database when it is missing, starts the rest, checks dbt's connection and builds
+# everything no load builds (the dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the
+# tag's code: the repo is switched to the tag for the build and back to where it was after, even when the build fails.
+# safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, up changes
+# only what changed, and the setup build rebuilds the seeds, the ref_ models and the dims over them: a release that
+# changes one of them is set up by running this again. loads nothing: a load dag, in the airflow ui
 # needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
@@ -94,6 +95,13 @@ try {
     Write-Host 'checking the dbt connection'
     & docker @prod exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
+
+    # elementary's tables, the seeds, the ref_ models and the dims over them, in one dbt build: one dbt process creates
+    # each schema once, before any node runs. in the scheduler, from the project in its image, the release's. a load's
+    # publish never builds these nodes, so the two can run at once: postgres makes a reader wait
+    Write-Host 'building the seeds, the ref_ models, the dims and elementary'
+    & docker @prod exec -T airflow-scheduler dbt build --selector setup
+    Assert-Ok 'dbt build --selector setup'
 
     Write-Host "prod setup done, on $release"
 }
