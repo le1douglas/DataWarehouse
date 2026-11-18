@@ -11,8 +11,8 @@ from airflow.sdk import dag
 
 # every primary, unique and foreign key test of the project: the tests of dbt_constraints, the only package with tests
 # of these names. each one runs, and the package's on-run-end hook adds the key of each test that passed and is
-# missing. a key whose test fails, or whose table is not built yet (a fact before its first load), stays missing and
-# fails the task, after the hook has added the others
+# missing. a key whose test fails, or whose table is not built yet (on a database without the setup build), stays
+# missing and fails the task, after the hook has added the others
 _KEY_TESTS = "test_name:primary_key test_name:unique_key test_name:foreign_key"
 
 

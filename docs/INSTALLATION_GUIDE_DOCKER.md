@@ -110,8 +110,8 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
   `refresh_metadata` has run); `airflow-manifest`, `interactive`, `packages`, `setup-build`
 - `docker exec dw-dev-postgres-1 psql -U postgres -d DataWarehouse -c "\dn dw_*"` → `dw_bronze`, `dw_control`,
   `dw_elementary`, `dw_gold`, `dw_seeds` and `dw_silver`: the script's last step, `dbt build --selector setup`, built
-  the seeds, the `ref_` models, the dims not downstream of silver and Elementary's tables. The database is ready for
-  its first load
+  the seeds, every model (silver and gold empty) and Elementary's tables. The database is ready for its first loads,
+  in any order
 
 ---
 
@@ -204,13 +204,12 @@ Setup is done.
 **Set up the warehouse**
 
 - A new database is set up by the setup script (`02_setup_dev.ps1`, `03_setup_prod.ps1`): its last step,
-  `dbt build --selector setup`, builds everything a load does not: the seeds, the `ref_` models, the dims not
-  downstream of silver and Elementary's tables
-- After a seed or a `ref_` model or dim changes: run the setup script again. In the dev container,
-  `dbt build --selector setup` alone does the same
-- It may run while a load runs: it never builds what a load builds (staging, silver and what reads silver). It swaps
-  each `ref_` view and dim in one transaction, and a load reading one at that moment waits for it, then reads the new
-  one. The facts and `dim_plants_batches` take a changed seed at their dataset's next publish
+  `dbt build --selector setup`, builds every relation: the seeds, every model and Elementary's tables, without the
+  data tests of a load (those declared in staging's yml). With no load open, staging is empty, so silver and gold are
+  created empty, and the first loads run in any order
+- After a seed or a model changes: run the setup script again. In the dev container, `dbt build --selector setup`
+  alone does the same. It adds nothing to silver, and rebuilds gold from it, so the facts take a changed seed at once
+- Never while a load runs: it builds staging, silver and gold, as a load does
 - Before an OpenMetadata ingestion, or before a new Excel or Power BI model: trigger the DAG `refresh_metadata`. It
   adds gold's primary, unique and foreign keys, which these tools read and a build of gold drops. A key whose table
   is not built yet fails the run, after the others are added. It writes to `/dbt-state/metadata-export`
@@ -337,8 +336,8 @@ All in the dev container, from `/usr/app`:
 
   - Without the two `--profile`, `down` leaves the job and dev containers running on the old network
   - Also deletes the `airflow` database (every DAG run), the `meltano` database (Meltano's run history), dev's Meltano
-    plugins, and everything in `dbt-state` (dbt packages, Airflow's manifest, the other roles' folders): the setup script makes them again, and builds the seeds, the `ref_` models,
-    the dims and Elementary's tables before the first load
+    plugins, and everything in `dbt-state` (dbt packages, Airflow's manifest, the other roles' folders): the setup script makes them again, and builds the seeds, every model and
+    Elementary's tables before the first load
   - Not `down -v`: it would also delete `dw-dev_claude-config`, Claude Code's login, settings and memory
 - **Password changed in `.env`, login fails:** the password is applied only when the volume is created. Either
   `ALTER USER postgres PASSWORD '...'` in the database, or reset dev.

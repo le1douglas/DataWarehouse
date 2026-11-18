@@ -1,11 +1,11 @@
 # dev setup: builds the pipeline, webapps and dev images, starts postgres, creates the airflow database when it is missing,
 # starts airflow and the web apps (airflow-init installs the dbt packages and refreshes airflow's manifest), installs
-# the meltano plugins, checks dbt's connection and builds everything no load builds (the dbt selector setup,
-# DataWarehouseDbt/selectors.yml). the steps both setups share are in setup_common.ps1.
+# the meltano plugins, checks dbt's connection and builds every relation, silver and gold empty on a new database (the
+# dbt selector setup, DataWarehouseDbt/selectors.yml). the steps both setups share are in setup_common.ps1.
 # safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
-# meltano install reinstall the same versions, airflow's manifest is refreshed, and the setup build rebuilds the seeds,
-# the ref_ models and the dims over them: run it again after one of them changes. not while a load runs: up refreshes
-# airflow's manifest, and can recreate the scheduler.
+# meltano install reinstall the same versions, airflow's manifest is refreshed, and the setup build rebuilds the seeds
+# and every model, and adds nothing to silver: run it again after a seed or a model changes. not while a load runs: up
+# refreshes airflow's manifest, and can recreate the scheduler, and the setup build builds staging and silver.
 # loads nothing: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1

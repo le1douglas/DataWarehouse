@@ -49,20 +49,21 @@ function Start-Warehouse([string[]]$Compose) {
     Assert-Ok 'docker compose up'
 }
 
-# dbt's connection, then everything no load builds (the dbt selector setup, DataWarehouseDbt/selectors.yml)
+# dbt's connection, then every relation (the dbt selector setup, DataWarehouseDbt/selectors.yml)
 function Invoke-SetupBuild([string[]]$Compose) {
     # the scheduler runs dbt, so its connection is the one that counts
     Write-Host 'checking the dbt connection'
     & docker @Compose exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
 
-    # elementary's tables, the seeds, the ref_ models and the dims over them, in one dbt build: one dbt process creates
-    # each schema once, before any node runs. in the scheduler, which runs dbt for the dags, with its project and
+    # elementary's tables, the seeds and every model, without the data tests of a load, in one dbt build: one dbt
+    # process creates each schema once, before any node runs. no load is open, so staging is empty and silver and gold
+    # are created empty, or keep what they hold. in the scheduler, which runs dbt for the dags, with its project and
     # packages: the repo's in dev, the release's in prod. its own target and logs, setup-build (x-dbt-env in
-    # docker/compose.yaml), so it never writes airflow's manifest. a load's publish never builds these nodes, so the two
-    # can run at once: postgres makes a reader wait. the variables are the container's: single quotes keep them from
-    # powershell, bash expands them
-    Write-Host 'building the seeds, the ref_ models, the dims and elementary'
+    # docker/compose.yaml), so it never writes airflow's manifest. it builds staging, silver and gold, as a load does, so
+    # never while a load runs. the variables are the container's: single quotes keep them from powershell, bash expands
+    # them
+    Write-Host 'building the seeds, every model and elementary'
     & docker @Compose exec -T airflow-scheduler bash -c 'dbt build --selector setup --target-path $DBT_STATE_DIR/setup-build/target --log-path $DBT_STATE_DIR/setup-build/logs'
     Assert-Ok 'dbt build --selector setup'
 }

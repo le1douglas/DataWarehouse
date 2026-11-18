@@ -1,30 +1,28 @@
-# setup: everything no load builds, in one dbt build run by the setup scripts (docker/02_setup_dev.ps1,
+# setup: every relation of the project, in one dbt build run by the setup scripts (docker/02_setup_dev.ps1,
 # docker/03_setup_prod.ps1), on a new database and again after a seed or one of these models changes. one dbt process
-# creates each schema once, before any node runs
+# creates each schema once, before any node runs. no load is open then, so staging is empty and silver and what reads
+# it are created empty: every relation exists before the first load, and the datasets load in any order
 selectors:
   - name: setup
-    description: elementary's tables, the seeds, the ref_ models and the dims over them
+    description: elementary's tables, the seeds and every model, without the data tests of a load
     definition:
       union:
         # elementary's own tables. its on-run-end hook writes to them, and runs after every node of the build
         - method: package
           value: elementary
-        # cautious: a test is selected only when every model it reads is. staging's tests read ref_ models too, and
-        # are left to the audit of a load
+        # cautious: a test is selected only when every model it reads is
         - method: resource_type
           value: seed
           indirect_selection: cautious
         - method: path
-          value: models/ref
+          value: models
           indirect_selection: cautious
-        - method: path
-          value: models/gold
-          indirect_selection: cautious
-        # without anything downstream of silver: silver takes the accepted load, so only a load's publish builds it
-        # and what reads it. and without staging, which holds a load
+        # without the data tests declared in staging's yml, which are every data test of staging and silver. they
+        # judge a load, so they belong to its audit: on an empty staging the row count tests fail, and the build skips
+        # silver and gold. gold's key tests stay: dbt_constraints is off, so they only check, and pass on empty tables
         - exclude:
-            - method: path
-              value: models/silver
-              children: true
-            - method: path
-              value: models/staging
+            - intersection:
+                - method: resource_type
+                  value: test
+                - method: path
+                  value: models/staging

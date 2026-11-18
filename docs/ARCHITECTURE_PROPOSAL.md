@@ -416,10 +416,13 @@ volume, written only by `airflow-init` on every `up`. Every other dbt command ha
 rewrites it under a running load. A model added since the last refresh has no task. The failure
 callback is on every task of the group; the tasks after a failed one end `upstream_failed`, which runs no callback.
 The `publish` pool is taken per node, not per publish: two datasets' publishes can take turns between nodes, but never
-build the same node at once. What no load builds, the seeds, the `ref_` models, the dims over them and Elementary's
-tables, is not a DAG: the setup scripts end with one plain `dbt build --selector setup` (`selectors.yml`), with
-cautious indirect selection, so staging's tests, which read `ref_` models, are left to a load's audit. One dbt process
-creates each schema once: Cosmos tasks starting at once on a new database raced to create the same schema.
+build the same node at once. Creating the relations is not a DAG: the setup scripts end with one plain
+`dbt build --selector setup` (`selectors.yml`), the seeds, every model and Elementary's tables, without the data tests
+declared in staging's yml, which judge a load and are left to its audit. With no load open, staging is empty, so
+silver and gold are created empty: every relation exists before the first load, and the datasets load in any order (a
+first publish no longer needs another dataset's silver, such as `fct_journal_entries` reading `dim_plants_batches`).
+It builds what a load builds, so it never runs during one. One dbt process creates each schema once: Cosmos tasks
+starting at once on a new database raced to create the same schema.
 
 ```mermaid
 flowchart LR
@@ -440,7 +443,7 @@ flowchart LR
         gold[("gold<br/>dims and facts")]
     end
 
-    setup["setup script<br/>dbt build --selector setup<br/>seeds, ref_, dims, Elementary"]
+    setup["setup script<br/>dbt build --selector setup<br/>seeds, every model (silver and gold empty), Elementary"]
 
     csv --> ingest --> bronze
     ingest -.->|landed| ctl
@@ -478,5 +481,7 @@ Removed: the `load_id` var, `-- depends_on: ref_*`, the bootstrap build that fai
 dropped), `aud_issues` and `dw_audit`, and the source row-count tests (now on `stg_`).
 
 Tested end to end on `journal_entries`: a good file went landed, accepted, published and reached gold; a file with a
-bad `ph` and an unknown device was refused on those two tests, and silver and gold did not change. Not yet tested
-through the DAG: `plants_batches`, whose publish rebuilds `dim_plants_batches` and `fct_journal_entries`.
+bad `ph` and an unknown device was refused on those two tests, and silver and gold did not change. On an empty
+database after the setup build (2026-11-18), the first `plants_batches` and `journal_entries` loads were published in
+either order: a `plants_batches` publish rebuilds `dim_plants_batches` and `fct_journal_entries`, and gives the
+journal entries already in gold their `pp_number`.

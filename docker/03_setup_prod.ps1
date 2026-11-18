@@ -1,13 +1,14 @@
 # prod setup: builds the pipeline, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
 # postgres, creates the airflow database when it is missing, starts the rest (airflow-init refreshes airflow's manifest
-# into the release's folder of the dbt-state volume), checks dbt's connection and builds everything no load builds (the
-# dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the tag's code: the repo is switched
-# to the tag for the build and back to where it was after, even when the build fails. the steps both setups share are
-# in setup_common.ps1.
+# into the release's folder of the dbt-state volume), checks dbt's connection and builds every relation, silver and
+# gold empty on a new database (the dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the
+# tag's code: the repo is switched to the tag for the build and back to where it was after, even when the build fails.
+# the steps both setups share are in setup_common.ps1.
 # safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, up changes
-# only what changed, and the setup build rebuilds the seeds, the ref_ models and the dims over them: a release that
-# changes one of them is set up by running this again. not while a load runs: up recreates the scheduler, and
-# refreshes airflow's manifest. loads nothing: a load dag, in the airflow ui
+# only what changed, and the setup build rebuilds the seeds and every model, and adds nothing to silver: a release that
+# changes a seed or a model is set up by running this again. not while a load runs: up recreates the scheduler, and
+# refreshes airflow's manifest, and the setup build builds staging and silver. loads nothing: a load dag, in the
+# airflow ui
 # needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
