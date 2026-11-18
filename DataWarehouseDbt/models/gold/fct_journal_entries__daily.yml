@@ -1,8 +1,9 @@
 models:
   - name: fct_journal_entries__daily
     description: >-
-      The journal entries as the growers' daily sheet, one row per room per day: the drip (up) and the drain (down)
-      of the left and the right side, and the drain per plant and as a percentage of the drip.
+      The journal entries as the growers' daily sheet, one row per flowering room per day from the first measured day
+      to the day of the build, empty when the room was not measured that day: the drip (up) and the drain (down) of the left and the right side, and
+      the drain per plant and as a percentage of the drip.
     # the keys are dbt_constraints tests: refresh_metadata adds each one after its test passes (dbt_project.yml). the
     # primary key also fails the build when a room has two batches on one day. two readings of one position on one
     # day are not caught here: docs/REMINDERS.md
@@ -19,6 +20,9 @@ models:
               arguments:
                 pk_table_name: ref('dim_rooms')
                 pk_column_name: room
+      - name: room_time
+        data_type: text
+        description: The part of the day the room is measured in, morning, afternoon or all_day.
       - name: strain
         data_type: text
         description: The variety of the plants of the batch, null when there is none.
@@ -34,6 +38,12 @@ models:
       - name: date
         data_type: date
         description: The day of the measurements, in Europe/Amsterdam.
+      - name: iso_year
+        data_type: integer
+        description: The ISO year of the day's week, the year of its Thursday, so 29 December 2025 is in 2026.
+      - name: iso_week
+        data_type: integer
+        description: The ISO week of the day, Monday to Sunday, 1 to 53.
       - name: left_grosens_ec_low
         data_type: text
         description: The lowest ec of the GroSens sensor, left side. WIP until its data arrives.
@@ -74,9 +84,10 @@ models:
         data_type: integer
         description: left_drain_ml / 3, rounded to whole ml.
       - name: left_drain_percentage
-        data_type: numeric(5,1)
+        data_type: numeric(5,3)
         description: >-
-          The drain per plant as a percentage of the drip, rounded to 1 decimal. Null when the drip is missing or 0.
+          The drain per plant as a percentage of the drip, as a fraction (0.174 is 17.4 %), rounded to 0.1 %. Null when
+          the drip is missing or 0.
       - name: right_grosens_ec_low
         data_type: text
         description: The lowest ec of the GroSens sensor, right side. WIP until its data arrives.
@@ -117,6 +128,7 @@ models:
         data_type: integer
         description: right_drain_ml / 3, rounded to whole ml.
       - name: right_drain_percentage
-        data_type: numeric(5,1)
+        data_type: numeric(5,3)
         description: >-
-          The drain per plant as a percentage of the drip, rounded to 1 decimal. Null when the drip is missing or 0.
+          The drain per plant as a percentage of the drip, as a fraction (0.174 is 17.4 %), rounded to 0.1 %. Null when
+          the drip is missing or 0.
