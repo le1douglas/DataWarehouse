@@ -46,9 +46,12 @@ with
 -- percentage divides the unrounded value, so it is rounded once. null when the drip is missing or 0
 -- the grosens columns are WIP until their data arrives: then they become columns of a dataset of their own
 -- the remarks are null until the source sends them (docs/REMINDERS.md)
+-- strain is the batch's, so a reader needs no join and no key: a left join, as pp_number is null on a day without a
+-- batch, and pp_number is the batch's primary key, so it never repeats a row
 select
-    room,
-    pp_number,
+    pivoted.room,
+    plants_batches.strain,
+    pivoted.pp_number,
     date,
     'WIP'::text as left_grosens_ec_low,
     'WIP'::text as left_grosens_ec_high,
@@ -79,3 +82,4 @@ select
     round(right_drain_ml / 3.0)::integer as right_drain_ml_per_plant,
     round(right_drain_ml / 3.0 / nullif(right_drip_ml, 0) * 100, 1)::numeric(5, 1) as right_drain_percentage
 from pivoted
+left join {{ ref("dim_plants_batches") }} as plants_batches on pivoted.pp_number = plants_batches.pp_number

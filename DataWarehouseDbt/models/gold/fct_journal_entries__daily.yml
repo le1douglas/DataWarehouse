@@ -19,6 +19,9 @@ models:
               arguments:
                 pk_table_name: ref('dim_rooms')
                 pk_column_name: room
+      - name: strain
+        data_type: text
+        description: The variety of the plants of the batch, null when there is none.
       - name: pp_number
         data_type: text
         description: The plants batch flowering in the room on that day, null when there is none.
