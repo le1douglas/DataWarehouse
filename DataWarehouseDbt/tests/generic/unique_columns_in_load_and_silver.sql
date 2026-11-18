@@ -1,7 +1,10 @@
 {#
-    the rows of the load in staging whose columns equal another row, of the same load or of slvr_<dataset>: what
-    silver will hold after this load, checked as one set. for any set of columns that must be unique together; the
+    the rows of the load in staging whose values equal another row, of the same load or of slvr_<dataset>: what
+    silver will hold after this load, checked as one set. for any set of values that must be unique together; the
     business key has its own test below.
+    each entry of columns is a column or an sql expression over the columns, which staging and silver both have, such
+    as the local day of a timestamp: (date_time at time zone '{{ var("timezone") }}')::date. the expressions are
+    computed once for each side, so they are written without a table alias.
     a row of silver with the same unique_key as a row of the load is about to be replaced by delete+insert, so it is
     left out: a batch sent again unchanged is not a clash with its own older version. a null never equals anything, so
     a row with a null in columns is left to its not_null test.
@@ -17,13 +20,19 @@
     {% set unique_key = silver.unique_key if silver else [] %}
 
     with
+        -- the load's values, one numbered column per entry of columns
+        load_values as (
+            select row_id {%- for column in columns %}, {{ column }} as value_{{ loop.index }} {%- endfor %}
+            from {{ model }}
+        ),
+
         -- what silver holds after the load: the load, and the rows of silver it does not replace
         after_load as (
-            select row_id, {{ columns | join(", ") }}
-            from {{ model }}
+            select *
+            from load_values
             {% if relation is not none %}
                 union all
-                select kept.row_id, {% for column in columns %} kept.{{ column }}{{ ", " if not loop.last }}{% endfor %}
+                select kept.row_id {%- for column in columns %}, {{ column }} as value_{{ loop.index }} {%- endfor %}
                 from {{ relation }} as kept
                 where
                     not exists (
@@ -43,10 +52,13 @@
     where
         exists (
             select
-            from after_load as other
-            where
-                latest.row_id <> other.row_id
-                {%- for column in columns %} and latest.{{ column }} = other.{{ column }} {%- endfor %}
+            from load_values as mine
+            join
+                after_load as other on mine.row_id <> other.row_id
+                {%- for column in columns %}
+                    and mine.value_{{ loop.index }} = other.value_{{ loop.index }}
+                {%- endfor %}
+            where mine.row_id = latest.row_id
         )
 {% endtest %}
 

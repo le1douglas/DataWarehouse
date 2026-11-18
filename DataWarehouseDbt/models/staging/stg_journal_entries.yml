@@ -23,6 +23,15 @@ models:
             meta:
               description: another journal entry in this load has the same business key
       - warn_overwritten_rows
+      # one reading per position per local day, within the load and against silver
+      - unique_columns_in_load_and_silver:
+          arguments:
+            columns:
+              - (date_time at time zone '{{ var("timezone") }}')::date
+              - absolute_position
+          config:
+            meta:
+              description: this position already has a reading on this local day, in this load or in silver
     columns:
       - name: row_id
         data_type: uuid

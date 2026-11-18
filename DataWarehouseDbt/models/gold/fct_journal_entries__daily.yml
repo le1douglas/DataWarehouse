@@ -6,7 +6,7 @@ models:
       the drain per plant and as a percentage of the drip.
     # the keys are dbt_constraints tests: refresh_metadata adds each one after its test passes (dbt_project.yml). the
     # primary key also fails the build when a room has two batches on one day. two readings of one position on one
-    # day are not caught here: docs/REMINDERS.md
+    # local day are refused in staging (stg_journal_entries.yml)
     data_tests:
       - dbt_constraints.primary_key:
           arguments:

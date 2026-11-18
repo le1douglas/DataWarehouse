@@ -1,8 +1,8 @@
 -- the journal entries as the growers' daily sheet: one row per flowering room per day, from the first measured day to
 -- today, empty when the room was not measured that day, so a missing reading shows. each room is measured at four
 -- positions, up is the drip of one plant, down the drain of 3 plants, on the left and the right side. bench and depth
--- are always the same, so they are left out. one reading per position per day is assumed, to be guarded upstream
--- (docs/REMINDERS.md): any_value() takes that one
+-- are always the same, so they are left out. staging refuses a second reading of a position on one
+-- local day (stg_journal_entries.yml), so any_value() takes the only one
 with
     readings as (
         select
