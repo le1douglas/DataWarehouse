@@ -67,7 +67,7 @@ models:
         description: The drip of one plant, left side.
       - name: left_drip_remarks
         data_type: text
-        description: A remark on the drip, left side, such as no runoff. Null until the source sends it.
+        description: The user's own comment on the reading of the drip, left side, such as no runoff. Usually null.
       - name: left_drain_ph
         data_type: numeric(4,2)
         description: The ph of the drain of 3 plants, left side.
@@ -79,7 +79,7 @@ models:
         description: The drain of 3 plants, left side.
       - name: left_drain_remarks
         data_type: text
-        description: A remark on the drain, left side, such as no runoff. Null until the source sends it.
+        description: The user's own comment on the reading of the drain, left side, such as no runoff. Usually null.
       - name: left_drain_ml_per_plant
         data_type: integer
         description: left_drain_ml / 3, rounded to whole ml.
@@ -111,7 +111,7 @@ models:
         description: The drip of one plant, right side.
       - name: right_drip_remarks
         data_type: text
-        description: A remark on the drip, right side, such as no runoff. Null until the source sends it.
+        description: The user's own comment on the reading of the drip, right side, such as no runoff. Usually null.
       - name: right_drain_ph
         data_type: numeric(4,2)
         description: The ph of the drain of 3 plants, right side.
@@ -123,7 +123,7 @@ models:
         description: The drain of 3 plants, right side.
       - name: right_drain_remarks
         data_type: text
-        description: A remark on the drain, right side, such as no runoff. Null until the source sends it.
+        description: The user's own comment on the reading of the drain, right side, such as no runoff. Usually null.
       - name: right_drain_ml_per_plant
         data_type: integer
         description: right_drain_ml / 3, rounded to whole ml.

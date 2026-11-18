@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS dw_bronze.brnz_journal_entries (
     ph TEXT,
     temperature TEXT,
     room TEXT,
+    remarks TEXT,
     CONSTRAINT pk_brnz_journal_entries PRIMARY KEY (row_id)
 );
 

@@ -51,8 +51,8 @@ x-airflow-env: &airflow_env
   AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
 
 # dbt's connection (DataWarehouseDbt/profiles.yml) and folders, for the airflow components that run or read dbt:
-# airflow-init refreshes airflow's manifest, the dag processor and every task draw the dags from it, the scheduler runs
-# the builds. the connection: the profile needs every value to render, even for a dbt parse, which does not connect
+# airflow-init refreshes airflow's manifest (and the dag refresh_metadata, run by the scheduler), the dag processor and
+# every task draw the dags from it, the scheduler runs the builds. the connection: the profile needs every value to render, even for a dbt parse, which does not connect
 x-dbt-env: &dbt_env
   DBT_HOST: *postgres_host
   DBT_PORT: *postgres_port
@@ -63,7 +63,8 @@ x-dbt-env: &dbt_env
   # overwrites what another reads. per release: a release reads only its own airflow manifest, and a rollback finds its
   # folder unchanged. dev's release is dev. the roles, in $DBT_STATE_DIR:
   #   airflow-manifest  airflow's manifest, which the dags are drawn from (DataWarehouseAirflow/dags/utils/
-  #                     dbt_task_group.py). written only by airflow-init below, on every up
+  #                     dbt_task_group.py). written by airflow-init below, on every up, and by
+  #                     the dag refresh_metadata
   #   setup-build       the setup build of docker/02_setup_dev.ps1 and docker/03_setup_prod.ps1
   #   interactive       any dbt command that names no target of its own: dbt debug, and in dev your commands and dbt
   #                     power user

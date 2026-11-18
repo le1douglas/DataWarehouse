@@ -14,7 +14,8 @@ select
     -- the cast rounds half away from zero: 5.125 becomes 5.13. silver's ranges fit in numeric(4,2)
     journal_entries.ec::numeric(4, 2) as ec,
     journal_entries.ph::numeric(4, 2) as ph,
-    journal_entries.temperature::numeric(4, 2) as temperature
+    journal_entries.temperature::numeric(4, 2) as temperature,
+    journal_entries.remarks
 from {{ ref("slvr_journal_entries") }} as journal_entries
 -- the room of the measurement. the foreign key on absolute_position guarantees a match
 left join

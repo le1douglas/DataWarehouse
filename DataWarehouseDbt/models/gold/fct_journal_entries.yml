@@ -54,3 +54,6 @@ models:
       - name: temperature
         data_type: numeric(4,2)
         description: The temperature, rounded to 2 decimals.
+      - name: remarks
+        data_type: text
+        description: The user's own comment on this reading, such as no runoff. Usually null.

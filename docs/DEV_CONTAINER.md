@@ -284,7 +284,7 @@ the difference between the two environments is visible in two small files.
 | `pgdata` | both | the database | `/var/lib/postgresql` |
 | `work-in-progress` | both | what a program has not finished yet, one subfolder per program | `/work_in_progress` |
 | `airflow-logs` | both | the task logs, written by the scheduler, read by the UI | `/opt/airflow/logs` |
-| `dbt-state` | both | what dbt writes, one folder per role, each a target and logs: in `<RELEASE>/`, `airflow-manifest` (the manifest the DAGs are drawn from, written by `airflow-init`), `setup-build`, `interactive`, and dev's `packages`; `metadata-export`, shared by the releases (`x-dbt-env` in `docker/compose.yaml`) | `/dbt-state` |
+| `dbt-state` | both | what dbt writes, one folder per role, each a target and logs: in `<RELEASE>/`, `airflow-manifest` (the manifest the DAGs are drawn from, written by `airflow-init` and `refresh_metadata`), `setup-build`, `interactive`, and dev's `packages`; `metadata-export`, shared by the releases (`x-dbt-env` in `docker/compose.yaml`) | `/dbt-state` |
 | `meltano-plugins` | dev | the plugin venvs, shared by the scheduler and the dev container | `DataWarehouseMeltano/.meltano` |
 | `claude-config` | dev | Claude Code's login, settings, skills, memory | `/claude-config` |
 

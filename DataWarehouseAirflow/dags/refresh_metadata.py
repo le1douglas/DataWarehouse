@@ -3,7 +3,8 @@
 # the relationships, and to bring gold up to today without a load (fct_journal_entries__daily runs to the day of its
 # build). gold is built again first, then its keys are added: a table built again loses its keys, and the foreign keys
 # pointing at it. nothing in the pipeline relies on the keys, so no other dag adds or keeps them: dbt_constraints is
-# off in every other dbt run (dbt_project.yml), and they are missing until the next run of this dag
+# off in every other dbt run (dbt_project.yml), and they are missing until the next run of this dag. last, airflow's
+# manifest is refreshed, so never while a load runs
 import os
 from datetime import datetime
 
@@ -52,8 +53,23 @@ def refresh_metadata():
         pool=_PUBLISH_POOL,
     )
 
-    # the keys of the tables just built: a failed build of gold adds none
-    gold >> keys
+    # airflow's manifest, which the dags are drawn from, refreshed as airflow-init refreshes it on every up
+    # (docker/compose.yaml), so a new or changed model or test reaches the dags without an up. the dbt packages are
+    # not installed again: a change to packages.yml still needs an up. last, so this run's own tasks, drawn from the
+    # manifest, are not changed under it: a new gold model has its task from the next run on. no check that no load is
+    # running: like an up, this dag is not started while a load runs, as it would change the load's dag under it
+    airflow_manifest = BashOperator(
+        task_id="airflow_manifest",
+        bash_command=(
+            "dbt parse --target-path $DBT_STATE_DIR/airflow-manifest/target"
+            " --log-path $DBT_STATE_DIR/airflow-manifest/logs"
+        ),
+        cwd=os.environ["DBT_PROJECT_DIR"],
+    )
+
+    # the keys of the tables just built: a failed build of gold adds none. a failed refresh is looked at before the
+    # manifest is refreshed
+    gold >> keys >> airflow_manifest
 
 
 refresh_metadata()

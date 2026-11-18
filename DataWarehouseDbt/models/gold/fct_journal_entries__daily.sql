@@ -13,7 +13,8 @@ with
             absolute_positions.vertical,
             journal_entries.ml,
             journal_entries.ec,
-            journal_entries.ph
+            journal_entries.ph,
+            journal_entries.remarks
         from {{ ref("fct_journal_entries") }} as journal_entries
         inner join
             {{ ref("dim_absolute_positions") }} as absolute_positions
@@ -27,15 +28,19 @@ with
             any_value(ph) filter (where horizontal = 'left' and vertical = 'up') as left_drip_ph,
             any_value(ec) filter (where horizontal = 'left' and vertical = 'up') as left_drip_ec,
             any_value(ml) filter (where horizontal = 'left' and vertical = 'up') as left_drip_ml,
+            any_value(remarks) filter (where horizontal = 'left' and vertical = 'up') as left_drip_remarks,
             any_value(ph) filter (where horizontal = 'left' and vertical = 'down') as left_drain_ph,
             any_value(ec) filter (where horizontal = 'left' and vertical = 'down') as left_drain_ec,
             any_value(ml) filter (where horizontal = 'left' and vertical = 'down') as left_drain_ml,
+            any_value(remarks) filter (where horizontal = 'left' and vertical = 'down') as left_drain_remarks,
             any_value(ph) filter (where horizontal = 'right' and vertical = 'up') as right_drip_ph,
             any_value(ec) filter (where horizontal = 'right' and vertical = 'up') as right_drip_ec,
             any_value(ml) filter (where horizontal = 'right' and vertical = 'up') as right_drip_ml,
+            any_value(remarks) filter (where horizontal = 'right' and vertical = 'up') as right_drip_remarks,
             any_value(ph) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ph,
             any_value(ec) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ec,
-            any_value(ml) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ml
+            any_value(ml) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ml,
+            any_value(remarks) filter (where horizontal = 'right' and vertical = 'down') as right_drain_remarks
         from readings
         group by room, date
     ),
@@ -59,7 +64,6 @@ with
 -- percentage divides the unrounded value, so it is rounded once, to 0.1 %. it is a fraction, 0.174 for 17.4 %, as
 -- excel's and power bi's percent formats expect. null when the drip is missing or 0
 -- the grosens columns are WIP until their data arrives: then they become columns of a dataset of their own
--- the remarks are null until the source sends them (docs/REMINDERS.md)
 -- the readings join the room's day, null when it has none. strain and pp_number are the batch flowering in the room on
 -- that day, found as fct_journal_entries finds it, so a day without readings has them too, and a reader needs no join
 -- and no key; null when no batch is flowering. one batch per room at a time, so no row repeats. the iso week and its
@@ -79,11 +83,11 @@ select
     left_drip_ph,
     left_drip_ec,
     left_drip_ml,
-    null::text as left_drip_remarks,
+    left_drip_remarks,
     left_drain_ph,
     left_drain_ec,
     left_drain_ml,
-    null::text as left_drain_remarks,
+    left_drain_remarks,
     round(left_drain_ml / 3.0)::integer as left_drain_ml_per_plant,
     round(left_drain_ml / 3.0 / nullif(left_drip_ml, 0), 3)::numeric(5, 3) as left_drain_percentage,
     null::text as right_grosens_ec_low,
@@ -93,11 +97,11 @@ select
     right_drip_ph,
     right_drip_ec,
     right_drip_ml,
-    null::text as right_drip_remarks,
+    right_drip_remarks,
     right_drain_ph,
     right_drain_ec,
     right_drain_ml,
-    null::text as right_drain_remarks,
+    right_drain_remarks,
     round(right_drain_ml / 3.0)::integer as right_drain_ml_per_plant,
     round(right_drain_ml / 3.0 / nullif(right_drip_ml, 0), 3)::numeric(5, 3) as right_drain_percentage
 from room_days

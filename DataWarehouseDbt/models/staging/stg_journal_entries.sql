@@ -1,5 +1,6 @@
--- the staged journal entries. the csv is written by a program of ours, so the only changes are empty to null and the
--- time zone: anything else is an upstream fault and fails a data test. the output is typed, see cast_select
+-- the staged journal entries. the csv is written by a program of ours, so the only changes are empty to null, the
+-- time zone and the trim of remarks: anything else is an upstream fault and fails a data test. the output is typed,
+-- see cast_select
 with
     mapped as (
         select
@@ -25,6 +26,8 @@ with
             nullif(ph, '') as ph,
             nullif(temperature, '') as temperature,
             nullif(room, '') as room,
+            -- free text, taken as sent except the spaces around it: only blank is null
+            nullif(trim(remarks), '') as remarks,
             -- the csv has no bench: every measurement is taken at bench 4 for now
             '4' as bench
         from {{ source("dw_bronze", "brnz_journal_entries") }}

@@ -21,3 +21,5 @@ models:
       - name: ec
       - name: ph
       - name: temperature
+      - name: remarks
+        description: The user's own comment on this reading, such as no runoff, trimmed. Usually null.

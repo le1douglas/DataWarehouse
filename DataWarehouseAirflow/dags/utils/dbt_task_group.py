@@ -13,8 +13,9 @@ _DBT_EXECUTABLE = "/opt/venvs/dbt/bin/dbt"
 _DBT_PROJECT_DIR = Path(os.environ["DBT_PROJECT_DIR"])
 _DBT_PROFILES_DIR = Path(os.environ["DBT_PROFILES_DIR"])
 # airflow's manifest, read to draw the tasks: no dbt ls when a task starts, as every task parses its dag file again. in
-# the release's airflow-manifest folder of the dbt-state volume, written only by airflow-init on every up
-# (x-dbt-env in docker/compose.yaml): no other dbt command writes it, so none can change it under a running load. a
+# the release's airflow-manifest folder of the dbt-state volume, written by airflow-init on every up and by the dag
+# refresh_metadata (x-dbt-env in docker/compose.yaml): neither is started while a load runs, so nothing changes it
+# under a running load. a
 # model added since the last refresh has no task until airflow's manifest is refreshed again
 _DBT_MANIFEST = Path(os.environ["DBT_STATE_DIR"]) / "airflow-manifest" / "target" / "manifest.json"
 

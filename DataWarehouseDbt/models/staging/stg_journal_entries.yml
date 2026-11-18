@@ -126,3 +126,6 @@ models:
               config:
                 meta:
                   description: temperature must be between 0 and 50
+      # free text from the grower, such as no runoff, usually null. no data test: any text passes
+      - name: remarks
+        data_type: text
