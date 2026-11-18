@@ -1,70 +1,42 @@
-# dev setup: builds the dbt, webapps, meltano and dev images, starts postgres and the web apps, installs the dbt
-# packages and the meltano plugins and checks dbt's connection.
-# safe to run again: up and build change only what changed, dbt deps and meltano install reinstall the same versions.
-# loads nothing: the bronze load appends, so it stays a step of its own (see docs/INSTALLATION_GUIDE_DOCKER.md)
+# dev setup: builds the pipeline, webapps and dev images, starts postgres, creates the airflow database when it is missing,
+# starts airflow and the web apps (airflow-init installs the dbt packages and refreshes airflow's manifest), installs
+# the meltano plugins, checks dbt's connection and builds every relation, silver and gold empty on a new database (the
+# dbt selector setup, DataWarehouseDbt/selectors.yml). the steps both setups share are in setup_common.ps1.
+# safe to run again: up and build change only what changed, the airflow database is created only once, dbt deps and
+# meltano install reinstall the same versions, airflow's manifest is refreshed, and the setup build rebuilds the seeds
+# and every model, and adds nothing to silver: run it again after a seed or a model changes. not while a load runs: up
+# refreshes airflow's manifest, and can recreate the scheduler, and the setup build builds staging and silver.
+# loads nothing: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the env file (01_setup_env.ps1) and Docker Desktop running. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\02_setup_dev.ps1
 $ErrorActionPreference = 'Stop'
 
-# windows powershell 5.1 does not stop on a failed native command, so every docker call is checked with Assert-Ok
-function Assert-Ok([string]$step) {
-    if ($LASTEXITCODE -ne 0) { throw "$step failed (exit code $LASTEXITCODE)" }
-}
-
-# true when the docker command succeeds, its output hidden. Continue only inside this function: with Stop, powershell
-# 5.1 turns a redirected stderr line of a native command into an error that ends the script
-function Test-Docker {
-    $ErrorActionPreference = 'Continue'
-    & docker @args 2>&1 | Out-Null
-    return $LASTEXITCODE -eq 0
-}
+. "$PSScriptRoot\setup_common.ps1"
 
 $dev = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.dev.yaml")
 
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    if (-not (Test-Path 'docker\.env')) {
-        throw 'missing: docker\.env. run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1'
-    }
+    Assert-Ready 'docker\.env'
 
-    if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
-
-    # before up, so up starts the web apps on the new image, not on the one of the last build
-    Write-Host 'building the dbt, webapps, meltano and dev images'
-    & docker @dev --profile dev build dbt webapps meltano dev
+    # before up, so up starts the services on the new images, not on the ones of the last build. the airflow services
+    # share one image: building airflow-init builds it for all of them
+    Write-Host 'building the pipeline, webapps and dev images'
+    & docker @dev --profile dev build airflow-init webapps dev
     Assert-Ok 'the build'
 
-    Write-Host 'starting postgres and the web apps'
-    & docker @dev up -d
-    Assert-Ok 'docker compose up'
+    Start-Warehouse $dev
 
-    # over tcp: during the first start the init scripts run on a server that listens on the socket only, so a plain
-    # pg_isready would answer before the DDL is done
-    Write-Host 'waiting for postgres'
-    $ready = $false
-    for ($i = 0; $i -lt 60; $i++) {
-        if (Test-Docker @dev exec -T postgres pg_isready -h localhost -U postgres) { $ready = $true; break }
-        Start-Sleep -Seconds 2
-    }
-    if (-not $ready) { throw 'postgres is not ready after 2 minutes: see the logs of dw-dev-postgres-1 in Docker Desktop' }
-
-    # the repo mount hides the packages installed in the image, so dev keeps its own in the dbt-state volume
-    # (docker/compose.dev.yaml), which the dev container shares
-    Write-Host 'installing the dbt packages'
-    & docker @dev run --rm dbt deps
-    Assert-Ok 'dbt deps'
-
-    # the same for meltano: dev keeps its own plugins in the meltano-plugins volume (docker/compose.dev.yaml)
+    # dev keeps its own meltano plugins in the meltano-plugins volume (docker/compose.dev.yaml): the repo mount hides the
+    # ones installed in the image
     Write-Host 'installing the meltano plugins'
-    & docker @dev run --rm meltano install
+    & docker @dev exec -T airflow-scheduler meltano install
     Assert-Ok 'meltano install'
 
-    Write-Host 'checking the dbt connection'
-    & docker @dev run --rm dbt debug
-    Assert-Ok 'dbt debug'
+    Invoke-SetupBuild $dev
 
-    Write-Host 'dev setup done. next: a load (meltano run tap-csv-<dataset> target-postgres, then its dbt build), see docs/INSTALLATION_GUIDE_DOCKER.md'
+    Write-Host 'dev setup done. next: a load dag, in the airflow ui (see docs/INSTALLATION_GUIDE_DOCKER.md)'
 }
 finally {
     Pop-Location

@@ -1,5 +1,6 @@
 # config of the dev tools only. the libraries and their versions are in the requirements files under docker/:
-# docker/<image>/requirements.txt for each image, docker/dev/requirements*.txt for the dev tools
+# docker/<image>/requirements-<venv>.txt, one per venv, and docker/pipeline/requirements-tools.txt and requirements-pytest.txt
+# for the dev tools
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

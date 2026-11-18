@@ -7,7 +7,7 @@ models:
       - name: device
         data_type: text
         data_tests:
-          # the primary key: dbt_constraints adds it after the test passes (dbt_project.yml)
+          # the primary key: refresh_metadata adds it after the test passes (dbt_project.yml)
           - dbt_constraints.primary_key
       - name: manufacturer
         data_type: text

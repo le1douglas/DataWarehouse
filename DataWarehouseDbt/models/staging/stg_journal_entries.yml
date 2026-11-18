@@ -1,11 +1,20 @@
 # the columns, their types and every data test of journal entries, the only place they are declared. cast_select casts
-# to these types, the contract (dbt_project.yml) checks that the view has exactly these, and silver takes them from
-# select *. the business key is unique_key in slvr_journal_entries.yml, the rest of that file is documentation.
+# to these types, the contract (dbt_project.yml) checks that the view has exactly these, and silver takes them.
+# staging holds the open load of the dataset only, so every data test judges that load alone. the business key is
+# unique_key in slvr_journal_entries.yml, the rest of that file is documentation.
 # an uncastable value is null here, so not_null reports both. range and relationship tests ignore nulls, so a bad value
 # gives one error. the description of a data test is the message the user sees.
 models:
   - name: stg_journal_entries
     data_tests:
+      # the file: a load without rows has 0 here. staging holds one load, so the count is that load's
+      #TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
+      - dbt_expectations.expect_table_row_count_to_equal:
+          arguments:
+            value: 40 # 10 rooms, 4 measurements per room. a file cut at a line end has fewer
+          config:
+            meta:
+              description: the file must have 40 rows
       # the business key, read from unique_key in slvr_journal_entries.yml: the test takes no columns. silver's
       # rows with the same key are the ones the load replaces, so this checks the load alone: a duplicate within the
       # load is an error, a key already in silver is an overwrite, listed by warn_overwritten_rows

@@ -11,24 +11,25 @@ vars:
   # how many failing rows of a data test elementary stores. -1 is all of them, the default is 5
   test_sample_row_count: -1
   # gold's keys only: every primary, unique and foreign key of a gold model is a dbt_constraints test in its yml, so
-  # a catalog and the tools reading gold see real keys. silver has none. at the end of a dbt build the package adds the constraint of each such test that ran and passed in that
-  # build: a failed test fails the build, as every test does, and leaves its constraint missing. it releases the
-  # constraints of a table it rebuilds before the build starts. on by default, set here so it shows
-  dbt_constraints_enabled: true
+  # openmetadata, excel and power bi see real keys. silver has none. nothing in the pipeline relies on them, so the
+  # package is off here, in every dbt run: its tests run as plain data tests and its hooks do nothing. only the dag
+  # refresh_metadata turns it on, and adds every missing key whose test passes. a table built again loses its keys,
+  # and the foreign keys pointing at it, until that dag runs again
+  dbt_constraints_enabled: false
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
-snapshot-paths: ["snapshots"]
 
-# where dbt deps installs the packages. dev sets the env var to the dbt-state volume (docker/compose.dev.yaml), as it
-# sets DBT_TARGET_PATH and DBT_LOG_PATH, which dbt reads by itself. prod sets none of them: the folders next to this file
+# where dbt deps installs the packages. dev sets the env var to the dbt-state volume (docker/compose.dev.yaml); prod
+# does not: the folder next to this file, in the image. DBT_TARGET_PATH and DBT_LOG_PATH, which dbt reads by itself,
+# point at the interactive folder of the dbt-state volume, in dev and prod (x-dbt-env in docker/compose.yaml)
 packages-install-path: "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
 
-# directories to be removed by `dbt clean`, wherever the env vars put them. in dev they are outside the project, so
-# dbt clean needs --no-clean-project-files-only there
+# directories to be removed by `dbt clean`, wherever the env vars put them: the interactive target and dev's packages,
+# never another role's folder. outside the project, so dbt clean needs --no-clean-project-files-only
 clean-targets:
   - "{{ env_var('DBT_TARGET_PATH', 'target') }}"
   - "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
@@ -36,16 +37,16 @@ clean-targets:
 # the folder of a model decides its materialisation and schema
 models:
   DataWarehouseDbt:
-    staging:             # mapping and auto-fixes, then a generated safe cast
+    staging:             # the open load: mapping and auto-fixes, a generated safe cast, and every data test
       +materialized: view
       +schema: bronze    # bronze tables are the raw data, bronze views are staging
       +contract:
         enforced: true    # every column declared with its type in the yml, the only place; silver takes them from here
-    silver:              # no logic, rebuilt only when all staging tests pass
-      # every silver model is incremental: staging holds only the latest load, which is added only when its tests
-      # pass. a row of the load replaces the row with the same unique_key (in the model's yml), so a newer upload
-      # overrides the older one. full_refresh is off: a rebuild from staging would keep only the latest load.
-      # no contract: the types come from staging through select *, and on_schema_change fails the build when they change
+    silver:              # no logic: the accepted loads, the ones airflow's verdict let through (select_accepted_loads)
+      # every silver model is incremental: each build adds the loads accepted and not yet published. a row replaces the
+      # row with the same unique_key (in the model's yml), so a newer upload overrides the older one. full_refresh is
+      # off: a rebuild would keep only the loads waiting, until silver is rebuilt by replaying the published loads.
+      # no contract: the types come from staging, and on_schema_change fails the build when they change
       +materialized: incremental
       +incremental_strategy: delete+insert
       +on_schema_change: fail
@@ -63,9 +64,6 @@ models:
       +schema: gold
       +contract:
         enforced: true
-    audit:               # what failed, read from elementary
-      +materialized: view
-      +schema: audit
   elementary:
     +schema: elementary
 
@@ -77,21 +75,6 @@ seeds:
   DataWarehouseDbt:
     +schema: seeds
     +column_types: {room: text}
-
-# every version of the rows of one table, see docs/CODING_STANDARDS.md. a snapshot mirrors its table exactly,
-# so every one is configured the same: key in its own yml, every column compared, a deleted row is a version too
-snapshots:
-  DataWarehouseDbt:
-    +schema: snapshots
-    +strategy: check
-    +check_cols: all
-    +hard_deletes: new_record
-    +snapshot_meta_column_names:
-      dbt_valid_from: meta_valid_from
-      dbt_valid_to: meta_valid_to
-      dbt_scd_id: meta_version_id
-      dbt_updated_at: meta_updated_at
-      dbt_is_deleted: meta_is_deleted
 
 # every data test fails the build. elementary stores its failing rows, see macros/materialization_test.sql
 data_tests:

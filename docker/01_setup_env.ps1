@@ -19,6 +19,13 @@ function Read-Password([string]$environment) {
     }
 }
 
+# a random key, 64 hex characters: safe in an env file, which compose reads as is
+function New-Secret {
+    $bytes = New-Object byte[] 32
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    return -join ($bytes | ForEach-Object { $_.ToString('x2') })
+}
+
 # the newest git tag, by creation date: the release prod runs. windows powershell 5.1 does not stop on a failed
 # native command, so the exit code is checked. every tag is read first: Select-Object -First 1 in the pipe would stop
 # git early and leave a failed exit code
@@ -59,15 +66,19 @@ POSTGRES_PASSWORD=$devPassword
 POSTGRES_PORT=5432
 # the port of the web apps, published to Windows
 NICEGUI_PORT=8080
+# the port of the airflow ui, published to Windows on localhost only: prod is on 8091
+AIRFLOW_PORT=8090
+# the key the airflow components sign each other's tokens with. any value, the same for all of them: written once here
+AIRFLOW_JWT_SECRET=$(New-Secret)
 RELEASE=dev
-# windows folder of every csv to load, mounted read only into the meltano container at /user_input. one subfolder per
-# dataset, the file in it named in DataWarehouseMeltano/meltano.yml. it can move: change the line, no rebuild needed.
-# dev and prod read the same files
-USER_INPUT_DIR=../user_input
+# windows folder of every csv to load, mounted read only into the airflow scheduler and the dev container at /user_input.
+# one subfolder per dataset, the file in it named in DataWarehouseMeltano/meltano.yml. it can move: change the line and
+# recreate those containers, no rebuild needed. dev's own: prod has user_input_prod, and neither is inside the other
+USER_INPUT_DIR=../user_input_dev
 # windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output.
-# each program writes to its own subfolder, named in its code, such as journal_entries by the datastreamer. dev and prod
-# write to the same folder
-USER_OUTPUT_DIR=../user_output
+# each program writes to its own subfolder, named in its code, such as journal_entries by the datastreamer. dev's own:
+# prod has user_output_prod
+USER_OUTPUT_DIR=../user_output_dev
 
 "@
 }
@@ -85,13 +96,18 @@ POSTGRES_PASSWORD=$prodPassword
 POSTGRES_PORT=5433
 # the port of the web apps, published to Windows: dev is on 8080
 NICEGUI_PORT=8081
+# the port of the airflow ui, published to Windows on localhost only: dev is on 8090
+AIRFLOW_PORT=8091
+# the key the airflow components sign each other's tokens with. any value, the same for all of them: written once here
+AIRFLOW_JWT_SECRET=$(New-Secret)
 # the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
 RELEASE=$release
-# windows folder of every csv to load, mounted read only into the meltano container at /user_input: the same files as dev
-USER_INPUT_DIR=../user_input
-# windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output:
-# the same folder as dev
-USER_OUTPUT_DIR=../user_output
+# windows folder of every csv to load, mounted read only into the airflow scheduler at /user_input. prod's own: dev has
+# user_input_dev, and neither is inside the other
+USER_INPUT_DIR=../user_input_prod
+# windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output.
+# prod's own: dev has user_output_dev
+USER_OUTPUT_DIR=../user_output_prod
 
 "@
 }

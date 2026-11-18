@@ -1,7 +1,7 @@
 {#
-    the rows of the latest load whose columns equal another row, of the same load or of slvr_<dataset>: what silver will
-    hold after this load, checked as one set. for any set of columns that must be unique together; the business key
-    has its own test below.
+    the rows of the load in staging whose columns equal another row, of the same load or of slvr_<dataset>: what
+    silver will hold after this load, checked as one set. for any set of columns that must be unique together; the
+    business key has its own test below.
     a row of silver with the same unique_key as a row of the load is about to be replaced by delete+insert, so it is
     left out: a batch sent again unchanged is not a clash with its own older version. a null never equals anything, so
     a row with a null in columns is left to its not_null test.

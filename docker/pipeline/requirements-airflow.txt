@@ -1,0 +1,13 @@
+# the libraries of airflow, the only place their versions are written. installed into its own venv by the venvs stage
+# of docker/pipeline/Dockerfile, which runtime and the dev container share.
+# airflow pins its whole dependency tree in a constraints file, one per airflow and python version: without it pip
+# resolves newer libraries than the ones airflow was tested with, and it breaks. the version is written twice, in the
+# package and in the url, which have to change together, as has the python of the url with the base image
+-c https://raw.githubusercontent.com/apache/airflow/constraints-3.4.0/constraints-3.14.txt
+# the postgres extra: the driver for the metadata database, the airflow database of the postgres service
+apache-airflow[postgres]==3.4.0
+# BashOperator, which runs dbt and meltano. its version comes from the constraints file
+apache-airflow-providers-standard
+# cosmos turns the dbt project into airflow tasks, one per model, seed or test. not in the constraints file, so its
+# version is written here. dbt is not installed with it: cosmos runs the dbt of its own venv (/opt/venvs/dbt)
+astronomer-cosmos==1.16.0

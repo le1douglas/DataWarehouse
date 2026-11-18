@@ -1,41 +1,33 @@
-# prod setup: builds the dbt, webapps, meltano and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
-# postgres and checks dbt's connection. the images are built from the tag's code: the repo is switched to the tag for the build
-# and back to where it was after, even when the build fails.
-# safe to run again: images of RELEASE that exist are not rebuilt, and up changes only what changed. loads nothing.
+# prod setup: builds the pipeline, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
+# postgres, creates the airflow database when it is missing, starts the rest (airflow-init refreshes airflow's manifest
+# into the release's folder of the dbt-state volume), checks dbt's connection and builds every relation, silver and
+# gold empty on a new database (the dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the
+# tag's code: the repo is switched to the tag for the build and back to where it was after, even when the build fails.
+# the steps both setups share are in setup_common.ps1.
+# safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, up changes
+# only what changed, and the setup build rebuilds the seeds and every model, and adds nothing to silver: a release that
+# changes a seed or a model is set up by running this again. not while a load runs: up recreates the scheduler, and
+# refreshes airflow's manifest, and the setup build builds staging and silver. loads nothing: a load dag, in the
+# airflow ui
 # needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
 
-# windows powershell 5.1 does not stop on a failed native command, so every docker and git call is checked with Assert-Ok
-function Assert-Ok([string]$step) {
-    if ($LASTEXITCODE -ne 0) { throw "$step failed (exit code $LASTEXITCODE)" }
-}
-
-# true when the docker command succeeds, its output hidden. Continue only inside this function: with Stop, powershell
-# 5.1 turns a redirected stderr line of a native command into an error that ends the script
-function Test-Docker {
-    $ErrorActionPreference = 'Continue'
-    & docker @args 2>&1 | Out-Null
-    return $LASTEXITCODE -eq 0
-}
+. "$PSScriptRoot\setup_common.ps1"
 
 $prod = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.prod.yaml", "--env-file", "docker/.env.prod")
 
 # the paths below are from the repo root (the compose files and env files are in docker/)
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
-    if (-not (Test-Path 'docker\.env.prod')) {
-        throw 'missing: docker\.env.prod. run: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1'
-    }
-
-    if (-not (Test-Docker version --format '{{.Server.Version}}')) { throw 'docker does not answer: open Docker Desktop and wait until the engine runs' }
+    Assert-Ready 'docker\.env.prod'
 
     $line = Select-String -Path docker\.env.prod -Pattern '^RELEASE=(.+)$' | Select-Object -First 1
     if (-not $line) { throw 'no RELEASE= line in docker\.env.prod' }
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "dbt:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "meltano:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
+    if ((Test-Docker image inspect "pipeline:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {
@@ -55,7 +47,8 @@ try {
         git switch --detach $release
         Assert-Ok "git switch to $release"
         try {
-            & docker @prod build dbt webapps meltano datastreamer
+            # the airflow services share one image: building airflow-init builds it for all of them
+            & docker @prod build airflow-init webapps datastreamer
             Assert-Ok 'the build'
         }
         finally {
@@ -67,23 +60,9 @@ try {
         }
     }
 
-    Write-Host 'starting postgres'
-    & docker @prod up -d
-    Assert-Ok 'docker compose up'
+    Start-Warehouse $prod
 
-    # over tcp: during the first start the init scripts run on a server that listens on the socket only, so a plain
-    # pg_isready would answer before the DDL is done
-    Write-Host 'waiting for postgres'
-    $ready = $false
-    for ($i = 0; $i -lt 60; $i++) {
-        if (Test-Docker @prod exec -T postgres pg_isready -h localhost -U postgres) { $ready = $true; break }
-        Start-Sleep -Seconds 2
-    }
-    if (-not $ready) { throw 'postgres is not ready after 2 minutes: see the logs of dw-prod-postgres-1 in Docker Desktop' }
-
-    Write-Host 'checking the dbt connection'
-    & docker @prod run --rm dbt debug
-    Assert-Ok 'dbt debug'
+    Invoke-SetupBuild $prod
 
     Write-Host "prod setup done, on $release"
 }

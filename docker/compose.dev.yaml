@@ -3,15 +3,11 @@
 # the project name, so "docker compose run" and the Dev Container use the same postgres container and volumes
 name: dw-dev
 
-# what dbt writes, in the dbt-state volume instead of the repo folder: every build rewrites target and logs, which
-# onedrive would sync, and writes through the windows mount are slow. one volume, mounted at /dbt-state, and dbt pointed
-# there: DBT_TARGET_PATH and DBT_LOG_PATH dbt reads by itself, DBT_PACKAGES_INSTALL_PATH DataWarehouseDbt/dbt_project.yml
-# reads. the volume starts empty: dbt deps (also run by dbt Power User on open) fills the packages.
-# written once here, for the dbt service and the dev service
-x-dbt-state-env: &dbt_state_env
-  DBT_TARGET_PATH: /dbt-state/target
-  DBT_LOG_PATH: /dbt-state/logs
-  DBT_PACKAGES_INSTALL_PATH: /dbt-state/dbt_packages
+# dev's dbt packages, in the dbt-state volume (its folders: x-dbt-env in compose.yaml): the repo mount hides the ones
+# installed in the image. read by DataWarehouseDbt/dbt_project.yml. the volume starts empty: dbt deps fills it, run by
+# airflow-init on every up (and by dbt Power User on open). written once here, for every service that runs or reads dbt
+x-dbt-packages-env: &dbt_packages_env
+  DBT_PACKAGES_INSTALL_PATH: /dbt-state/dev/packages
 
 services:
   postgres:
@@ -21,23 +17,33 @@ services:
 
   # the services build their runtime stage (compose.yaml), as prod does, with the repo mounted on top so edits apply
   # without a rebuild. the dev tools are in the dev service only
-  dbt:
-    volumes:
-      # the whole repo, live. hides the project copied at build time, at the same path, so the working directory stays
-      # /usr/app/DataWarehouseDbt
-      - ..:/usr/app
-      - dbt-state:/dbt-state
-    environment:
-      <<: *dbt_state_env
 
-  meltano:
+  # refreshes airflow's manifest from the repo's dbt project, live, after dbt deps fills the packages of the volume
+  airflow-init:
     volumes:
-      # the whole repo, live: edits to meltano.yml apply without a rebuild. hides the project copied at build time, at
-      # the same path, with its plugins
+      - ..:/usr/app
+    environment:
+      <<: *dbt_packages_env
+
+  # reads the dag files: the repo's, live, so a saved dag shows in the ui without a rebuild. a new or changed model
+  # shows once airflow's manifest is refreshed: an up, or dbt parse into airflow-manifest (docs/INSTALLATION_GUIDE_DOCKER.md)
+  airflow-dag-processor:
+    volumes:
+      - ..:/usr/app
+    environment:
+      <<: *dbt_packages_env
+
+  # runs the tasks, so dbt and meltano: the repo's dags and projects, live. hides the projects copied at build time, at
+  # the same paths
+  airflow-scheduler:
+    volumes:
       - ..:/usr/app
       # dev's own plugins, in a volume instead of the repo folder: their venvs hold linux symlinks that windows and
-      # onedrive cannot read, and that break the build context. filled from the image when new, meltano install updates it
+      # onedrive cannot read, and that break the build context. filled from the image when new, meltano install updates
+      # it. shared with the dev container
       - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
+    environment:
+      <<: *dbt_packages_env
 
   datastreamer:
     volumes:
@@ -52,12 +58,15 @@ services:
       # the whole repo, live: the app reloads on every save. hides the code copied at build time, at the same path
       - ..:/usr/app
 
-  # the dev container: every tool of the four images at the same versions, plus the dev tools and Claude Code.
+  # the dev container: every tool of the three images at the same versions, plus the dev tools and Claude Code.
   # opened by .devcontainer/dev, which starts it (with postgres). "up" does not
   dev:
     build:
-      context: .. # the repo root. docker/dev/Dockerfile.dockerignore keeps only the requirements files
-      dockerfile: docker/dev/Dockerfile
+      context: .. # the repo root. docker/pipeline/Dockerfile.dockerignore keeps only what the stages need
+      dockerfile: docker/pipeline/Dockerfile
+      # the dev stage: the pipeline's venvs, as runtime has them, plus the apps' venvs, the dev tools and psql
+      target: dev
+    # the toolbox, not the pipeline: its own name
     image: dev:dev
     # the same mounts as the services, so a load, a build or a reading behaves here as it does there
     volumes:
@@ -80,14 +89,29 @@ services:
     # the env vars of the services, the same names as in compose.yaml: a yaml anchor cannot reach across files.
     # the values come from the env file, so each is still written once
     environment:
-      <<: *dbt_state_env
+      <<: *dbt_packages_env
       TZ: Europe/Amsterdam # x-timezone in compose.yaml
+      # airflow (x-airflow-env in compose.yaml): the airflow command reaches dev's airflow database and reads the repo's
+      # dags. the password is PGPASSWORD below
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Europe/Amsterdam
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /usr/app/DataWarehouseAirflow/dags
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}@postgres:5432/airflow
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?set AIRFLOW_JWT_SECRET in the env file}
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
       # dbt
       DBT_HOST: postgres
       DBT_PORT: "5432"
       DBT_DBNAME: ${POSTGRES_DB}
       DBT_USER: ${POSTGRES_USER}
       DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
+      # dbt's folders (x-dbt-env in compose.yaml): your commands and dbt Power User write to interactive
+      DBT_STATE_DIR: /dbt-state/${RELEASE}
+      DBT_TARGET_PATH: /dbt-state/${RELEASE}/interactive/target
+      DBT_LOG_PATH: /dbt-state/${RELEASE}/interactive/logs
+      DBT_METADATA_EXPORT_DIR: /dbt-state/metadata-export
       # meltano
       MELTANO_DATABASE_URI: postgresql+psycopg://${POSTGRES_USER}@postgres:5432/meltano
       PGPASSWORD: ${POSTGRES_PASSWORD}
@@ -120,5 +144,4 @@ services:
 
 volumes:
   meltano-plugins:
-  dbt-state:
   claude-config:
