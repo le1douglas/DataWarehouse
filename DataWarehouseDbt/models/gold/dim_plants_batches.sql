@@ -15,3 +15,4 @@ select
     plants_batches.plants_number
 from {{ ref("slvr_plants_batches") }} as plants_batches
 left join {{ ref("dim_rooms") }} as rooms on plants_batches.room = rooms.room
+order by plants_batches.date_flower_start
