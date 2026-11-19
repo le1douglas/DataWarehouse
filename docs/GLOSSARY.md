@@ -93,8 +93,9 @@ One state of a row in a snapshot, valid from the build that first saw it until t
 A check on the content of the data that must pass before silver is published.
 _Avoid_: Test on its own, which can also mean a unit or integration test of the code
 
-**Upload**:
-One file going into the warehouse: it is loaded, judged, and either accepted or refused.
+**Load**:
+One file of one dataset going into the warehouse: it is landed in bronze, judged, and either accepted or refused. Each load has a `load_id`, and its state is in `dw_control.ctl_loads`.
+_Avoid_: Upload
 
 **Refused**:
 What happens to a file that fails a data test: none of it reaches silver, the user is told each failing row, and it is fixed where it came from. One bad row refuses the whole file. Bronze keeps it, as the record of what arrived.

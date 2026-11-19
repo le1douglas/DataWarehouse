@@ -1,7 +1,6 @@
-# connection for dbt. every value comes from an environment variable, set by compose: host and port from the
-# environment's transformer env file, database, user and password from its project env file (see compose.yaml)
+# every value is an environment variable, from x-dbt-env in docker/compose.yaml
 DataWarehouseDbt:
-  # one target for every environment: the environment comes from the connection, set per environment by compose
+  # one target for every environment: each environment has its own connection
   target: dw
   outputs:
     dw:
@@ -11,5 +10,5 @@ DataWarehouseDbt:
       dbname: "{{ env_var('DBT_DBNAME') }}"
       user: "{{ env_var('DBT_USER') }}"
       password: "{{ env_var('DBT_ENV_SECRET_PASSWORD') }}"
-      schema: dw # dbt's default prefix: dw_bronze, dw_silver, dw_seeds, dw_gold
+      schema: dw # the prefix of every schema dbt creates, such as dw_silver
       threads: 1

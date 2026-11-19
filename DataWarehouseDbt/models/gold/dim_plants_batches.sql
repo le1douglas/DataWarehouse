@@ -1,8 +1,8 @@
--- the plants batches as a dimension: one row per plants batch, keyed by pp_number, with a key to its room and its
--- planned timeline. a batch is what the journal entries are read by, not a measurement: the only number,
--- plants_number, describes the batch. silver is already at this grain: the join to dim_rooms only adds room_time, and
--- the foreign key on room guarantees a match, so the left join never drops or repeats a batch. silver's dates and
--- whole numbers need no reduction of precision
+-- one row per plants batch, keyed by pp_number
+-- - a dimension, not a fact: plants_number describes the batch
+-- - silver is already at this grain: the join only adds room_time
+-- - a left join: staging checked the room once, at load time, so a room removed from seed_rooms later would
+--   otherwise drop the batch
 select
     plants_batches.row_id,
     plants_batches.pp_number,

@@ -1,98 +1,81 @@
-# dev only, on top of compose.yaml: "docker compose -f docker/compose.yaml -f docker/compose.dev.yaml ...". prod never loads it
+# dev only, on top of compose.yaml
 
-# the project name, so "docker compose run" and the Dev Container use the same postgres container and volumes
+# so "docker compose run" and the dev container share the same postgres container and volumes
 name: dw-dev
 
-# dev's dbt packages, in the dbt-state volume (its folders: x-dbt-env in compose.yaml): the repo mount hides the ones
-# installed in the image. read by DataWarehouseDbt/dbt_project.yml. the volume starts empty: dbt deps fills it, run by
-# airflow-init on every up (and by dbt Power User on open). written once here, for every service that runs or reads dbt
+# dev's dbt packages, in the dbt-state volume: the repo mount hides the ones installed in the image
+# - filled by dbt deps, run by airflow-init on every up and by dbt Power User on open
 x-dbt-packages-env: &dbt_packages_env
   DBT_PACKAGES_INSTALL_PATH: /dbt-state/dev/packages
 
 services:
   postgres:
     volumes:
-      # replaces the mount of compose.yaml at the same path (/dumps): dev only reads the prod dumps, never changes one
+      # replaces compose.yaml's mount: dev only reads prod's dumps
       - ../Database/dumps:/dumps:ro
 
-  # the services build their runtime stage (compose.yaml), as prod does, with the repo mounted on top so edits apply
-  # without a rebuild. the dev tools are in the dev service only
-
-  # refreshes airflow's manifest from the repo's dbt project, live, after dbt deps fills the packages of the volume
+  # each service mounts the repo over its runtime image, so an edit applies without a rebuild
   airflow-init:
     volumes:
       - ..:/usr/app
     environment:
       <<: *dbt_packages_env
 
-  # reads the dag files: the repo's, live, so a saved dag shows in the ui without a rebuild. a new or changed model
-  # shows once airflow's manifest is refreshed: an up, or dbt parse into airflow-manifest (docs/INSTALLATION_GUIDE_DOCKER.md)
+  # a new or changed model shows only once airflow's manifest is refreshed (docs/INSTALLATION_GUIDE_DOCKER.md)
   airflow-dag-processor:
     volumes:
       - ..:/usr/app
     environment:
       <<: *dbt_packages_env
 
-  # runs the tasks, so dbt and meltano: the repo's dags and projects, live. hides the projects copied at build time, at
-  # the same paths
   airflow-scheduler:
     volumes:
       - ..:/usr/app
-      # dev's own plugins, in a volume instead of the repo folder: their venvs hold linux symlinks that windows and
-      # onedrive cannot read, and that break the build context. filled from the image when new, meltano install updates
-      # it. shared with the dev container
+      # meltano's plugins, in a volume: their venvs hold linux symlinks that windows and OneDrive cannot read
+      # - filled from the image when new, updated by meltano install, shared with the dev container
       - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
     environment:
       <<: *dbt_packages_env
 
   datastreamer:
     volumes:
-      # the whole repo, live: edits apply without a rebuild. hides the code copied at build time, at the same path
       - ..:/usr/app
 
   webapps:
-    # a save on windows sends no change event into the container, so the reload of ui.run checks the files on a timer
+    # a save on windows sends no change event into the container, so the reload polls the files
     environment:
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
-      # the whole repo, live: the app reloads on every save. hides the code copied at build time, at the same path
       - ..:/usr/app
 
-  # the dev container: every tool of the three images at the same versions, plus the dev tools and Claude Code.
-  # opened by .devcontainer/dev, which starts it (with postgres). "up" does not
+  # the dev container: every tool of the three images at the same versions, plus the dev tools and Claude Code
+  # - started by .devcontainer/dev, not by up
   dev:
     build:
-      context: .. # the repo root. docker/pipeline/Dockerfile.dockerignore keeps only what the stages need
+      context: .. # the repo root. Dockerfile.dockerignore keeps only what the stages need
       dockerfile: docker/pipeline/Dockerfile
-      # the dev stage: the pipeline's venvs, as runtime has them, plus the apps' venvs, the dev tools and psql
       target: dev
-    # the toolbox, not the pipeline: its own name
     image: dev:dev
-    # the same mounts as the services, so a load, a build or a reading behaves here as it does there
+    # the services' mounts, so a load, a build or a reading behaves the same here
     volumes:
       - ..:/usr/app
       - dbt-state:/dbt-state
       - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
-      # the input, read only, at the path of x-user-input-mount in compose.yaml
+      # the paths of the x-*-mount anchors in compose.yaml
       - type: bind
         source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
         target: /user_input
         read_only: true
-      # the output, at the path of x-user-output-mount in compose.yaml
       - ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}:/user_output
-      # the work-in-progress volume of dw-dev, at the path of x-work-in-progress-mount in compose.yaml. never prod's
       - work-in-progress:/work_in_progress
-      # Claude Code's login, settings, skills and memory (CLAUDE_CONFIG_DIR below), tied to docker, not to windows:
-      # they survive every rebuild, and are lost only with the volume. to move machines, export this volume
+      # Claude Code's login, settings and memory: they survive a rebuild, and are lost only with the volume
       # (docs/DEV_CONTAINER.md)
       - claude-config:/claude-config
-    # the env vars of the services, the same names as in compose.yaml: a yaml anchor cannot reach across files.
-    # the values come from the env file, so each is still written once
+    # the services' env vars, copied: a yaml anchor cannot reach across files
     environment:
       <<: *dbt_packages_env
       TZ: Europe/Amsterdam # x-timezone in compose.yaml
-      # airflow (x-airflow-env in compose.yaml): the airflow command reaches dev's airflow database and reads the repo's
-      # dags. the password is PGPASSWORD below
+      # airflow (x-airflow-env)
       AIRFLOW__CORE__DEFAULT_TIMEZONE: Europe/Amsterdam
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -107,7 +90,7 @@ services:
       DBT_DBNAME: ${POSTGRES_DB}
       DBT_USER: ${POSTGRES_USER}
       DBT_ENV_SECRET_PASSWORD: ${POSTGRES_PASSWORD}
-      # dbt's folders (x-dbt-env in compose.yaml): your commands and dbt Power User write to interactive
+      # dbt's folders (x-dbt-env)
       DBT_STATE_DIR: /dbt-state/${RELEASE}
       DBT_TARGET_PATH: /dbt-state/${RELEASE}/interactive/target
       DBT_LOG_PATH: /dbt-state/${RELEASE}/interactive/logs
@@ -131,16 +114,16 @@ services:
       POSTGRESQL_USER: ${POSTGRES_USER}
       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
       WATCHFILES_FORCE_POLLING: "true"
-      # psql: a bare "psql" reaches the warehouse. the password is PGPASSWORD above, shared with meltano
+      # psql: a bare "psql" reaches the warehouse. the password is PGPASSWORD above
       PGHOST: postgres
       PGPORT: "5432"
       PGDATABASE: ${POSTGRES_DB}
       PGUSER: ${POSTGRES_USER}
-      # Claude Code keeps everything in the claude-config volume, its .claude.json too
+      # everything of Claude Code's, its .claude.json too
       CLAUDE_CONFIG_DIR: /claude-config
     depends_on:
       - postgres
-    profiles: ["dev"] # not started by "up", only by the Dev Container
+    profiles: ["dev"] # not started by up
 
 volumes:
   meltano-plugins:

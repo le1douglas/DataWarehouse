@@ -1,8 +1,9 @@
 models:
   - name: dim_plants_batches
     description: The plants batches, one row per pp_number, with a key to its room and its planned timeline.
-    # the keys are dbt_constraints tests: refresh_metadata adds each one after its test passes (dbt_project.yml). the
-    # primary key is the natural key, pp_number. row_id stays unique, to trace a row back to silver
+    # keys, constraints only through refresh_metadata:
+    # - primary key: pp_number
+    # - row_id unique, to trace a row back to silver
     data_tests:
       - dbt_constraints.primary_key:
           arguments:

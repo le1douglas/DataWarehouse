@@ -1,8 +1,8 @@
 {#
-    the silver model of a staging model: stg_<dataset> gives slvr_<dataset>. returns its graph node, its relation in
-    the database (none before silver's table exists) and its unique_key, always as a list. a staging model without
-    silver, or a silver yml without unique_key, is a mistake in the yml.
-    the graph is empty while dbt parses: this returns none, and the caller's test is a placeholder
+    the silver of a staging model (stg_<dataset> gives slvr_<dataset>): its graph node, relation and unique_key
+    - relation is none until silver's table exists
+    - unique_key is always a list
+    - none while dbt parses, since the graph is empty
 #}
 {% macro get_silver_of_staging(model) %}
     {% if not execute %} {{ return(none) }} {% endif %}

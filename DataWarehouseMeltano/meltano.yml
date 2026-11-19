@@ -5,31 +5,29 @@ environments:
 send_anonymous_usage_stats: false
 plugins:
   extractors:
-  # the base: what every dataset shares. it has no files and is never run itself. one meltano run reads every entry
-  # under files and gives them one load_id, so each dataset is a child below (inherit_from) with its own single file,
-  # and is loaded on its own: meltano run tap-csv-<dataset> target-postgres
+  # the base every dataset inherits, never run itself
+  # - one run gives every file under files the same load_id, so each dataset is a child with one file
   - name: tap-csv
     variant: meltanolabs
     # not on pypi: pinned to a git tag
     pip_url: git+https://github.com/MeltanoLabs/tap-csv.git@v1.3.2
     config:
-      # every row gets the load_id of its upload: the run_id of this run, which meltano shows only when the caller
-      # sets it in MELTANO_RUN_ID. without it the insert fails on bronze's NOT NULL load_id.
-      # "*" matches every stream, and every child inherits it, so a new dataset needs nothing here
+      # every row gets the load's load_id, which the caller sets in MELTANO_RUN_ID
+      # - without it the insert fails on bronze's NOT NULL load_id
+      # - "*" matches every stream, so a new dataset needs nothing here
       stream_maps:
         "*":
           load_id: config['load_id']
       stream_map_config:
         load_id: ${MELTANO_RUN_ID}
-    # load_id is a uuid in bronze. a stream map can only declare a plain string, which target-postgres would try to
-    # alter the column to, and fail. this declares it as a uuid instead, for every stream ("*") as above
+    # a stream map declares load_id as a plain string, and target-postgres would fail altering bronze's uuid column
     schema:
       "*":
         load_id:
           type: string
           format: uuid
-    # how every csv is read, defined once. tap-csv takes these only per file, so each child's files entry merges them
-    # in (<<: *default_csv_dialect) and adds its own delimiter. meltano keeps this key to itself: it does not reach the tap
+    # how every csv is read. tap-csv takes these only per file, so each child's file merges them in
+    # - meltano does not pass this key to the tap
     default_csv_dialect: &default_csv_dialect
       delimiter: ','
       keys: []
@@ -38,11 +36,11 @@ plugins:
       doublequote: true # a quote inside a quoted value is written twice: "a ""quoted"" word"
       escapechar: null # no escape character: a backslash is an ordinary character
       skipinitialspace: false # a space after the delimiter belongs to the value
-      strict: true #interpret quoting '"' strictly. A row with more or fewer fields than the header is not caught by this
+      strict: true # quoting errors fail the read. a row with more or fewer fields than the header still passes
 
-  # one child per dataset. the entity is the table name in dw_bronze. the input folder (USER_INPUT_DIR in the env
-  # file) is mounted read only at USER_INPUT_MOUNT (docker/compose.yaml). each dataset reads one file, named here,
-  # from its own subfolder
+  # one child per dataset
+  # - entity is the table in dw_bronze
+  # - USER_INPUT_MOUNT is the input folder, mounted read only (docker/compose.yaml)
   - name: tap-csv-journal-entries
     inherit_from: tap-csv
     config:
@@ -64,7 +62,7 @@ plugins:
   - name: target-postgres
     variant: meltanolabs
     pip_url: meltanolabs-target-postgres==0.8.1
-    # host, port, database, user and password come from TARGET_POSTGRES_* in docker/compose.yaml
+    # the connection is TARGET_POSTGRES_* in docker/compose.yaml
     config:
       default_target_schema: dw_bronze
       load_method: append-only

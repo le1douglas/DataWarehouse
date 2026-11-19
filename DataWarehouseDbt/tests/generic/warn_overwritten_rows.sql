@@ -1,15 +1,12 @@
 {#
-    the rows of the load in staging whose key is already in slvr_<dataset> under another row_id: silver's
-    delete+insert replaces those rows with these. meant as a warning, so every override is listed in elementary. the
-    key is silver's own unique_key, so this lists exactly what silver replaces.
-    silver is read from the graph, not with ref: a ref would run this test after silver, when the old rows are already
-    replaced. before silver's table exists, nothing is replaced.
-    the test runs on stg_<dataset>, and reads the dataset from that name. a dataset without silver is a mistake in the yml
+    the rows of the load whose unique_key is already in silver under another row_id: the rows silver will replace
+    - silver is read from the graph, not ref: a ref would run the test after silver had replaced the rows
+    - before silver's table exists, nothing is replaced
 #}
 {% test warn_overwritten_rows(model) %}
-    {# only a warning, never a refusal: a newer load overwrites the older row in silver, and this lists it #}
+    {# a warning, never a refusal: replacing a row is allowed, this only lists it #}
     {{ config(severity="warn", meta={"description": "this row overwrites the row with the same key in silver"}) }}
-    {# the graph is empty while dbt parses: silver is none, and the test is a placeholder #}
+    {# none while dbt parses: the test is a placeholder #}
     {% set silver = get_silver_of_staging(model) %}
 
     {% if silver is none or silver.relation is none %}

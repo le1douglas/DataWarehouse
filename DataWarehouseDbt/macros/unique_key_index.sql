@@ -1,15 +1,10 @@
 {#
-    a plain index on a silver table's unique_key, run as a post-hook on every silver model (dbt_project.yml). the key
-    is declared once, in slvr_<dataset>.yml: it decides what a load replaces (delete+insert), and the
-    staging tests read it. the index only makes the delete of every load fast: a duplicate key is reported by the
-    staging data tests, not refused by postgres.
-    kept in step with unique_key on every load: created when it is missing, also on a table that existed before, and
-    dropped and created again when its columns are no longer the unique_key's. otherwise only the catalog is read.
-    postgres keeps its rows up to date by itself.
-    a silver model without unique_key is a mistake in its yml
+    post-hook of every silver model: a plain index on unique_key, so the delete of each load is fast
+    - not unique: a duplicate key is reported by the staging data tests, not refused by postgres
+    - recreated when unique_key changes in slvr_<dataset>.yml; otherwise only the catalog is read
 #}
 {% macro unique_key_index() %}
-    {# dbt also renders hooks while it parses, before the config is complete: the check waits for execution #}
+    {# dbt renders hooks while it parses too, before the config is complete #}
     {% if execute %}
         {% set unique_key = config.get("unique_key") %}
 
@@ -21,7 +16,7 @@
         {% set columns = [unique_key] if unique_key is string else unique_key %}
         {% set index_name = this.identifier ~ "_unique_key_idx" %}
 
-        {# the columns of the existing index, in their order: an empty list when there is no index #}
+        {# the existing index's columns, in order: empty when there is none #}
         {% set existing_query %}
             select attribute.attname
             from pg_index as index_
@@ -41,7 +36,7 @@
             drop index if exists {{ this.schema }}.{{ index_name }};
             create index {{ index_name }} on {{ this }} ({{ columns | join(", ") }})
         {% else %}
-            {# a hook must run something: the index already matches #}
+            {# the index already matches, but a hook must run something #}
             select 1
         {% endif %}
     {% endif %}

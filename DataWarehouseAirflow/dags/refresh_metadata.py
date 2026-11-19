@@ -1,10 +1,7 @@
-# the refresh of gold and of what its readers take from the database's catalog, started by hand: before an
-# openmetadata ingestion, before a new excel or power bi model, which read gold's keys to draw the diagram and suggest
-# the relationships, and to bring gold up to today without a load (fct_journal_entries__daily runs to the day of its
-# build). gold is built again first, then its keys are added: a table built again loses its keys, and the foreign keys
-# pointing at it. nothing in the pipeline relies on the keys, so no other dag adds or keeps them: dbt_constraints is
-# off in every other dbt run (dbt_project.yml), and they are missing until the next run of this dag. last, airflow's
-# manifest is refreshed, so never while a load runs
+# started by hand:
+# - before an OpenMetadata ingestion or a new Excel or Power BI model, which read gold's keys
+# - to bring gold up to today without a load (fct_journal_entries__daily runs to the day of its build)
+# it rebuilds gold, adds back the keys a rebuild drops, then refreshes airflow's manifest: never run it during a load
 import os
 from datetime import datetime
 
@@ -12,14 +9,12 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag
 from utils.dbt_task_group import dbt_task_group
 
-# every primary, unique and foreign key test of the project: the tests of dbt_constraints, the only package with tests
-# of these names. each one runs, and the package's on-run-end hook adds the key of each test that passed and is
-# missing. a key whose test fails, or whose table is not built yet (on a database without the setup build), stays
-# missing and fails the task, after the hook has added the others
+# the dbt_constraints tests, the only ones with these names
+# - the package's on-run-end hook adds the key of each test that passed and is missing
+# - a key whose test fails, or whose table does not exist yet, stays missing and fails the task, after the others
 _KEY_TESTS = "test_name:primary_key test_name:unique_key test_name:foreign_key"
 
-# the pool of the loads' publish (load_datasets.py): one slot, so this dag never builds gold, or alters its tables, next
-# to a load's build of gold
+# the loads' publish pool (load_datasets.py), so this dag never builds or alters a gold table during a publish
 _PUBLISH_POOL = "publish"
 
 
@@ -34,30 +29,27 @@ _PUBLISH_POOL = "publish"
     tags=["metadata"],
 )
 def refresh_metadata():
-    # every gold model and its tests, built again from silver and the seeds, as a load's publish builds them: one task
-    # per node. silver is not touched, so no load is published
+    # gold rebuilt as a publish builds it. silver is not touched, so no load is published
     gold = dbt_task_group("gold", ["path:models/gold"], operator_args={"pool": _PUBLISH_POOL})
 
     keys = BashOperator(
         task_id="keys",
-        # the package's hooks run only in this dbt invocation. dbt test builds nothing, so they drop no key.
-        # its own target and logs, metadata-export (x-dbt-env in docker/compose.yaml), which openmetadata and the erd
-        # read: never airflow's manifest. its --vars force a full parse, which stays in this folder's partial parse
+        # - the package is on only in this dbt run; dbt test builds nothing, so it drops no key
+        # - its own target, metadata-export, which OpenMetadata and the diagram read, never airflow's manifest
+        # - --vars forces a full parse, kept in this folder
         bash_command=(
             f"dbt test --select {_KEY_TESTS} --vars '{{dbt_constraints_enabled: true}}'"
             " --target-path $DBT_METADATA_EXPORT_DIR/target --log-path $DBT_METADATA_EXPORT_DIR/logs"
         ),
-        # dbt reads the project from the folder it runs in, and DBT_PROFILES_DIR by itself. set by the image and by the
-        # dev container (the venvs stage of docker/pipeline/Dockerfile)
+        # dbt reads the project from the folder it runs in (DBT_PROJECT_DIR: docker/pipeline/Dockerfile)
         cwd=os.environ["DBT_PROJECT_DIR"],
         pool=_PUBLISH_POOL,
     )
 
-    # airflow's manifest, which the dags are drawn from, refreshed as airflow-init refreshes it on every up
-    # (docker/compose.yaml), so a new or changed model or test reaches the dags without an up. the dbt packages are
-    # not installed again: a change to packages.yml still needs an up. last, so this run's own tasks, drawn from the
-    # manifest, are not changed under it: a new gold model has its task from the next run on. no check that no load is
-    # running: like an up, this dag is not started while a load runs, as it would change the load's dag under it
+    # airflow's manifest, refreshed as on every up, so a new or changed model or test reaches the dags
+    # - last, so this run's own tasks do not change under it: a new gold model gets its task from the next run
+    # - the packages are not installed again: a change to packages.yml still needs an up
+    # - no check for a running load: like an up, this dag is not started during one
     airflow_manifest = BashOperator(
         task_id="airflow_manifest",
         bash_command=(
@@ -67,8 +59,7 @@ def refresh_metadata():
         cwd=os.environ["DBT_PROJECT_DIR"],
     )
 
-    # the keys of the tables just built: a failed build of gold adds none. a failed refresh is looked at before the
-    # manifest is refreshed
+    # a failed gold build adds no keys, and a failed refresh is looked at before the manifest changes
     gold >> keys >> airflow_manifest
 
 

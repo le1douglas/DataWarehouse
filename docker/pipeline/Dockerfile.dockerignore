@@ -1,21 +1,18 @@
-# build context of the pipeline image (the repo root): only the dags, the dbt and meltano projects and the requirements
-# files go in. paths are relative to the repo root, not to this file
+# paths are relative to the repo root, the build context
 *
 !DataWarehouseAirflow
 !DataWarehouseDbt
 !DataWarehouseMeltano
 !docker/pipeline/requirements*.txt
-# the apps' requirements, for the venvs of the dev stage only: runtime never copies them
+# for the dev stage's venvs only
 !docker/webapps/requirements-webapps.txt
 !docker/datastreamer/requirements-datastreamer.txt
 
-# written by dbt and meltano on Windows: the image runs dbt deps and meltano install itself, and target/ and logs/ are
-# written at run time
+# written on Windows: the image installs its own packages and plugins
 DataWarehouseDbt/target
 DataWarehouseDbt/logs
 DataWarehouseDbt/dbt_packages
 DataWarehouseMeltano/.meltano
 DataWarehouseMeltano/output
 DataWarehouseMeltano/.env
-# written by python when a dag is imported
 **/__pycache__

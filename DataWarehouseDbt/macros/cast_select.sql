@@ -1,7 +1,7 @@
 {#
-    the columns of the model being built as declared in its yml, in their order, except row_id. the staging yml is the
-    only place the types are declared: the contract checks the view against it, and silver takes the types from
-    select *. returns a list of column objects (name, data_type), empty while dbt parses
+    the columns of the model's yml, in order, without row_id
+    - the staging yml is the only place types are declared
+    - empty while dbt parses
 #}
 {% macro declared_columns() %}
     {% if not execute %} {{ return([]) }} {% endif %}
@@ -10,13 +10,12 @@
 {% endmacro %}
 
 {#
-    the condition that a value of col can be cast to the data_type its column declares. a timestamptz value
-    must also be ISO from its first character: yyyy-mm-dd, T or a space, an hour 00-23 and minutes and seconds 00-59.
-    postgres would also read 03/11/2026 (month first), yesterday (the day of the build), 24:00 and second 60.
-    it must end in a time zone that cannot be misread, right after the time: Z, an offset (+02, +0200, +02:00),
-    UTC or a name with a slash (Europe/Amsterdam). without one, ::timestamptz would take the session's zone, and an
-    abbreviation (CST, IST) can mean more than one zone.
-    null when the value is null
+    whether col can be cast to its data_type (null when the value is null)
+    a timestamptz must also be ISO and end in a zone that cannot be misread. postgres alone would accept:
+    - 03/11/2026, read month first
+    - yesterday, 24:00 and second 60
+    - no zone, which takes the session's
+    - an abbreviation (CST, IST), which can mean more than one zone
 #}
 {% macro castable(col) %}
     {%- set name = adapter.quote(col.name) %}
@@ -29,9 +28,8 @@
 {% endmacro %}
 
 {#
-    the final select of stg_<dataset>: row_id unchanged, every other column of stg_<dataset>.yml cast to its data_type.
-    a value that cannot be cast becomes null and fails its not_null data test, so every bad row is reported, instead of
-    the view crashing on the first
+    the final select of stg_<dataset>: row_id unchanged, every other column cast to its declared type
+    - a value that cannot be cast becomes null and fails not_null: every bad row is reported, not only the first
 #}
 {% macro cast_select(cte) %}
 select

@@ -1,6 +1,5 @@
--- publishes ref_absolute_positions, flattened: the attributes of the room and of the relative position are columns
--- here, so a fact needs only absolute_position. a contract so it presents checked types; its data tests are in
--- ref_absolute_positions.yml
+-- ref_absolute_positions with the attributes of its room and relative position, so a fact needs only
+-- absolute_position
 select
     absolute_positions.absolute_position,
     absolute_positions.room,

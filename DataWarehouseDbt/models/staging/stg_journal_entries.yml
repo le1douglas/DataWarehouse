@@ -1,23 +1,20 @@
-# the columns, their types and every data test of journal entries, the only place they are declared. cast_select casts
-# to these types, the contract (dbt_project.yml) checks that the view has exactly these, and silver takes them.
-# staging holds the open load of the dataset only, so every data test judges that load alone. the business key is
-# unique_key in slvr_journal_entries.yml, the rest of that file is documentation.
-# an uncastable value is null here, so not_null reports both. range and relationship tests ignore nulls, so a bad value
-# gives one error. the description of a data test is the message the user sees.
+# every column, type and data test of journal entries, declared only here:
+# - cast_select casts to these types, the contract checks the view against them, silver takes them
+# - an uncastable value is null, so not_null reports it; range and relationship tests ignore nulls, so it
+#   gives one error
+# - a data test's description is the message the user sees
 models:
   - name: stg_journal_entries
     data_tests:
-      # the file: a load without rows has 0 here. staging holds one load, so the count is that load's
-      #TODO add test for power of 10 and power of 2 rows, as they are common silent treshold.
+      # the file as a whole: staging holds one load, so this counts its rows
+      # TODO a test for row counts that are a power of 10 or of 2, common silent limits
       - dbt_expectations.expect_table_row_count_to_equal:
           arguments:
-            value: 40 # 10 rooms, 4 measurements per room. a file cut at a line end has fewer
+            value: 40 # 10 rooms, 4 measurements each: a file cut short has fewer
           config:
             meta:
               description: the file must have 40 rows
-      # the business key, read from unique_key in slvr_journal_entries.yml: the test takes no columns. silver's
-      # rows with the same key are the ones the load replaces, so this checks the load alone: a duplicate within the
-      # load is an error, a key already in silver is an overwrite, listed by warn_overwritten_rows
+      # the business key, read from slvr_journal_entries.yml
       - unique_business_key_in_load_and_silver:
           config:
             meta:
@@ -126,6 +123,6 @@ models:
               config:
                 meta:
                   description: temperature must be between 0 and 50
-      # free text from the grower, such as no runoff, usually null. no data test: any text passes
+      # free text from the grower, such as no runoff: any text passes
       - name: remarks
         data_type: text

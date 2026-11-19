@@ -1,14 +1,9 @@
-# the loads: one dag per dataset, load_<dataset>, started by hand. write, audit, publish (docs/ARCHITECTURE_PROPOSAL.md,
-# SIMPLIFIED IMPLEMENTATION): meltano appends the dataset's csv to bronze, dbt tests the load, and only an accepted load
-# is published to silver and gold.
-# the state of every load is in dw_control.ctl_loads, one row per load, written only here: landed, then accepted or
-# refused, then published or failed. dbt reads it to choose the load staging holds (stg_<dataset>) and silver publishes
-# (slvr_<dataset>).
-# every run ends its load: a failure refuses it (audit) or fails it (publish), and the file is sent again. so a dataset
-# has at most one open load, landed or accepted, and the audit and the publish always see that one load alone. a
-# database outage between a dbt step and its state write can still leave one open: the next run stops before ingest
-# the dbt steps, audit and publish, are cosmos task groups: one airflow task per dbt node, so the ui shows which model
-# or test refused or failed the load
+# the load dags: one per dataset, load_<dataset>, started by hand
+# - meltano appends the csv to bronze, dbt audits the load, and only an accepted load is published to silver and gold
+# - each step writes the load's state to dw_control.ctl_loads, which dbt reads to choose the load
+# - every run ends its load, so a dataset has at most one open load
+# - an outage between a dbt step and its state write can leave one open: the next run stops before ingest
+# - audit and publish are cosmos task groups, one task per dbt node, so airflow shows which model or test failed
 import os
 from uuid import uuid7
 
@@ -17,16 +12,15 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag, task
 from utils.dbt_task_group import dbt_task_group
 
-# every dataset with a load. from its name come its meltano extractor, tap-csv-<dataset> with hyphens
-# (DataWarehouseMeltano/meltano.yml), and its dbt models, stg_ and slvr_<dataset>
+# the name gives the meltano extractor (tap-csv-<dataset>, with hyphens) and the dbt models (stg_, slvr_<dataset>)
 _DATASETS = ["journal_entries", "plants_batches"]
 
-# one publish at a time across every dataset: gold joins silver tables of more than one dataset, so two publishes
-# would build the same fact at once. created with one slot by airflow-init (docker/compose.yaml)
+# one slot, taken per dbt node: gold joins the silver of more than one dataset, so two publishes must never build the
+# same node at once. created by airflow-init (docker/compose.yaml)
 _PUBLISH_POOL = "publish"
 
 
-# the states of a load still under way: staging holds it (stg_<dataset>)
+# a load in one of these states is in staging
 _OPEN_STATES = ("landed", "accepted")
 
 
@@ -41,9 +35,7 @@ def _connect():
     )
 
 
-# checks if there is a load that is stuck in an open state
 def _open_loads(source: str) -> list[tuple[str, str]]:
-    # the load_id and state of every open load of the dataset
     connection = _connect()
     with connection, connection.cursor() as cursor:
         cursor.execute(
@@ -56,7 +48,6 @@ def _open_loads(source: str) -> list[tuple[str, str]]:
 
 
 def _record(load_id: str, source: str, state: str) -> None:
-    # the new state of a load: its row is inserted when it is landed, and updated for every state after
     connection = _connect()
     with connection, connection.cursor() as cursor:
         if state == "landed":
@@ -69,7 +60,7 @@ def _record(load_id: str, source: str, state: str) -> None:
                 "update dw_control.ctl_loads set state = %s, updated_at = clock_timestamp() where load_id = %s",
                 (state, load_id),
             )
-            # a load that was never landed has no row: nothing to update is a mistake, not a state
+            # a load that was never landed has no row: a bug, not a state
             if cursor.rowcount != 1:
                 raise RuntimeError(f"load {load_id}: {cursor.rowcount} rows in ctl_loads, expected 1")
     connection.close()
@@ -79,8 +70,7 @@ def _make_load_dag(dataset: str) -> None:
     extractor = "tap-csv-" + dataset.replace("_", "-")
 
     def _record_on_failure(state: str):
-        # a failure callback that ends the load in state. the task still fails, so airflow's failure alert is the
-        # notification, and nothing after it runs
+        # ends the load in state. the task still fails, so airflow's failure alert is the notification
         def callback(context) -> None:
             _record(context["ti"].xcom_pull(task_ids="make_load_id"), dataset, state)
 
@@ -99,9 +89,8 @@ def _make_load_dag(dataset: str) -> None:
     def load():
         @task
         def no_open_load() -> None:
-            # a load left landed or accepted by an outage between a dbt step and its state write would sit in staging
-            # next to the new one, and the audit would judge both. the run stops before anything is loaded: a person
-            # looks at the open load and ends it in ctl_loads, refused or failed, then the file is sent again
+            # a load left open by an outage would sit in staging next to the new one, and the audit would judge both
+            # - a person ends it in ctl_loads (refused or failed), then the file is sent again
             open_loads = _open_loads(dataset)
             if open_loads:
                 listed = ", ".join(f"{load_id} ({state})" for load_id, state in open_loads)
@@ -109,11 +98,11 @@ def _make_load_dag(dataset: str) -> None:
 
         @task
         def make_load_id() -> str:
-            # time ordered, the same kind of id as postgres' uuidv7()
+            # time ordered, like postgres' uuidv7()
             return str(uuid7())
 
-        # meltano writes MELTANO_RUN_ID into every bronze row as load_id. if it fails, no event is written: rows it
-        # may have loaded are never landed, so dbt never reads them
+        # meltano writes MELTANO_RUN_ID into every bronze row as load_id
+        # - on failure no state is written: rows it may have loaded are never landed, so dbt never reads them
         ingest = BashOperator(
             task_id="ingest",
             bash_command=f"meltano run {extractor} target-postgres",
@@ -126,10 +115,10 @@ def _make_load_dag(dataset: str) -> None:
             # the rows are in bronze: from now on the load is under audit
             _record(load_id, dataset, "landed")
 
-        # the staging view, built so it matches the code, and every data test of the load. any failure, a
-        # failed data test or an error of dbt, refuses the load whole: the file is fixed where it came from and sent
-        # again. what failed, row by row, is in elementary's test_result_rows. the tasks after a failed one end
-        # upstream_failed, which runs no callback, so the load is refused once
+        # the staging view and every data test of the load
+        # - any failure, a data test or a dbt error, refuses the whole load: the file is fixed and sent again
+        # - the failing rows are in elementary's test_result_rows
+        # - the tasks after a failed one end upstream_failed, which runs no callback, so the load is refused once
         audit = dbt_task_group(
             "audit",
             [f"stg_{dataset}"],
@@ -140,9 +129,8 @@ def _make_load_dag(dataset: str) -> None:
         def accepted(load_id: str) -> None:
             _record(load_id, dataset, "accepted")
 
-        # silver merges the accepted load, then gold is built on it. a failure fails the load: silver may hold it
-        # already, so a person looks before the file is sent again. the pool is taken per node, not per publish: two
-        # datasets' publishes can take turns between nodes, but never build the same node at once
+        # silver takes the accepted load, then gold is built on it
+        # - a failure fails the load: silver may hold it already, so a person looks before the file is sent again
         publish = dbt_task_group(
             "publish",
             [f"slvr_{dataset}+"],

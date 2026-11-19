@@ -1,7 +1,7 @@
 """Front end of drip_drain_cli.py: keys, colours and lines redrawn in place, on the terminal of a container.
 
-Knows nothing of pens, rooms or csv files. Linux only, as it runs in a container, and in an
-interactive terminal, or no key can be read. Only the standard library.
+Knows nothing of pens, rooms or csv files. Linux only, and only in an interactive terminal, or no
+key can be read.
 """
 
 import asyncio
@@ -16,33 +16,32 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
 KEY_POLL_SECONDS = 0.05
-# terminal escape codes. lines are redrawn by moving the cursor up over them and clearing the
-# screen from there down
+# lines are redrawn by moving the cursor up over them and clearing the screen from there down
 UP = "\x1b[{}A"
 CLEAR_DOWN = "\r\x1b[J"
 HIDE_CURSOR = "\x1b[?25l"
 SHOW_CURSOR = "\x1b[?25h"
-# the questions, what enter confirms and what is being typed or recorded are yellow, the commands
-# (the keys to press) cyan, the rest plain, in the terminal's own colour
+# - yellow: the questions, what enter confirms, and what is being typed or recorded
+# - cyan: the keys to press
+# - plain: the rest, in the terminal's own colour
 PLAIN = ""
 YELLOW = "\x1b[33m"
 CYAN = "\x1b[36m"
-# added to a colour, such as YELLOW + BLINK. the rapid blink code (5 is the slow one). windows terminal
-# blinks it, a terminal that cannot shows it steady
+# added to a colour, such as YELLOW + BLINK. rapid blink (5 is slow): Windows Terminal blinks it,
+# a terminal that cannot shows it steady
 BLINK = "\x1b[6m"
 RESET_COLOR = "\x1b[0m"
 # next to what enter confirms, such as the option chosen in a list
 ENTER_TO_CONFIRM = " (press enter to confirm)"
 ENTER = ("\r", "\n")
-# the keys that are more than one character are given these names, which no single key can be
+# names for the keys longer than one character: no single key can be one of them
 ARROW_UP = "up"
 ARROW_DOWN = "down"
 ARROW_LEFT = "left"
 ARROW_RIGHT = "right"
 DELETE = "delete"
 DELETE_KEYS = ("\b", "\x7f", DELETE)
-# they come as an escape sequence. the ones with O are the arrows in the cursor mode some terminals
-# switch to
+# the ones with O are the arrows in the cursor mode some terminals switch to
 ESCAPE_SEQUENCE = re.compile(r"\x1b(\[[0-9;]*[A-Za-z~]|O[A-Za-z])?")
 ESCAPE_KEYS = {
     "\x1b[A": ARROW_UP,
@@ -56,8 +55,8 @@ ESCAPE_KEYS = {
     "\x1b[3~": DELETE,
 }
 
-# the terminal settings from before interactive: keys are read one at a time without them. None
-# outside interactive, or when stdin is not a terminal
+# the settings from before interactive, restored at its end. None outside it, or when stdin is not
+# a terminal
 terminal_settings: list | None = None
 
 
@@ -101,8 +100,8 @@ def keys_pressed() -> list[str]:
     keys = []
     if terminal_settings is None or not select.select([sys.stdin], [], [], 0)[0]:
         return keys
-    # read straight from the terminal, so an escape sequence comes whole and none of it stays
-    # behind in the buffer of sys.stdin, where select does not see it
+    # straight from the terminal: sys.stdin's buffer could keep part of an escape sequence, where
+    # select does not see it
     text = os.read(sys.stdin.fileno(), 64).decode(errors="ignore")
     while text:
         escape = ESCAPE_SEQUENCE.match(text)
@@ -119,9 +118,8 @@ class Screen:
     """Lines at the bottom of the terminal that are redrawn in place, and lines printed above them that stay."""
 
     def __init__(self, render: Callable[[], list[str]]) -> None:
-        # gives the lines to draw, from the state at the time of the draw
         self.render = render
-        # the lines on screen, which the next draw moves up over
+        # the next draw moves up over these
         self.shown: list[str] = []
         self.drawn = 0
 
@@ -159,11 +157,11 @@ async def choose(
 
     The hint, the keys to press, follows the question on its line.
 
-    options gives the label of each option by its key, and is asked again at every redraw, so options
-    can come in while the list is shown. The first one is chosen at the start, and the choice follows
-    the key, so it does not move when the labels change. waiting is shown while there is none. The
-    list takes the place of what the screen draws until the choice, so what is said meanwhile goes
-    above it.
+    - options gives each option's label by its key. It is asked again at every redraw, so options
+      can arrive while the list is shown.
+    - The choice follows the key, so it does not move when the labels change.
+    - waiting is shown while there is no option.
+    - The list replaces what the screen draws until the choice, so anything said meanwhile goes above it.
     """
     chosen: str | None = None
 
@@ -188,7 +186,7 @@ async def choose(
                 if chosen is None:
                     continue
                 if key in ENTER:
-                    # the choice goes from the screen, the caller says which one it was
+                    # the caller says which option was chosen
                     screen.clear()
                     return chosen
                 if key in (ARROW_UP, ARROW_DOWN):

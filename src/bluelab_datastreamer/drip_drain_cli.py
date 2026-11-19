@@ -156,7 +156,7 @@ def room_lines(current: Room) -> list[str]:
                 (TYPE_HINT, CYAN),
             ]
         elif active and reading is None:
-            # - until the pen has sent a live value, n.a. for the ones it has not got after that
+            # - until the pen sends its first live value, then n.a. for any value it lacks
             missing = NOT_AVAILABLE if pen.has_live else NOT_RECORDED
             live_values = values_text(drip_drain.csv_values(*pen.live_reading()), missing)
             parts = [
@@ -288,7 +288,7 @@ def press(key: str) -> None:
     """Does what the key does to the room."""
     global asked
     if asked:
-        # only enter skips (enter on the quit is read_keys'), any other key does nothing else
+        # only enter confirms a skip (read_keys handles enter on a quit). any other key cancels it
         was, asked = asked, ""
         if was == "s" and key in ENTER:
             # start_room draws

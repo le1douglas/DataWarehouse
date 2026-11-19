@@ -1,7 +1,7 @@
 """Back end of the OnePen: what its bytes mean, and the commands it is sent through the bridge (onepen_bridge.py).
 
-Prints nothing and reads no key: what happens goes to the callbacks of PenClient. What the bytes
-mean is in edenic_decompiling_result.md, next to this file. Only the standard library.
+Prints nothing and reads no key: what happens goes to the callbacks of PenClient. Only the standard
+library.
 """
 
 import asyncio
@@ -66,7 +66,7 @@ def value(group: bytes) -> float | None:
 
 
 def battery(data: bytes) -> int:
-    # byte 1 of 04 is the battery in percent
+    # byte 1 of characteristic 04 is the battery in percent
     return data[1]
 
 
@@ -143,7 +143,7 @@ class PenClient:
             gone_since = None
             self.on_status(f"connected to the bridge at {self.host}:{self.port}")
             self._writer = writer
-            # the bridge lets the pen go when the backend goes, so it is asked for again
+            # the bridge lets the pen go whenever this client disconnects, so it is asked for again
             if self.address is None:
                 self._command(writer, "scan")
             else:

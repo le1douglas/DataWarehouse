@@ -1,25 +1,23 @@
-# setup: every relation of the project, in one dbt build run by the setup scripts (docker/02_setup_dev.ps1,
-# docker/03_setup_prod.ps1), on a new database and again after a seed or one of these models changes. one dbt process
-# creates each schema once, before any node runs. no load is open then, so staging is empty and silver and what reads
-# it are created empty: every relation exists before the first load, and the datasets load in any order
+# setup: every relation of the project, run by the setup scripts on a new database and after a seed or model changes
+# - one dbt process, so each schema is created once, before any node runs
+# - no load is open, so silver and gold are created empty and the datasets can load in any order
 selectors:
   - name: setup
     description: elementary's tables, the seeds and every model, without the data tests of a load
     definition:
       union:
-        # elementary's own tables. its on-run-end hook writes to them, and runs after every node of the build
+        # elementary's tables: its on-run-end hook writes to them after every build
         - method: package
           value: elementary
-        # cautious: a test is selected only when every model it reads is
+        # cautious: a test is selected only when every model it reads is selected
         - method: resource_type
           value: seed
           indirect_selection: cautious
         - method: path
           value: models
           indirect_selection: cautious
-        # without the data tests declared in staging's yml, which are every data test of staging and silver. they
-        # judge a load, so they belong to its audit: on an empty staging the row count tests fail, and the build skips
-        # silver and gold. gold's key tests stay: dbt_constraints is off, so they only check, and pass on empty tables
+        # without staging's data tests: they judge a load, and on an empty staging the row counts would fail and skip
+        # silver and gold. gold's key tests stay: they pass on empty tables
         - exclude:
             - intersection:
                 - method: resource_type

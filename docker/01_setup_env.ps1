@@ -1,7 +1,6 @@
-# creates the two env files, dev and prod, in this folder, next to compose.yaml
-# when some exist, one question: yes overwrites them all, no keeps them and creates only the missing ones
-# asks for the postgres password of each environment, only when its project env file (.env or .env.prod) is written
-# the input folders are hardcoded: temporary locations until the day-to-day ones are decided
+# creates the env files .env (dev) and .env.prod next to compose.yaml
+# - when some exist, one question: yes overwrites them all, no creates only the missing ones
+# - the input and output folders are temporary, until the day-to-day ones are decided
 # run from Windows: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1
 $ErrorActionPreference = 'Stop'
 
@@ -11,24 +10,24 @@ function Read-Password([string]$environment) {
         $second = Read-Host -AsSecureString "again"
         $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($first))
         $repeated = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($second))
-        # compose reads the env file as is: no quotes, so no spaces, and $ and # would be read as a variable or a comment
         if ($password -ne $repeated) { Write-Host 'the two passwords differ'; continue }
         if ($password -eq '') { Write-Host 'the password is empty'; continue }
+        # compose reads the env file as is: no quotes, so no spaces, and $ and # would be read as a variable or a comment
         if ($password -match '[\s$#"'']') { Write-Host 'no spaces, quotes, $ or # in the password'; continue }
         return $password
     }
 }
 
-# a random key, 64 hex characters: safe in an env file, which compose reads as is
+# hex: safe in an env file, which compose reads as is
 function New-Secret {
     $bytes = New-Object byte[] 32
     [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     return -join ($bytes | ForEach-Object { $_.ToString('x2') })
 }
 
-# the newest git tag, by creation date: the release prod runs. windows powershell 5.1 does not stop on a failed
-# native command, so the exit code is checked. every tag is read first: Select-Object -First 1 in the pipe would stop
-# git early and leave a failed exit code
+# the newest git tag: the release prod runs
+# - powershell 5.1 does not stop on a failed native command, so the exit code is checked
+# - every tag is read first: Select-Object -First 1 would stop git early, with a failed exit code
 function Get-LatestRelease {
     $tags = @(git -C $PSScriptRoot tag --sort=-creatordate)
     if ($LASTEXITCODE -ne 0 -or $tags.Count -eq 0) { throw 'no git tag found: run git fetch --tags, then this script again' }
@@ -43,14 +42,13 @@ if ($existing.Count -gt 0) {
     $overwrite = (Read-Host 'overwrite them all? [y/N]') -eq 'y'
 }
 
-# true when the file is missing, or the user answered y. anything else keeps the file
 function Confirm-Write([string]$name) {
     if ($overwrite -or ($existing -notcontains $name)) { return $true }
     Write-Host "skipped  $name"
     return $false
 }
 
-# utf-8 without BOM and LF line endings: a BOM would become part of the first variable name
+# utf-8 without BOM: a BOM would become part of the first variable name
 function Save-EnvFile([string]$name, [string]$content) {
     [IO.File]::WriteAllText((Join-Path $PSScriptRoot $name), ($content -replace "`r`n", "`n"), (New-Object Text.UTF8Encoding $false))
     Write-Host "written  $name"
@@ -59,25 +57,21 @@ function Save-EnvFile([string]$name, [string]$content) {
 if (Confirm-Write '.env') {
     $devPassword = Read-Password 'dev'
     Save-EnvFile '.env' @"
-# the dev compose env file. not in git. compose reads it by itself from this folder, the folder of compose.yaml (and so do the Dev Containers), no --env-file needed
+# dev's env file, not in git. compose finds it next to compose.yaml, with no --env-file
 POSTGRES_DB=DataWarehouse
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$devPassword
 POSTGRES_PORT=5432
-# the port of the web apps, published to Windows
 NICEGUI_PORT=8080
-# the port of the airflow ui, published to Windows on localhost only: prod is on 8091
+# airflow's page, on localhost only. prod is on 8091
 AIRFLOW_PORT=8090
-# the key the airflow components sign each other's tokens with. any value, the same for all of them: written once here
+# the key the airflow components sign each other's tokens with
 AIRFLOW_JWT_SECRET=$(New-Secret)
 RELEASE=dev
-# windows folder of every csv to load, mounted read only into the airflow scheduler and the dev container at /user_input.
-# one subfolder per dataset, the file in it named in DataWarehouseMeltano/meltano.yml. it can move: change the line and
-# recreate those containers, no rebuild needed. dev's own: prod has user_input_prod, and neither is inside the other
+# every csv to load, one subfolder per dataset. to move it, change the line and recreate the containers
+# - dev's own: neither environment's folder is inside the other's
 USER_INPUT_DIR=../user_input_dev
-# windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output.
-# each program writes to its own subfolder, named in its code, such as journal_entries by the datastreamer. dev's own:
-# prod has user_output_prod
+# every file the programs write for the user, one subfolder per program. dev's own
 USER_OUTPUT_DIR=../user_output_dev
 
 "@
@@ -87,26 +81,24 @@ if (Confirm-Write '.env.prod') {
     $prodPassword = Read-Password 'prod'
     $release = Get-LatestRelease
     Save-EnvFile '.env.prod' @"
-# the prod compose env file. not in git. pass it explicitly: --env-file docker/.env.prod
+# prod's env file, not in git. pass it explicitly: --env-file docker/.env.prod
 POSTGRES_DB=DataWarehouse
 POSTGRES_USER=postgres
-# only applied when the pgdata volume is created. changing it later needs ALTER USER in the database as well
+# applied only when the pgdata volume is created: changing it later also needs ALTER USER
 POSTGRES_PASSWORD=$prodPassword
-# published to Windows: dev is on 5432
+# dev is on 5432
 POSTGRES_PORT=5433
-# the port of the web apps, published to Windows: dev is on 8080
+# dev is on 8080
 NICEGUI_PORT=8081
-# the port of the airflow ui, published to Windows on localhost only: dev is on 8090
+# airflow's page, on localhost only. dev is on 8090
 AIRFLOW_PORT=8091
-# the key the airflow components sign each other's tokens with. any value, the same for all of them: written once here
+# the key the airflow components sign each other's tokens with
 AIRFLOW_JWT_SECRET=$(New-Secret)
-# the git tag, the same name: the newest tag when this file was written. prod does not start before that image exists
+# the git tag, the newest when this file was written. prod does not start before its image exists
 RELEASE=$release
-# windows folder of every csv to load, mounted read only into the airflow scheduler at /user_input. prod's own: dev has
-# user_input_dev, and neither is inside the other
+# every csv to load, one subfolder per dataset. prod's own: neither environment's folder is inside the other's
 USER_INPUT_DIR=../user_input_prod
-# windows folder of every file the programs write for the user, mounted into the datastreamer container at /user_output.
-# prod's own: dev has user_output_dev
+# every file the programs write for the user, one subfolder per program. prod's own
 USER_OUTPUT_DIR=../user_output_prod
 
 "@

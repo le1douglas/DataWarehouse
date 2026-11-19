@@ -4,7 +4,7 @@ sources:
     description: The main source of data. The store of all raw data, exactly as received from the sources, one table per source.
                 It has meaning on its own. Everything is stored as text and almost nothing is asserted about it.
     tables:
-      # the data tests of a load, its row count included, are on staging (models/staging/stg_<dataset>.yml)
+      # no data tests here: a load is judged in staging (stg_<dataset>.yml)
       - name: brnz_journal_entries
         description: csv of drip and drain measurements, one row per spot.
       - name: brnz_plants_batches

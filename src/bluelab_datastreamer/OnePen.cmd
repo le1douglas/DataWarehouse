@@ -3,7 +3,7 @@ rem Starts the OnePen bridge in the background of this window, and the drip and 
 rem in a datastreamer container, where the pen is chosen. Both end together: on q, and when this window is
 rem closed, as closing a window ends every program in it.
 title OnePen
-rem the repo root, two folders up from this file, wherever the repo is
+rem the repo root, wherever the repo is
 cd /d "%~dp0..\.."
 
 rem what an earlier run may have left, such as a bridge that still holds the port
@@ -31,9 +31,9 @@ rem the bridge writes to a log instead of this window, so it does not draw over 
 set "BRIDGE_LOG=%TEMP%\onepen_bridge.log"
 start "" /b cmd /c "uv run src\bluelab_datastreamer\onepen_bridge.py > "%BRIDGE_LOG%" 2>&1"
 
-rem a container of its own in dw-prod, removed after (--rm), with a fixed name so cleanup finds it. it needs no
-rem database. compose mounts the output folder (USER_OUTPUT_DIR in docker\.env.prod) and the work-in-progress volume
-rem of prod. it retries every 2 seconds until the bridge listens. dev, from a branch, by hand:
+rem a container of its own in dw-prod, with a fixed name so cleanup finds it
+rem - it retries every 2 seconds until the bridge listens
+rem - dev, from a branch, by hand:
 rem   docker compose -f docker/compose.yaml -f docker/compose.dev.yaml run --rm datastreamer
 docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod run --rm --name onepen-drip-drain datastreamer
 set "EXITCODE=%ERRORLEVEL%"

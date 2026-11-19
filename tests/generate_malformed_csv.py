@@ -1,4 +1,4 @@
-# Generates the malformed CSV files used to test how a load handles a malformed file.
+# generates the malformed csv files used to test how a load handles them
 
 import csv
 import io
@@ -6,7 +6,7 @@ from pathlib import Path
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "SampleData" / "drip_drain_csv" / "malformed_csv"
 
-# Max length of Bronze.journal_entries.notes (NVARCHAR(400))
+# a limit of the old warehouse: bronze's columns are text now, with no length
 NOTES_MAX_LENGTH = 400
 
 LOREM = (
@@ -20,9 +20,9 @@ LOREM = (
 )
 
 
-# QUOTE_ALL = csv.QUOTE_ALL #quote all fields, even if not strictly necessary, across the whole file
-QUOTE_MINIMAL = csv.QUOTE_MINIMAL  # quote fields only if necessary, across the whole file
-QUOTE_INVALID = -1  # generate invalid quotes
+QUOTE_MINIMAL = csv.QUOTE_MINIMAL
+# not a csv module value: one field left unquoted while the others are quoted
+QUOTE_INVALID = -1
 
 
 def encode_and_save(
@@ -30,22 +30,20 @@ def encode_and_save(
     header: list[str],
     row: list[str],
     newline: str = "\r\n",
-    quoting: int = QUOTE_MINIMAL,  # see QUOTE_* consts
-    column_to_unquote: str = "notes",  # what column to invalidate if QUOTE_INVALID is used
+    quoting: int = QUOTE_MINIMAL,
+    column_to_unquote: str = "notes",  # used only with QUOTE_INVALID
     output_dir: Path = OUTPUT_DIR,
     file_extension: str = "csv",
     encoding: str = "utf-8",
     errors: str = "strict",
 ):
 
-    # csv.writer handles quoting (commas, quotes and newlines inside a field)
-
     if quoting == QUOTE_INVALID:
         csv_quoting = csv.QUOTE_ALL
     elif quoting == QUOTE_MINIMAL:
         csv_quoting = csv.QUOTE_MINIMAL
     else:
-        csv_quoting = quoting  # in case someone wants to pass another csv.Quote_* we just pass it along
+        csv_quoting = quoting
 
     buffer = io.StringIO(newline="")
     writer = csv.writer(buffer, lineterminator=newline, quoting=csv_quoting)
@@ -53,26 +51,21 @@ def encode_and_save(
     writer.writerow(row)
     content = buffer.getvalue()
 
-    # modify row so it has an invalid unquoted field
-    # all other columns keep the quotes
+    # every field is quoted: the quotes of column_to_unquote are removed
     if quoting == QUOTE_INVALID:
-        # Real value of the column in the first data row
         value = next(csv.DictReader(io.StringIO(content)))[column_to_unquote]
 
-        # find the field in the raw text, including its quotes.
-        quoted_field = (
-            '"' + value.replace('"', '""') + '"'
-        )  # In the file every " inside the value is written as "", every other character is the same
-        first = content.find(quoted_field)  # index of the opening quote
+        # the field as written in the file, where every " inside the value is doubled
+        quoted_field = '"' + value.replace('"', '""') + '"'
+        first = content.find(quoted_field)
         if first == -1:
             raise ValueError(f"{file_name}: '{column_to_unquote}' is not quoted")
 
-        last = first + len(quoted_field) - 1  # index of the closing quote
+        last = first + len(quoted_field) - 1
 
-        # drop the quote at both ends, turn "" into " inside the field only
+        # the value without its quotes, and with its "" back to "
         content = content[:first] + value + content[last + 1 :]
 
-    # write to storage
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"{file_name}.{file_extension}"
     path.write_bytes(content.encode(encoding, errors=errors))
@@ -83,7 +76,7 @@ def generate_dict(
     date_time: str | None = "2026-01-01T12:00:00.000000",
     subject: str | None = "default_subject",
     notes: str | None = "default_notes",
-    type: str | None = "measurement",  # added trailing underscore to not conflict with python keyword
+    type: str | None = "measurement",  # shadows the builtin: the name is the csv column
     ec: str | None = "1.00",
     ec_pore: str | None = "",
     ec_bulk: str | None = "",
@@ -132,13 +125,13 @@ def main():
     my_row.append("EXTRA3")
     encode_and_save("extra-value", valid_header, my_row)
 
-    # row has lass values than the header has columns
+    # row has fewer values than the header has columns
     my_row = valid_row.copy()
     my_row.remove("default_subject")
     my_row.remove("default_notes")
     encode_and_save("missing-value", valid_header, my_row)
 
-    # not a .csv file, but valid CVS structure
+    # not a .csv file, but valid csv content
     encode_and_save("wrong-extension", valid_header, valid_row, file_extension="txt")
 
     # --- ENCODING ERRORS ---
@@ -155,31 +148,31 @@ def main():
     my_dict = generate_dict(notes="valid € ansi")
     encode_and_save("valid-ANSI", getHeader(my_dict), getRow(my_dict), encoding="cp1252")
 
-    # # --- SCHEMA ERRORS ---
+    # --- SCHEMA ERRORS ---
 
-    # missing column (tags) compared to the DB table
+    # missing column (date_time)
     my_dict = generate_dict(date_time=None)
     encode_and_save("missing-column", getHeader(my_dict), getRow(my_dict))
 
-    # extra column compared to the DB table
+    # extra column
     my_header = valid_header.copy()
     my_header.append("extra_col")
     my_row = valid_row.copy()
     my_row.append("extra_col_value")
     encode_and_save("extra-column", my_header, my_row)
 
-    # extra column compared to the DB table, whose name starts with an underscore (looks like a debug column)
+    # extra column whose name starts with an underscore, like a debug column
     my_header = valid_header.copy()
     my_header.append("_extra_col")
     my_row = valid_row.copy()
     my_row.append("extra_col_value")
     encode_and_save("extra-column-underscore", my_header, my_row)
 
-    # notes one character longer than NVARCHAR(...)
+    # notes one character longer than NOTES_MAX_LENGTH
     my_dict = generate_dict(notes=LOREM[: NOTES_MAX_LENGTH + 1])
     encode_and_save("long-string", getHeader(my_dict), getRow(my_dict))
 
-    # # --- QUOTES TESTS ---
+    # --- QUOTES TESTS ---
 
     quotes_tests = {
         "comma": "this text contains, a comma",

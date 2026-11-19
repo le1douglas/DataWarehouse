@@ -1,9 +1,9 @@
--- every place a journal entry can be measured at: one row per room, bench of that room and relative position, from the
--- highest level to the lowest. generated from ref_rooms and ref_relative_positions, so a room added to seed_rooms gets
--- its benches here, from benches_total. the attributes stay in those two
+-- every place a journal entry can be measured: each room, bench and relative position
+-- - generated, so a room added to seed_rooms gets its benches from benches_total
+-- - the attributes stay in ref_rooms and ref_relative_positions
 with
     list_benches as (
-        -- one row per bench of each room, numbered from 1 to its benches_total
+        -- one row per bench of each room
         select room, generate_series(1, benches_total) as bench from {{ ref("ref_rooms") }}
     ),
 

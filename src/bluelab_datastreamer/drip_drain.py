@@ -12,9 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# the rooms done so far, until the part of the day is done. in the journal_entries subfolder of the work-in-progress
-# volume, which compose mounts and names in WORK_IN_PROGRESS_MOUNT: it survives the container. the subfolder is named
-# only here, and made when it is missing
+# the rooms done so far, until the part of the day is done
+# - in the work-in-progress volume, so it survives the container
+# - the subfolder is named only here, and made when it is missing
 CSV_PATH = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "journal_entries" / "drip_drain.csv"
 CSV_COLUMNS = (
     "date_time",
@@ -37,14 +37,11 @@ ROOMS = {
     "afternoon": ("1.23", "1.22", "1.21", "1.20", "1.19", "1.18", "1.17", "0.27", "0.28", "0.29"),
     "mothers": ("0.14", "0.15"),
 }
-# once every room of the part of the day is done, the csv is moved to this folder, named by the
-# date and the number of the part of the day, such as 261020-1.csv. the subfolder of the output folder, which
-# compose mounts from the windows folder USER_OUTPUT_DIR of the env file and names in USER_OUTPUT_MOUNT. the
-# subfolder is named only here, and made when it is missing
+# where the csv goes once every room of the part of the day is done, such as 261020-1.csv
+# - a subfolder of the output folder, named only here, and made when it is missing
 DEFAULT_DAILY_DIR = Path(os.environ["USER_OUTPUT_MOUNT"]) / "journal_entries"
-# the time zone of the readings and of the date in the daily csv name, from TZ, set once in docker/compose.yaml.
-# read here instead of taken from the container's clock, which falls back to UTC without an error: an empty or
-# unknown TZ stops the readings before the first one
+# read here, not from the container's clock, which falls back to UTC silently: an empty or unknown TZ stops the
+# readings before the first one
 TIMEZONE = ZoneInfo(os.environ["TZ"])
 PART_NUMBERS = {"morning": 1, "afternoon": 2, "mothers": 3}
 # the lines of a room, in the order they are taken
@@ -263,7 +260,7 @@ def next_room(rows: list[dict], part_of_day: str, skipped: frozenset[str] = froz
 
 def append_rows(rows: list[dict]) -> None:
     """Appends the rows to the csv. A PermissionError while the csv is open in another program."""
-    # a hand edit can leave empty lines (blank, or only commas when excel empties a row) at the end,
+    # a hand edit can leave empty lines (blank, or only commas when Excel empties a row) at the end,
     # or no newline after the last row, so they are removed before the rows are appended
     content = CSV_PATH.read_text()
     lines = content.splitlines()

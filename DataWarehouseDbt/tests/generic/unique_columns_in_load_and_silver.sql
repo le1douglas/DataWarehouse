@@ -1,20 +1,13 @@
 {#
-    the rows of the load in staging whose values equal another row, of the same load or of slvr_<dataset>: what
-    silver will hold after this load, checked as one set. for any set of values that must be unique together; the
-    business key has its own test below.
-    each entry of columns is a column or an sql expression over the columns, which staging and silver both have, such
-    as the local day of a timestamp: (date_time at time zone '{{ var("timezone") }}')::date. the expressions are
-    computed once for each side, so they are written without a table alias.
-    a row of silver with the same unique_key as a row of the load is about to be replaced by delete+insert, so it is
-    left out: a batch sent again unchanged is not a clash with its own older version. a null never equals anything, so
-    a row with a null in columns is left to its not_null test.
-    silver is read from the graph, not with ref: a ref would run the test after silver, when the rows are already
-    replaced. before silver's table exists, only the load is checked.
-    the test runs on stg_<dataset>, and reads the dataset from that name. a dataset without silver, or a silver yml
-    without unique_key, is a mistake in the yml
+    the rows of the load whose columns equal another row, of the load or of silver after the load
+    - columns: column names or expressions with no table alias, such as the local day of date_time
+    - rows of silver with the same unique_key are left out: the load replaces them
+    - a null equals nothing, so it is left to not_null
+    - silver is read from the graph, not ref: a ref would run the test after silver had replaced the rows
+    - before silver's table exists, only the load is checked
 #}
 {% test unique_columns_in_load_and_silver(model, columns) %}
-    {# the graph is empty while dbt parses: silver is none, and the test is a placeholder #}
+    {# none while dbt parses: the test is a placeholder #}
     {% set silver = get_silver_of_staging(model) %}
     {% set relation = silver.relation if silver else none %}
     {% set unique_key = silver.unique_key if silver else [] %}
@@ -63,13 +56,11 @@
 {% endtest %}
 
 {#
-    unique_columns_in_load_and_silver on the business key: unique_key in slvr_<dataset>.yml, the only place it is
-    declared, so this test takes no columns. silver's rows with the same key are the ones the load replaces, so in
-    practice this checks the load alone: a duplicate within the load is an error, a key already in silver is an
-    overwrite, listed by warn_overwritten_rows
+    unique_columns_in_load_and_silver on unique_key, read from slvr_<dataset>.yml, so it takes no columns
+    - in practice it checks the load alone: a key already in silver is replaced, and warn_overwritten_rows lists it
 #}
 {% test unique_business_key_in_load_and_silver(model) %}
-    {# the graph is empty while dbt parses: the key stays empty, and the test is a placeholder #}
+    {# none while dbt parses: the test is a placeholder #}
     {% set silver = get_silver_of_staging(model) %}
 
     {{ test_unique_columns_in_load_and_silver(model, silver.unique_key if silver else []) }}

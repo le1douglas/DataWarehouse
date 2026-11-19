@@ -1,94 +1,76 @@
-# the time zone of every container (its clock and date), written only here: a time without a zone is assumed to be amsterdam
+# every container's time zone, written only here. a time sent without a zone is assumed to be in it
 x-timezone: &timezone Europe/Amsterdam
 
-# where USER_INPUT_DIR (the windows folder of every csv to load, from the env file) appears inside the meltano container,
-# under the same name, written only here: the same anchor is the mount target and USER_INPUT_MOUNT, which
-# DataWarehouseMeltano/meltano.yml reads. the file of each dataset is named in meltano.yml, not here
+# each mount path is written only here: the anchor is both the mount target and the env var the code reads
+# - user input: USER_INPUT_DIR, the windows folder of every csv to load, read by meltano.yml
 x-user-input-mount: &user_input_mount /user_input
-
-# where USER_OUTPUT_DIR (the windows folder of every file the programs write for the user, from the env file) appears
-# inside the datastreamer container, written only here: the same anchor is the mount target and USER_OUTPUT_MOUNT, which
-# src/bluelab_datastreamer/drip_drain.py reads. each program names its own subfolder in its code, not here
+# - user output: USER_OUTPUT_DIR, the windows folder of every file the programs write for the user
 x-user-output-mount: &user_output_mount /user_output
-
-# where the work-in-progress volume appears inside the datastreamer container, written only here: the same anchor is the
-# mount target and WORK_IN_PROGRESS_MOUNT, which src/bluelab_datastreamer/drip_drain.py reads. it holds what a program
-# has not finished yet, such as the csv of the rooms done so far, so it survives the container (run --rm). each program
-# names its own subfolder in its code. a volume, not a windows folder: compose prefixes it with the project name, so
-# dev (dw-dev) and prod (dw-prod) each have their own
+# - work in progress: a volume, so a program's unfinished work survives run --rm, and dev and prod each have their own
 x-work-in-progress-mount: &work_in_progress_mount /work_in_progress
 
-# the connection to postgres, written once here. the host is the service name below, and the port the one postgres listens
-# on inside the docker network: not POSTGRES_PORT, which is published to windows and changes per environment.
-# the database, user and password come from the project env file (.env or .env.prod), so each is written once per
-# environment. until the roles exist every service is postgres
+# the connection to postgres, written only here
+# - the port inside the docker network, not POSTGRES_PORT, which is published to windows and differs per environment
+# - database, user and password come from the env file (.env or .env.prod)
+# - every service connects as the postgres user until the roles exist
 x-postgres-host: &postgres_host postgres
 x-postgres-port: &postgres_port "5432"
 x-postgres-db: &postgres_db ${POSTGRES_DB}
 x-postgres-user: &postgres_user ${POSTGRES_USER}
 x-postgres-password: &postgres_password ${POSTGRES_PASSWORD}
 
-# the config every airflow component shares, written once here. the scheduler adds the env vars of dbt and meltano
+# the config every airflow component shares
 x-airflow-env: &airflow_env
   TZ: *timezone
-  # the time zone of the schedules and the ui, the same as every container's
+  # the time zone of the schedules and the web page
   AIRFLOW__CORE__DEFAULT_TIMEZONE: *timezone
-  # tasks run in the scheduler container, one process each: no celery, no redis
+  # tasks run in the scheduler container, one process each: no Celery, no Redis
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-  # in the repo, mounted in dev (compose.dev.yaml), copied into the image for prod
+  # mounted from the repo in dev, copied into the image in prod
   AIRFLOW__CORE__DAGS_FOLDER: /usr/app/DataWarehouseAirflow/dags
-  # where a running task reports its state: the api server, by its service name
+  # where a running task reports its state
   AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
-  # the metadata database, the airflow database of the postgres service (Database/00_create_airflow_database.sql).
-  # the password is not in the uri, where an @ or / would break it: psycopg2 reads it from PGPASSWORD
+  # the password is PGPASSWORD, not in the connection string, where an @ or / would break it
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}@postgres:5432/airflow
   PGPASSWORD: *postgres_password
-  # the key the components sign each other's tokens with: the same in all of them, or a task cannot report back.
-  # left empty, each component would make up its own
+  # the same in every component, or a task cannot report back. left empty, each component makes up its own
   AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?set AIRFLOW_JWT_SECRET in the env file}
-  # no login: whoever opens the ui is admin. the port is published on localhost only (airflow-api-server)
+  # no login: whoever opens the page is admin, so the port is published on localhost only (airflow-api-server)
   AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
 
-# dbt's connection (DataWarehouseDbt/profiles.yml) and folders, for the airflow components that run or read dbt:
-# airflow-init refreshes airflow's manifest (and the dag refresh_metadata, run by the scheduler), the dag processor and
-# every task draw the dags from it, the scheduler runs the builds. the connection: the profile needs every value to render, even for a dbt parse, which does not connect
+# dbt's connection (profiles.yml) and folders, for every airflow component that runs dbt or reads its manifest
+# - the profile needs every connection value, even for a dbt parse, which does not connect
 x-dbt-env: &dbt_env
   DBT_HOST: *postgres_host
   DBT_PORT: *postgres_port
   DBT_DBNAME: *postgres_db
   DBT_USER: *postgres_user
   DBT_ENV_SECRET_PASSWORD: *postgres_password
-  # what dbt writes, in the dbt-state volume, one folder per role, each its own target and logs, so no dbt command
-  # overwrites what another reads. per release: a release reads only its own airflow manifest, and a rollback finds its
-  # folder unchanged. dev's release is dev. the roles, in $DBT_STATE_DIR:
-  #   airflow-manifest  airflow's manifest, which the dags are drawn from (DataWarehouseAirflow/dags/utils/
-  #                     dbt_task_group.py). written by airflow-init below, on every up, and by
-  #                     the dag refresh_metadata
-  #   setup-build       the setup build of docker/02_setup_dev.ps1 and docker/03_setup_prod.ps1
-  #   interactive       any dbt command that names no target of its own: dbt debug, and in dev your commands and dbt
-  #                     power user
-  # cosmos tasks keep their own target in their own temp copy of the project (dbt_task_group.py)
+  # what dbt writes: one folder per release, so a rollback finds its own unchanged, and per role, so no dbt command
+  # overwrites what another reads. the roles:
+  # - airflow-manifest: the dags are drawn from it. written by airflow-init on every up and by refresh_metadata
+  # - setup-build: the setup scripts' build
+  # - interactive: any dbt command that names no target, such as yours or dbt Power User's
+  # cosmos tasks write into their own temporary copy of the project (dbt_task_group.py)
   DBT_STATE_DIR: /dbt-state/${RELEASE}
   DBT_TARGET_PATH: /dbt-state/${RELEASE}/interactive/target
   DBT_LOG_PATH: /dbt-state/${RELEASE}/interactive/logs
-  # the one role outside the releases: it describes the database, which every release shares. refresh_metadata writes
-  # it (DataWarehouseAirflow/dags/refresh_metadata.py), openmetadata and the erd read it
+  # outside the releases: it describes the database, which they share. written by refresh_metadata, read by
+  # OpenMetadata and the diagram
   DBT_METADATA_EXPORT_DIR: /dbt-state/metadata-export
 
-# what every airflow component shares: the image, the config, the task logs and dbt's folders. the logs in one volume,
-# so the ui in the api server reads what the tasks wrote in the scheduler
+# what every airflow component shares. the logs are one volume, so the api server shows what the scheduler's tasks wrote
 x-airflow: &airflow
   build:
-    context: .. # the repo root, one up from this folder. docker/pipeline/Dockerfile.dockerignore keeps only what the image needs
+    context: .. # the repo root. Dockerfile.dockerignore keeps only what the image needs
     dockerfile: docker/pipeline/Dockerfile
-    target: runtime # venvs plus the projects. dev builds it too, with the repo mounted on top (compose.dev.yaml)
+    target: runtime # dev builds it too, with the repo mounted on top (compose.dev.yaml)
   image: pipeline:${RELEASE}
   environment: *airflow_env
   volumes:
     - airflow-logs:/opt/airflow/logs
-    # what dbt writes, a folder per release and role (x-dbt-env). compose prefixes it with the project name, so dev
-    # (dw-dev) and prod (dw-prod) each have their own
+    # compose prefixes the volume with the project name, so dev and prod each have their own
     - dbt-state:/dbt-state
   depends_on:
     airflow-init:
@@ -97,13 +79,10 @@ x-airflow: &airflow
 
 services:
   postgres:
-    # the major version is written twice: here and in postgresql-client-<major> in the dev stage of
-    # docker/pipeline/Dockerfile (psql in the dev container). change both together
+    # change together with postgresql-client-<major> in docker/pipeline/Dockerfile
     image: postgres:18
-    # the server's time zone from TZ, so the zone stays written once. compose would replace $TZ itself, $$ leaves it to sh.
-    # sh then runs the image's entrypoint with the expanded command, as a plain "command: postgres -c ..." would.
-    # datestyle YMD: initdb takes MDY from the en_US locale, which reads 03/11/2026 as 11 March. YMD refuses a date in
-    # day or month first order with a four digit year, instead of guessing. ISO dates read the same under any datestyle
+    # - the server's time zone from TZ, so the zone stays written once. $$ leaves $TZ to sh, not compose
+    # - datestyle YMD: the default MDY reads 03/11/2026 as 11 March. YMD refuses it instead of guessing
     command: ["sh", "-c", "exec docker-entrypoint.sh postgres -c timezone=\"$$TZ\" -c log_timezone=\"$$TZ\" -c datestyle=\"ISO, YMD\""]
     environment:
       TZ: *timezone
@@ -117,11 +96,10 @@ services:
       - ../Database/00_create_airflow_database.sql:/docker-entrypoint-initdb.d/00_create_airflow_database.sql:ro
       - ../Database/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
       - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
-      # prod dumps for the dev refresh: prod writes a pg_dump here, dev restores it (read only, see compose.dev.yaml).
-      # in the repo, ignored by git. a convenience for development, not the backups of prod
+      # prod writes a dump here, dev restores it. ignored by git. a convenience for dev, not prod's backups
       - ../Database/dumps:/dumps
-    # ready once it answers on tcp: during the first start the entrypoint runs the init scripts on a server that listens
-    # only on its socket, so a check on the socket would pass before the databases exist
+    # checked over tcp: on the first start the init scripts run on a server that listens only on its socket, so a
+    # socket check would pass before the databases exist
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
@@ -129,21 +107,16 @@ services:
       retries: 12
     restart: unless-stopped
 
-  # airflow: runs every load, meltano then dbt. one image (docker/pipeline/Dockerfile), one container per component, each
-  # with its own command. started by "up" and kept running, except airflow-init, which prepares them and exits. the ui
-  # at http://localhost on AIRFLOW_PORT
+  # airflow: one image, one container per component. airflow-init prepares the others and exits
   airflow-init:
     <<: *airflow
     environment:
       <<: [*airflow_env, *dbt_env]
-    # the migration of the metadata database, then the pool publish with one slot: one publish at a time across every
-    # dataset, as two would build the same gold fact at once (DataWarehouseAirflow/dags/load_datasets.py). pools set
-    # creates or updates it.
-    # then airflow's manifest, refreshed on every up, before the other components start: they wait for this one, so the
-    # dags never start without it. a dbt parse, which connects to nothing, into airflow-manifest (x-dbt-env). so an up
-    # during a load could change its dags under it: no up while a load runs.
-    # dev keeps its dbt packages in the volume (DBT_PACKAGES_INSTALL_PATH, compose.dev.yaml), installed here first; prod
-    # has them in the image. $$ leaves the variables to bash
+    # - the publish pool, one slot (load_datasets.py). pools set creates or updates it
+    # - dev's dbt packages, kept in the volume (compose.dev.yaml); prod has them in the image
+    # - airflow's manifest, before the other components start, so no dag starts without it. it can change a running
+    #   load's dag: never up during a load
+    # - $$ leaves the variables to bash
     entrypoint: ["bash", "-c"]
     command:
       - >-
@@ -156,46 +129,39 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # the ui, the rest api, and the execution api the tasks report to
+  # the web page, the rest api, and the api the tasks report to
   airflow-api-server:
     <<: *airflow
     command: ["api-server"]
-    # on localhost only: SIMPLE_AUTH_MANAGER_ALL_ADMINS (x-airflow-env) lets in whoever reaches the port
+    # localhost only: anyone who reaches the port is admin (x-airflow-env)
     ports:
       - "127.0.0.1:${AIRFLOW_PORT:?set AIRFLOW_PORT in the env file}:8080"
 
-  # reads the dag files into the metadata database. cosmos draws a dbt build as one task per node here, from airflow's
-  # manifest, so it has dbt's env vars too
+  # reads the dag files. cosmos draws the dbt tasks here, from airflow's manifest, so it needs dbt's env vars
   airflow-dag-processor:
     <<: *airflow
     command: ["dag-processor"]
     environment:
       <<: [*airflow_env, *dbt_env]
 
-  # starts the runs, and with LocalExecutor runs every task itself, in this container: the only component that runs dbt
-  # and meltano, so the only one with meltano's env vars and the input folder
+  # runs every task itself (LocalExecutor), so it is the only component that needs meltano and the input folder
   airflow-scheduler:
     <<: *airflow
     command: ["scheduler"]
     environment:
       <<: [*airflow_env, *dbt_env]
-      # meltano's system database: its own state and run history, in the meltano database of the postgres service
-      # (Database/00_create_meltano_database.sql) instead of the default sqlite file. the password is PGPASSWORD
-      # (x-airflow-env), not in the uri, where an @ or / would break it
+      # in postgres, not the default sqlite file. the password is PGPASSWORD (x-airflow-env)
       MELTANO_DATABASE_URI: postgresql+psycopg://${POSTGRES_USER}@postgres:5432/meltano
-      # the warehouse, where target-postgres loads
       TARGET_POSTGRES_HOST: *postgres_host
       TARGET_POSTGRES_PORT: *postgres_port
       TARGET_POSTGRES_DATABASE: *postgres_db
       TARGET_POSTGRES_USER: *postgres_user
       TARGET_POSTGRES_PASSWORD: *postgres_password
-      # the input folder inside the container: tap-csv in DataWarehouseMeltano/meltano.yml reads each file from it
       USER_INPUT_MOUNT: *user_input_mount
     volumes:
       - airflow-logs:/opt/airflow/logs
       - dbt-state:/dbt-state
-      # the input, read only, so meltano can never change an export. the long form, because the short one
-      # ("source:target:ro") is a single string, where the anchor cannot go
+      # read only, so meltano never changes an export. long form: an anchor cannot go inside the short one's string
       - type: bind
         source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
         target: *user_input_mount
@@ -206,23 +172,20 @@ services:
       airflow-api-server:
         condition: service_started
 
-  # interactive: "docker compose run --rm datastreamer" takes the drip and drain readings of the OnePen until q.
-  # src/bluelab_datastreamer/OnePen.cmd starts it with the bridge (onepen_bridge.py) on windows, at host.docker.internal:8765.
-  # no database and no env file: it writes a csv only
+  # interactive: takes the drip and drain readings of the OnePen until q, and writes a csv only
+  # - started by src/bluelab_datastreamer/OnePen.cmd, with the windows bridge at host.docker.internal:8765
   datastreamer:
     build:
-      context: .. # the repo root, one up from this folder. docker/datastreamer/Dockerfile.dockerignore keeps only src/bluelab_datastreamer
+      context: .. # the repo root. Dockerfile.dockerignore keeps only src/bluelab_datastreamer
       dockerfile: docker/datastreamer/Dockerfile
-      target: runtime # the only stage: dev builds it too, its tools are in the dev container (compose.dev.yaml)
+      target: runtime # the only stage: dev builds it too, its tools are in the dev container
     image: datastreamer:${RELEASE}
     environment:
-      TZ: *timezone # stamps each reading and names the daily csv, read by src/bluelab_datastreamer/drip_drain.py
-      # the output folder inside the container: drip_drain.py saves the csv of a part of the day in its subfolder
+      TZ: *timezone # stamps each reading and names the daily csv
       USER_OUTPUT_MOUNT: *user_output_mount
-      # the work-in-progress folder inside the container: drip_drain.py keeps drip_drain.csv in its subfolder
       WORK_IN_PROGRESS_MOUNT: *work_in_progress_mount
     volumes:
-      # the output. the long form, because the short one is a single string, where the anchor cannot go
+      # long form: an anchor cannot go inside the short one's string
       - type: bind
         source: ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}
         target: *user_output_mount
@@ -231,13 +194,12 @@ services:
         target: *work_in_progress_mount
     profiles: ["job"] # not started by "up", only by "run"
 
-  # a server: the NiceGUI pages of the warehouse, at http://localhost on NICEGUI_PORT.
-  # started by "up" with postgres, and kept running
+  # the NiceGUI pages of the warehouse
   webapps:
     build:
-      context: .. # the repo root, one up from this folder. docker/webapps/Dockerfile.dockerignore keeps only src/webapps
+      context: .. # the repo root. Dockerfile.dockerignore keeps only src/webapps
       dockerfile: docker/webapps/Dockerfile
-      target: runtime # the only stage: dev builds it too, its tools are in the dev container (compose.dev.yaml)
+      target: runtime # the only stage: dev builds it too, its tools are in the dev container
     image: webapps:${RELEASE}
     environment:
       TZ: *timezone
@@ -246,7 +208,7 @@ services:
       POSTGRESQL_DB: *postgres_db
       POSTGRESQL_USER: *postgres_user
       POSTGRESQL_PASSWORD: *postgres_password
-    # one port per environment, so dev and prod can run side by side (as postgres does)
+    # one port per environment, so dev and prod can run side by side
     ports:
       - "${NICEGUI_PORT:?set NICEGUI_PORT in the env file}:8080"
     depends_on:

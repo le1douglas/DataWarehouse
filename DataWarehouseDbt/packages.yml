@@ -3,8 +3,8 @@ packages:
     version: 1.4.1
   - package: metaplane/dbt_expectations
     version: 0.10.10
-  # a dependency of dbt_expectations, listed here as well at the version it locks: cosmos copies the project without
-  # package-lock.yml, and dbt then counts the packages of this file against the installed ones
+  # dbt_expectations' dependency, pinned here too: cosmos copies the project without package-lock.yml, and dbt then
+  # checks this file against the installed packages
   - package: godatadriven/dbt_date
     version: 0.21.0
   - package: elementary-data/elementary

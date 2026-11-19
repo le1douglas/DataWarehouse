@@ -1,28 +1,25 @@
-// the dev container: the dev stage of docker/pipeline/Dockerfile, every tool of the three images at the same versions
-// plus the dev tools, with the whole repo at /usr/app. open with "Dev Containers: Reopen in Container".
-// Claude Code runs in here too, with the same terminal: one window for everything
+// the dev container: every tool of the three images at the same versions, plus the dev tools and Claude Code
+// open with "Dev Containers: Reopen in Container"
 {
   "name": "dev",
-  // paths are relative to this file. docker/compose.dev.yaml sets the project name (dw-dev), the mounts and the env vars
+  // relative to this file. compose.dev.yaml sets the project name, the mounts and the env vars
   "dockerComposeFile": ["../../docker/compose.yaml", "../../docker/compose.dev.yaml"],
   "service": "dev",
-  // only this service, and postgres through depends_on. the webapps service keeps serving the dev web apps on its own
+  // only this service, and postgres through depends_on
   "runServices": ["dev"],
-  // fixed: Claude Code files its memory under this path, a new path would start an empty memory
+  // fixed: Claude Code files its memory under this path, so a new path starts an empty memory
   "workspaceFolder": "/usr/app",
-  // keep the container running for as long as the window is open
   "overrideCommand": true,
   // closing the window leaves the containers running: postgres is shared with Excel
   "shutdownAction": "none",
-  // the ERD's server (dbterd.serverPort below). its tab runs in VS Code on windows and reaches the server only through
-  // this forward: a random port changed on every server restart and the forward did not follow. 8765 is taken by the
-  // OnePen bridge, 8080/8081 by NiceGUI, 5432/5433 by postgres
+  // the diagram's server (dbterd.serverPort): its tab runs in VS Code on windows and reaches it only through this
+  // forward. 8765, 8080/8081 and 5432/5433 are taken by the OnePen bridge, NiceGUI and postgres
   "forwardPorts": [8790],
-  // Claude Code's command line, which needs node. its login, settings and memory are in the claude-config volume
+  // Claude Code's command line needs node
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
-    // pwsh, for the PowerShell extension below. the .ps1 scripts still run on windows, not in here
+    // for the PowerShell extension below. the .ps1 scripts still run on windows
     "ghcr.io/devcontainers/features/powershell:1": {}
   },
   "customizations": {
@@ -34,12 +31,11 @@
         // dbt, and the colours of the jinja in the sql
         "innoverio.vscode-dbt-power-user",
         "samuelcolvin.jinjahtml",
-        // the ERD of the dbt models
+        // the entity relationship diagram of the dbt models
         "datnguye.dbterd-vscode",
         // meltano.yml
         "redhat.vscode-yaml",
-        // the database in a sidebar. its backup and restore use the pg_dump and pg_restore of the dev stage of
-        // docker/pipeline/Dockerfile, at the server's major version
+        // the database in a sidebar. backup and restore use the dev stage's pg_dump and pg_restore
         "cweijan.vscode-postgresql-client2",
         // csv files as a table
         "ReprEng.csv",
@@ -48,22 +44,20 @@
         "anthropic.claude-code"
       ],
       "settings": {
-        // keep the image's locale (LANG=C.UTF-8 in the dev stage of docker/pipeline/Dockerfile). by default the terminal
-        // sets LANG=en_US.UTF-8, which the image does not have, and perl (psql's wrapper) warns about it on every call
+        // keep the image's C.UTF-8: the terminal's default en_US.UTF-8 is not in the image, and perl (psql's wrapper)
+        // warns about it on every call
         "terminal.integrated.detectLocale": "off",
         // the web apps' python, where pytest is. dbt Power User uses the dbt venv's python instead
         "python.defaultInterpreterPath": "/opt/venvs/webapps/bin/python",
         "dbt.dbtPythonPathOverride": "/opt/venvs/dbt/bin/python",
         "dbt.perspectiveTheme": "Vintage",
         "dbt.lineage.defaultExpansion": 13,
-        // the ERD reads <this path>/target/manifest.json and catalog.json, a folder name it does not let change: the
-        // metadata-export folder of the dbt-state volume (DBT_METADATA_EXPORT_DIR, docker/compose.yaml), not the
-        // project, so clicking a model does not open its .sql file. refreshed by
-        // dbt docs generate --target-path $DBT_METADATA_EXPORT_DIR/target --log-path $DBT_METADATA_EXPORT_DIR/logs.
-        // its server lives in a venv the extension makes on first use, outside the image: a container rebuild loses it
-        // and the extension makes it again
+        // the diagram reads <this path>/target, refreshed by
+        //   dbt docs generate --target-path $DBT_METADATA_EXPORT_DIR/target --log-path $DBT_METADATA_EXPORT_DIR/logs
+        // - not the project, so clicking a model does not open its .sql file
+        // - the extension makes its server's venv on first use, and again after a container rebuild
         "dbterd.dbtProjectPath": "/dbt-state/metadata-export",
-        // a fixed port, forwarded by forwardPorts above. 0 would pick a new one on every restart
+        // fixed, for forwardPorts above: 0 would pick a new one on every restart, and the forward would not follow
         "dbterd.serverPort": 8790,
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
@@ -73,7 +67,7 @@
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
         },
-        // completion and validation of meltano.yml, from the schema of the meltano version in docker/pipeline/requirements-meltano.txt
+        // meltano.yml's schema, at the version in requirements-meltano.txt: change both together
         "yaml.schemas": {
           "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "DataWarehouseMeltano/meltano.yml"
         }

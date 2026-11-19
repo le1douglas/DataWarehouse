@@ -3,7 +3,7 @@ from nicegui import ui
 # the service a OnePen advertises, as ONEPEN_SERVICE in bluelab_datastreamer/onepen_bridge.py
 ONEPEN_SERVICE = "983dd3da-d46f-bc05-0100-00c278b6b50a"
 
-# web bluetooth has no python api: the browser talks to the pen, and sends every notification to the
+# Web Bluetooth has no python api: the browser talks to the pen, and sends every notification to the
 # server with emitEvent. it runs in the click handler, because requestDevice needs a user gesture
 CONNECT_PEN = f"""async () => {{
     const device = await navigator.bluetooth.requestDevice({{filters: [{{services: ["{ONEPEN_SERVICE}"]}}]}});
