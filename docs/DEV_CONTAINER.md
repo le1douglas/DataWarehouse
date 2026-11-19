@@ -202,7 +202,7 @@ flowchart TB
     subgraph pipeline_df["docker/pipeline/Dockerfile"]
         venvs[stage venvs<br/>airflow, dbt, meltano venvs]
         runtime[stage runtime<br/>+ projects, DAGs, dbt packages and manifest, meltano plugins]
-        dev[stage dev<br/>+ webapps and datastreamer venvs<br/>+ ruff, sqlfmt, pytest, psql]
+        dev[stage dev<br/>+ webapps and datastreamer venvs<br/>+ ruff, sqlfluff, pytest, psql]
     end
     apps_df[docker/webapps, docker/datastreamer<br/>stage runtime]
     features[devcontainer.json features<br/>node, Claude Code, pwsh]

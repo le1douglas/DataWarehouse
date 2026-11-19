@@ -1,6 +1,6 @@
 # Coding standards
 
-How code in this repository is named and written. Domain terms are defined in `docs/GLOSSARY.md`; formatting is done by `sqlfmt` and `ruff` (config in `pyproject.toml`) and is not repeated here.
+How code in this repository is named and written. Domain terms are defined in `docs/GLOSSARY.md`; formatting is done by `sqlfluff` (config in `.sqlfluff`) and `ruff` (config in `pyproject.toml`) and is not repeated here.
 
 ## Which rules win
 
@@ -34,11 +34,15 @@ How code in this repository is named and written. Domain terms are defined in `d
 
 ## SQL style
 
-- dbt models: a chain of CTEs named with a verb (`identify_room_index`, `assign_position`), each doing one thing, with a lowercase `--` comment saying why. The final select lists columns explicitly so helper columns are not exposed.
+- dbt models: small CTEs joined back together, not a chain where each CTE carries every column forward with `select *`:
+  - First, one import CTE per `ref()`, named after the model it reads (`journal_entries`, `plants_batches`).
+  - Then CTEs named with a verb (`assign_room`, `assign_dates`), each doing one thing, with a lowercase `--` comment saying why. Each one returns `row_id` and only the columns it adds. It can build on another one, as `assign_plants_batch` reads `assign_room`.
+  - The final select starts from the import CTE, left joins each of these CTEs on `row_id`, so no row is dropped, and lists its columns explicitly, so helper columns are not exposed.
+  - Each of these CTEs must return at most one row per `row_id`, or the join repeats the row.
 - Do not repeat logic across CTEs: compute a value once and reuse it.
 - Repeated column lists go in a Jinja `{% set %}` list and a loop.
 - `Database/*.sql` (hand-written DDL): uppercase keywords, `CREATE ... IF NOT EXISTS`. These scripts are not formatted by any tool.
-- There is no SQL linter, and `sqlfmt` is the only SQL tool: do not add `sqlfluff` or another formatter next to it. The scripts in `Database` are not formatted by any tool.
+- `sqlfluff` is the only SQL tool, linter and formatter: do not add another formatter next to it. The scripts in `Database` are not formatted by any tool.
 
 
 ## Python style

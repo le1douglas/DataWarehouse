@@ -181,7 +181,7 @@ Start → **ODBC Data Sources (64-bit)** → **System DSN** → **Add** → `Pos
 
 - `code .` from the repo root
 - `Ctrl + Shift + P` → **Dev Containers: Reopen in Container**
-  - One container, `dev`, with every tool: `dbt`, `meltano`, `python`, `ruff`, `sqlfmt`, `pytest`, from any folder
+  - One container, `dev`, with every tool: `dbt`, `meltano`, `python`, `ruff`, `sqlfluff`, `pytest`, from any folder
   - First open installs the extensions and Claude Code in the container
   - Claude Code: sign in once. Its login, settings and memory are kept in the `dw-dev_claude-config` volume
   - `meltano.yml` gets completion and validation from Meltano's schema (YAML extension)
@@ -282,7 +282,7 @@ Setup is done.
 All in the dev container, from `/usr/app`:
 
 - `pytest` (no tests yet), `ruff check`, `ruff format`
-- `sqlfmt DataWarehouseDbt/models`
+- `sqlfluff format DataWarehouseDbt/models`, `sqlfluff lint DataWarehouseDbt/models` (the database must be up)
 - `meltano config print tap-csv` shows a plugin's config as the run sees it, env vars filled in
 
 ### Dev as a copy of prod

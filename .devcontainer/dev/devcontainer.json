@@ -31,6 +31,8 @@
         // dbt, and the colours of the jinja in the sql
         "innoverio.vscode-dbt-power-user",
         "samuelcolvin.jinjahtml",
+        // lints and formats the dbt sql with sqlfluff (.sqlfluff): dbt Power User formats only with sqlfmt
+        "sqlfluff.vscode-sqlfluff",
         // the entity relationship diagram of the dbt models
         "datnguye.dbterd-vscode",
         // meltano.yml
@@ -66,6 +68,15 @@
         "ruff.path": ["/opt/venvs/tools/bin/ruff"],
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        // the sqlfluff of docker/pipeline/requirements-tools.txt, the formatter of the dbt sql instead of dbt Power User
+        // - executeInTerminal: the extension formats with the dbt templater only this way (experimental)
+        // - lint on save, not on type: the dbt templater compiles the model against the database on every run
+        "sqlfluff.executablePath": "/opt/venvs/tools/bin/sqlfluff",
+        "sqlfluff.experimental.format.executeInTerminal": true,
+        "sqlfluff.linter.run": "onSave",
+        "[jinja-sql]": {
+          "editor.defaultFormatter": "sqlfluff.vscode-sqlfluff"
         },
         // meltano.yml's schema, at the version in requirements-meltano.txt: change both together
         "yaml.schemas": {

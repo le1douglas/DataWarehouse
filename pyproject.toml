@@ -3,10 +3,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-# sqlfmt formats the dbt sql, as dbt Power User does:
-#   sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests      (add --diff to only see what would change)
-[tool.sqlfmt]
-line_length = 120
+# the dbt sql is linted and formatted by sqlfluff, configured in .sqlfluff
 
 # lint:   ruff check        (add --fix to apply the safe fixes)
 # format: ruff format       (add --diff to only see what would change)
