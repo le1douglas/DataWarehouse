@@ -1,0 +1,41 @@
+date_time,device,spot,ml,ec,ph,temperature,room,bench,remarks,reading_status
+2026-11-19T09:30:13.596853,ONE-A1F0,drip_left,1200,1.64,5.99,22.8,1.30,4,no runoff,measured
+2026-11-19T09:30:28.734064,ONE-A1F0,drip_right,1650,1.23,5.25,24.3,1.30,4,,measured
+2026-11-19T09:30:43.871275,ONE-A1F0,drain_left,1000,2.74,5.63,24.2,1.30,4,,measured
+2026-11-19T09:30:59.008486,ONE-A1F0,drain_right,1300,3.25,5.25,21.1,1.30,4,,measured
+2026-11-19T09:31:34.145697,ONE-A1F0,drip_left,1800,1.71,5.80,22.1,1.29,4,,measured
+2026-11-19T09:31:49.282908,ONE-A1F0,drip_right,1750,1.69,5.84,22.3,1.29,4,,measured
+2026-11-19T09:32:04.420119,ONE-A1F0,drain_left,150,n.a,n.a,n.a,1.29,4,,unreliable
+2026-11-19T09:32:19.557330,ONE-A1F0,drain_right,420,2.10,6.02,21.9,1.29,4,,measured
+2026-11-19T09:32:54.694541,ONE-A1F0,drip_left,1900,1.66,5.91,22.5,1.28,4,,measured
+2026-11-19T09:33:09.831752,ONE-A1F0,drip_right,1850,1.65,5.93,22.6,1.28,4,,measured
+2026-11-19T09:33:24.968963,ONE-A1F0,drain_left,380,2.31,6.11,21.4,1.28,4,,measured
+2026-11-19T09:33:40.106174,ONE-A1F0,drain_right,0,n.a,n.a,n.a,1.28,4,no runoff,unreliable
+2026-11-19T09:34:15.243385,ONE-A1F0,drip_left,2000,1.70,5.88,22.0,1.27,4,,measured
+2026-11-19T09:34:30.380596,ONE-A1F0,drip_right,1950,1.72,5.86,22.2,1.27,4,,measured
+2026-11-19T09:34:45.517807,ONE-A1F0,drain_left,250,2.40,6.20,21.0,1.27,4,,unreliable
+2026-11-19T09:35:00.655018,ONE-A1F0,drain_right,510,2.28,6.05,21.3,1.27,4,,measured
+2026-11-19T09:35:35.792229,ONE-A1F0,drip_left,1700,1.62,5.95,22.4,1.26,4,,measured
+2026-11-19T09:35:50.929440,ONE-A1F0,drip_right,1720,1.63,5.97,22.4,1.26,4,,measured
+2026-11-19T09:36:06.066651,ONE-A1F0,drain_left,450,2.05,6.00,21.8,1.26,4,,measured
+2026-11-19T09:36:21.203862,ONE-A1F0,drain_right,100,,,,1.26,4,,unreliable
+2026-11-19T09:36:56.341073,ONE-A1F0,drip_left,1600,1.60,5.90,22.7,1.25,4,,measured
+2026-11-19T09:37:11.478284,ONE-A1F0,drip_right,1650,1.61,5.92,22.6,1.25,4,,measured
+2026-11-19T09:37:26.615495,ONE-A1F0,drain_left,400,2.15,6.08,21.6,1.25,4,,measured
+2026-11-19T09:37:41.752706,ONE-A1F0,drain_right,390,2.18,6.10,21.5,1.25,4,,measured
+2026-11-19T09:38:16.889917,ONE-A1F0,drip_left,n.a,n.a,n.a,n.a,1.24,4,,skipped
+2026-11-19T09:38:16.889917,ONE-A1F0,drip_right,n.a,n.a,n.a,n.a,1.24,4,,skipped
+2026-11-19T09:38:16.889917,ONE-A1F0,drain_left,n.a,n.a,n.a,n.a,1.24,4,,skipped
+2026-11-19T09:38:16.889917,ONE-A1F0,drain_right,n.a,n.a,n.a,n.a,1.24,4,,skipped
+2026-11-19T09:38:56.889917,ONE-A1F0,drip_left,2100,3.03,6.10,21.5,0.31,4,,measured
+2026-11-19T09:39:12.027128,ONE-A1F0,drip_right,2050,2.69,6.54,24.7,0.31,4,,measured
+2026-11-19T09:39:27.164339,ONE-A1F0,drain_left,600,2.92,6.05,21.3,0.31,4,,measured
+2026-11-19T09:39:42.301550,ONE-A1F0,drain_right,650,1.42,6.66,21.9,0.31,4,,measured
+2026-11-19T09:40:17.438761,ONE-A1F0,drip_left,,,,,0.32,4,,skipped
+2026-11-19T09:40:17.438761,ONE-A1F0,drip_right,,,,,0.32,4,,skipped
+2026-11-19T09:40:17.438761,ONE-A1F0,drain_left,,,,,0.32,4,,skipped
+2026-11-19T09:40:17.438761,ONE-A1F0,drain_right,,,,,0.32,4,,skipped
+2026-11-19T09:40:57.438761,ONE-A1F0,drip_left,2000,3.01,6.12,21.6,0.33,4,,measured
+2026-11-19T09:41:12.575972,ONE-A1F0,drip_right,1850,2.70,6.50,24.5,0.33,4,"rinsed, then measured",measured
+2026-11-19T09:41:27.713183,ONE-A1F0,drain_left,550,2.90,6.07,21.2,0.33,4,,measured
+2026-11-19T09:41:42.850394,ONE-A1F0,drain_right,600,1.45,6.60,21.8,0.33,4,,measured

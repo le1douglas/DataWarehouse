@@ -24,16 +24,19 @@ Backspace or delete removes the reading of the line, and on a line without one g
 line before. The up and down arrows move between the lines in both, the right arrow goes from the
 ml to the readings at any time, and the left arrow back to the ml, as they are on the line. When
 every line of one is filled, the next empty line of the other is taken. A value the pen has not
-got, such as with the probe in the air, shows as n.a., a line not recorded yet as -. When every
-line has both its ml and its reading, a confirmation is shown below the lines (up goes back to
-change them). Enter on it appends the room to drip_drain.csv, in the work-in-progress volume, in the shape of
-a journal entries export, and the next room starts. While a room is shown, q quits after enter to
+got, such as with the probe in the air, shows and is written as n.a, a line not recorded yet shows as -. A line
+below 300 ml is written unreliable, its values kept. A dry probe (no ec) is accepted only there: at 300 ml or
+more the reading is ignored, or dropped when the ml is typed after it, and is taken again. When
+every line has both its ml and its reading, a confirmation is shown below the lines (up goes back to
+change them). Enter on it appends the room to drip_drain.csv, in the work-in-progress volume, in the columns of
+dw_bronze.brnz_journal_entries, and the next room starts. While a room is shown, q quits after enter to
 confirm (any other key stays and does nothing else), and a room that is not complete then is not
 written. s skips the room at any time, after enter to confirm (any other key keeps the room and
-does nothing else): what was typed or recorded in it is dropped, nothing of it is
-written, and the next room starts. The room continues from the last row of the csv, past
-the rooms skipped since the start, so rows can be deleted by hand between rooms. The skips are not
-kept after q: a room skipped is taken again when the readings are started again.
+does nothing else): what was typed or recorded in it is dropped, its lines still to take are
+written with the time of the skip and every value n.a, so each part of the day has a row for every
+line, and the next room starts. The room continues from the last row of the csv, so rows can be deleted by hand between
+rooms. A pen without a name stops the readings before the first room: the name is the device of
+every row.
 
 It runs in its own container (the datastreamer service, docker/datastreamer/Dockerfile), in an
 interactive terminal (no -T), or no key can be read, next to the bridge (onepen_bridge.py) on
@@ -72,7 +75,7 @@ from cli_terminal import (
     Screen,
     fit,
 )
-from drip_drain import CSV_PATH, NO_VALUES, Room, now
+from drip_drain import CSV_PATH, NO_VALUES, NOT_AVAILABLE, PenNameMissing, Room, now
 from onepen import BridgeGone, PenClient, label
 
 # the bridge runs on windows, outside the container
@@ -113,7 +116,8 @@ SEPARATOR = " || "
 # every value is padded to the width of one such as 7.46, 0.42 or 26.1, so the | line up
 VALUE_WIDTH = 4
 NOT_RECORDED = "-"
-NOT_AVAILABLE = "n.a."
+# the name onepen.py gives a pen whose advertisement has none
+UNKNOWN_PEN_NAME = "?"
 T = TypeVar("T")
 
 # the part of the day chosen at the start, a key of ROOMS
@@ -123,8 +127,6 @@ daily_dir = drip_drain.DEFAULT_DAILY_DIR
 room: Room | None = None
 # true once every room of the part of the day is done, for the csv to be saved to the daily folder
 all_done = False
-# the rooms skipped since the start, which leave no row in the csv to continue from
-skipped: set[str] = set()
 # "s" or "q" after the first press, while the skip or the quit waits for the second. empty otherwise
 asked = ""
 pen: PenClient | None = None
@@ -132,7 +134,7 @@ pen: PenClient | None = None
 
 def values_text(values: dict, missing: str) -> str:
     shown = {key: (values[key] or missing).ljust(VALUE_WIDTH) for key in values}
-    return f"PH: {shown['ph']} | EC: {shown['ec']} | T: {shown['temp']}"
+    return f"PH: {shown['ph']} | EC: {shown['ec']} | T: {shown['temperature']}"
 
 
 def room_separator(name: str | None) -> str:
@@ -156,9 +158,9 @@ def room_lines(current: Room) -> list[str]:
                 (TYPE_HINT, CYAN),
             ]
         elif active and reading is None:
-            # - until the pen sends its first live value, then n.a. for any value it lacks
-            missing = NOT_AVAILABLE if pen.has_live else NOT_RECORDED
-            live_values = values_text(drip_drain.csv_values(*pen.live_reading()), missing)
+            # - until the pen sends its first live value, then n.a for any value it lacks
+            live = drip_drain.csv_values(*pen.live_reading()) if pen.has_live else NO_VALUES
+            live_values = values_text(live, NOT_RECORDED)
             parts = [
                 (f"{start}{ml}{SEPARATOR}", PLAIN),
                 (live_values, YELLOW + BLINK),
@@ -213,7 +215,7 @@ def start_room() -> None:
     """Starts the room that continues from the csv. When every room is done, read_keys returns, to save the csv."""
     global room, all_done
     try:
-        room = drip_drain.next_room(drip_drain.read_csv(), part_of_day, frozenset(skipped))
+        room = drip_drain.next_room(drip_drain.read_csv(), part_of_day)
     except ValueError as error:
         room = None
         say(f"# no room can start: {error}")
@@ -244,9 +246,9 @@ async def save_csv() -> None:
         say(f"# {CSV_PATH.name} not saved to the daily folder, and not emptied: {error}")
 
 
-async def save_room() -> None:
-    """Appends the confirmed room to the csv and starts the next one."""
-    rows = room.rows(pen.name)
+async def save_room(skip: bool = False) -> None:
+    """Appends the confirmed room to the csv, or the skipped one with every value n.a, and starts the next one."""
+    rows = room.skipped_rows(pen.name) if skip else room.rows(pen.name)
     while True:
         try:
             drip_drain.append_rows(rows)
@@ -254,15 +256,11 @@ async def save_room() -> None:
         except PermissionError:
             say(f"# {CSV_PATH.name} is open in another program, close it. trying again every {CSV_RETRY_SECONDS} s")
             await asyncio.sleep(CSV_RETRY_SECONDS)
-    # the lines of the saved room stay on screen, the next room is drawn below them
-    screen.keep()
-    start_room()
-
-
-def skip_room() -> None:
-    """Drops the room without writing it and starts the next one."""
-    skipped.add(room.name)
-    say(f"# room {room.name} skipped, not written to {CSV_PATH.name}")
+    if skip:
+        say(f"# room {room.name} skipped, written to {CSV_PATH.name} with its values n.a")
+    else:
+        # the lines of the saved room stay on screen, the next room is drawn below them
+        screen.keep()
     start_room()
 
 
@@ -291,8 +289,9 @@ def press(key: str) -> None:
         # only enter confirms a skip (read_keys handles enter on a quit). any other key cancels it
         was, asked = asked, ""
         if was == "s" and key in ENTER:
-            # start_room draws
-            skip_room()
+            # save_room draws, once the rows are written
+            room.confirm()
+            asyncio.create_task(save_room(skip=True))
             return
     elif key.lower() in ("s", "q"):
         asked = key.lower()
@@ -312,7 +311,9 @@ def press(key: str) -> None:
         record_live()
         return
     elif room.typing_ml and not room.confirming and key.isdecimal() and key.isascii():
-        room.type_digit(key)
+        reason = room.type_digit(key)
+        if reason is not None:
+            say(f"# reading dropped, {reason}")
     draw()
 
 
@@ -437,6 +438,9 @@ async def take_rooms() -> None:
             say("# waiting for the pen to connect. Make sure the pen is turned on, Q TO QUIT")
             if not await alongside(pen_task, wait_for_pen()):
                 return
+        # the name is the device of every row: a pen without one is a fault to look at, not a csv to fix after
+        if pen.name in ("", UNKNOWN_PEN_NAME):
+            raise PenNameMissing(f"pen {pen.address} has no name, which every row needs as its device")
         start_room()
         # q ends read_keys, and so does the last room done
         await alongside(pen_task, read_keys())
@@ -456,9 +460,9 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
-    except drip_drain.HeaderNotRecognized as error:
-        # read at the start, before any room: a message instead of a traceback, and an exit code that keeps
-        # the window of OnePen.cmd open so it can be read
+    except (drip_drain.HeaderNotRecognized, PenNameMissing) as error:
+        # found before any room: a message instead of a traceback, and an exit code that keeps the window of
+        # OnePen.cmd open so it can be read
         print(f"# error: {error}")
         sys.exit(1)
     if room is not None and not room.saving and room.started:

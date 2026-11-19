@@ -16,21 +16,37 @@ from zoneinfo import ZoneInfo
 # - in the work-in-progress volume, so it survives the container
 # - the subfolder is named only here, and made when it is missing
 CSV_PATH = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "journal_entries" / "drip_drain.csv"
+# the columns of dw_bronze.brnz_journal_entries (Database/01_create_schemas_and_tables.sql), the file the warehouse
+# loads. stg_journal_entries judges them
 CSV_COLUMNS = (
     "date_time",
-    "subject",
-    "notes",
-    "type",
-    "ec",
-    "ec_pore",
-    "ec_bulk",
-    "ph",
-    "mc",
-    "temp",
     "device",
-    "media",
-    "tags",
+    "spot",
+    "ml",
+    "ec",
+    "ph",
+    "temperature",
+    "room",
+    "bench",
+    "remarks",
+    "reading_status",
 )
+# a value not taken, never an empty string, so staging tells it from a value lost on the way
+NOT_AVAILABLE = "n.a"
+# what the values of a row are, decided here, judged by staging:
+# - measured: ml at UNRELIABLE_READING_MAX_ML or more
+# - unreliable: ml below it, whatever the pen gave: the values are kept, n.a when the probe was dry
+# - skipped: the room was skipped. date_time is when, every value is n.a
+MEASURED = "measured"
+UNRELIABLE = "unreliable"
+SKIPPED = "skipped"
+# below this ml a reading is unreliable, and only then may the probe be dry. the same as unreliable_reading_max_ml
+# in DataWarehouseDbt/dbt_project.yml: change both together
+UNRELIABLE_READING_MAX_ML = 300
+# every reading is taken at this bench for now
+BENCH = "4"
+# the values of a reading, the ones a dry probe has not got
+VALUE_COLUMNS = ("ec", "ph", "temperature")
 # the rooms of each part of the day, in the order they are taken
 ROOMS = {
     "morning": ("1.30", "1.29", "1.28", "1.27", "1.26", "1.25", "1.24", "0.31", "0.32", "0.33"),
@@ -64,18 +80,19 @@ def now() -> str:
 
 
 def csv_values(ec: float | None, ph: float | None, temperature: float | None) -> dict:
-    """The values as the csv stores them, an empty string for none."""
+    """The values as the csv stores them, NOT_AVAILABLE for none."""
     # a dry probe has no ec, and its ph and temperature are not of the water either
     if ec is None:
-        return {"ec": "", "ph": "", "temp": ""}
+        return dict.fromkeys(VALUE_COLUMNS, NOT_AVAILABLE)
     return {
         "ec": f"{ec:.2f}",
-        "ph": "" if ph is None else f"{ph:.2f}",
-        "temp": "" if temperature is None else f"{temperature:.1f}",
+        "ph": NOT_AVAILABLE if ph is None else f"{ph:.2f}",
+        "temperature": NOT_AVAILABLE if temperature is None else f"{temperature:.1f}",
     }
 
 
-NO_VALUES = csv_values(None, None, None)
+# a line without a reading yet, for the screen only: never written
+NO_VALUES = dict.fromkeys(VALUE_COLUMNS, "")
 
 
 @dataclass
@@ -130,8 +147,13 @@ class Room:
         """Goes from the readings to the ml or back, on the same line."""
         self.typing_ml = to_ml
 
-    def type_digit(self, digit: str) -> None:
+    def type_digit(self, digit: str) -> str | None:
+        """Adds the digit to the ml of the line. Why its reading was dropped when it was, else None."""
         self.ml[self.line] += digit
+        if self._dry_at_too_much_ml(self.line):
+            self.readings[self.line] = None
+            return f"the probe was dry, which is allowed only below {UNRELIABLE_READING_MAX_ML} ml. take it again"
+        return None
 
     def next_line(self) -> None:
         """Goes on from a line whose ml is typed."""
@@ -162,26 +184,61 @@ class Room:
         if self.readings[self.line] is not None:
             return "the line has one already. delete it first"
         self.readings[self.line] = {"date_time": date_time, **csv_values(ec, ph, temperature)}
+        if self._dry_at_too_much_ml(self.line):
+            self.readings[self.line] = None
+            return f"the probe is dry, which is allowed only below {UNRELIABLE_READING_MAX_ML} ml. take it again"
         self._advance(self.readings)
         return None
+
+    def _dry_at_too_much_ml(self, line: int) -> bool:
+        """The line has a dry reading (no ec) at an ml that is not low enough for it: staging would refuse it."""
+        reading = self.readings[line]
+        return (
+            reading is not None
+            and reading["ec"] == NOT_AVAILABLE
+            and bool(self.ml[line])
+            and int(self.ml[line]) >= UNRELIABLE_READING_MAX_ML
+        )
 
     def confirm(self) -> None:
         self.saving = True
 
     def rows(self, pen_name: str) -> list[dict]:
-        """The room as rows of the csv, in the shape of a journal entries export."""
-        rows = []
-        for ml, reading in zip(self.ml, self.readings):
-            row = dict.fromkeys(CSV_COLUMNS, "")
-            row.update(
-                subject=f"{pen_name} - Measurement",
-                notes=str(int(ml)),
-                type="measurement",
-                tags=self.name,
+        """The confirmed room as rows of the csv, one per line."""
+        return [
+            {
+                **self._row(line_name, pen_name),
+                "ml": str(int(ml)),
                 **reading,
-            )
-            rows.append(row)
-        return rows
+                # a dry probe is refused at more ml (record, type_digit), so it is always unreliable here
+                "reading_status": UNRELIABLE if int(ml) < UNRELIABLE_READING_MAX_ML else MEASURED,
+            }
+            for line_name, ml, reading in zip(self.line_names, self.ml, self.readings)
+        ]
+
+    def skipped_rows(self, pen_name: str) -> list[dict]:
+        """The skipped room as rows of the csv, one per line still to take, so the file keeps a row for every line,
+        and continues past the room. date_time is when it was skipped, every value NOT_AVAILABLE."""
+        skipped_at = now()
+        return [
+            {
+                **self._row(line_name, pen_name),
+                "date_time": skipped_at,
+                "ml": NOT_AVAILABLE,
+                **csv_values(None, None, None),
+                "reading_status": SKIPPED,
+            }
+            for line_name in self.line_names
+        ]
+
+    def _row(self, line_name: str, pen_name: str) -> dict:
+        """What every row of the room has, whether taken or skipped. remarks stays empty for now."""
+        if not pen_name:
+            raise PenNameMissing("the pen has no name, so no row can be written")
+        row = dict.fromkeys(CSV_COLUMNS, "")
+        # Drip Left becomes drip_left. the rooms of ROOM_LINE_NAMES have drip_1 and so on, which staging refuses
+        row.update(device=pen_name, spot=line_name.lower().replace(" ", "_"), room=self.name, bench=BENCH)
+        return row
 
     def _advance(self, values: list) -> None:
         """After a line is filled: goes to the next empty line of values.
@@ -210,6 +267,10 @@ def next_empty(values: list, start: int) -> int | None:
     return None
 
 
+class PenNameMissing(ValueError):
+    """The pen connected has no name, which the csv needs as its device."""
+
+
 class HeaderNotRecognized(ValueError):
     """The header of the csv is not CSV_COLUMNS, such as a csv left by a version that writes other columns."""
 
@@ -229,32 +290,32 @@ def read_csv() -> list[dict]:
         return [row for row in reader if any((cell or "").strip() for cell in row.values())]
 
 
-def next_room(rows: list[dict], part_of_day: str, skipped: frozenset[str] = frozenset()) -> Room | None:
+def next_room(rows: list[dict], part_of_day: str) -> Room | None:
     """The room of the part of the day that continues from the last row, with the lines it still needs.
 
-    The rooms in skipped are passed over, as a skipped room leaves no row. None when every room is
-    done. Every row must be of the part of the day: a csv of the other one is not continued.
+    A skipped room has its rows too, so the csv alone tells where to continue. None when every room
+    is done. Every row must be of the part of the day: a csv of the other one is not continued.
     """
     rooms = ROOMS[part_of_day]
-    others = sorted({row["tags"] for row in rows} - set(rooms))
+    others = sorted({row["room"] for row in rows} - set(rooms))
     if others:
         raise ValueError(
-            f"{CSV_PATH.name} has rows with tags {', '.join(others)}, which are not rooms of this part of the day"
+            f"{CSV_PATH.name} has rows of rooms {', '.join(others)}, which are not rooms of this part of the day"
         )
     start = 0
     if rows:
-        last = rows[-1]["tags"]
+        last = rows[-1]["room"]
         index = rooms.index(last)
-        # the rows of the last room are the ones at the end with its tags
+        # the rows of the last room are the ones at the end with its room
         in_room = 0
         for row in reversed(rows):
-            if row["tags"] != last:
+            if row["room"] != last:
                 break
             in_room += 1
-        if in_room < len(line_names(last)) and last not in skipped:
+        if in_room < len(line_names(last)):
             return Room(last, len(line_names(last)) - in_room)
         start = index + 1
-    following = next((room_name for room_name in rooms[start:] if room_name not in skipped), None)
+    following = rooms[start] if start < len(rooms) else None
     return Room(following, len(line_names(following))) if following is not None else None
 
 

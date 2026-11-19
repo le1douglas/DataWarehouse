@@ -14,7 +14,8 @@ with
             journal_entries.ml,
             journal_entries.ec,
             journal_entries.ph,
-            journal_entries.remarks
+            journal_entries.remarks,
+            journal_entries.reading_status
         from {{ ref("fct_journal_entries") }} as journal_entries
         inner join
             {{ ref("dim_absolute_positions") }} as absolute_positions
@@ -29,18 +30,22 @@ with
             any_value(ec) filter (where horizontal = 'left' and vertical = 'up') as left_drip_ec,
             any_value(ml) filter (where horizontal = 'left' and vertical = 'up') as left_drip_ml,
             any_value(remarks) filter (where horizontal = 'left' and vertical = 'up') as left_drip_remarks,
+            any_value(reading_status) filter (where horizontal = 'left' and vertical = 'up') as left_drip_reading_status,
             any_value(ph) filter (where horizontal = 'left' and vertical = 'down') as left_drain_ph,
             any_value(ec) filter (where horizontal = 'left' and vertical = 'down') as left_drain_ec,
             any_value(ml) filter (where horizontal = 'left' and vertical = 'down') as left_drain_ml,
             any_value(remarks) filter (where horizontal = 'left' and vertical = 'down') as left_drain_remarks,
+            any_value(reading_status) filter (where horizontal = 'left' and vertical = 'down') as left_drain_reading_status,
             any_value(ph) filter (where horizontal = 'right' and vertical = 'up') as right_drip_ph,
             any_value(ec) filter (where horizontal = 'right' and vertical = 'up') as right_drip_ec,
             any_value(ml) filter (where horizontal = 'right' and vertical = 'up') as right_drip_ml,
             any_value(remarks) filter (where horizontal = 'right' and vertical = 'up') as right_drip_remarks,
+            any_value(reading_status) filter (where horizontal = 'right' and vertical = 'up') as right_drip_reading_status,
             any_value(ph) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ph,
             any_value(ec) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ec,
             any_value(ml) filter (where horizontal = 'right' and vertical = 'down') as right_drain_ml,
-            any_value(remarks) filter (where horizontal = 'right' and vertical = 'down') as right_drain_remarks
+            any_value(remarks) filter (where horizontal = 'right' and vertical = 'down') as right_drain_remarks,
+            any_value(reading_status) filter (where horizontal = 'right' and vertical = 'down') as right_drain_reading_status
         from readings
         group by room, date
     ),
@@ -66,6 +71,7 @@ with
 -- - drain per plant divides by 3.0: 3 would be an integer division
 -- - the percentage divides the unrounded value and is rounded once, to 0.1 %. a fraction (0.174 for 17.4 %),
 --   as Excel and Power BI percent formats expect. null when the drip is missing or 0
+-- - reading_status: missing when the position has no reading that day
 -- - the grosens columns are placeholders until their data arrives, as a dataset of its own
 -- - iso_week and iso_year: monday to sunday, in the year of the week's thursday
 select
@@ -84,10 +90,12 @@ select
     left_drip_ec,
     left_drip_ml,
     left_drip_remarks,
+    coalesce(left_drip_reading_status, 'missing') as left_drip_reading_status,
     left_drain_ph,
     left_drain_ec,
     left_drain_ml,
     left_drain_remarks,
+    coalesce(left_drain_reading_status, 'missing') as left_drain_reading_status,
     round(left_drain_ml / 3.0)::integer as left_drain_ml_per_plant,
     round(left_drain_ml / 3.0 / nullif(left_drip_ml, 0), 3)::numeric(5, 3) as left_drain_percentage,
     null::text as right_grosens_ec_low,
@@ -98,10 +106,12 @@ select
     right_drip_ec,
     right_drip_ml,
     right_drip_remarks,
+    coalesce(right_drip_reading_status, 'missing') as right_drip_reading_status,
     right_drain_ph,
     right_drain_ec,
     right_drain_ml,
     right_drain_remarks,
+    coalesce(right_drain_reading_status, 'missing') as right_drain_reading_status,
     round(right_drain_ml / 3.0)::integer as right_drain_ml_per_plant,
     round(right_drain_ml / 3.0 / nullif(right_drip_ml, 0), 3)::numeric(5, 3) as right_drain_percentage
 from room_days

@@ -25,7 +25,7 @@ A bronze/silver/gold data warehouse. Bad data never reaches silver: a load that 
 ## Data rules
 - `row_id` is the primary key of bronze and the only column shared between datasets, carried unchanged through the pipeline. Silver has no constraints, only an index on its business key. In gold a fact's primary key is its business key, `row_id` is a unique key, and every key is a dbt_constraints test (`docs/CODING_STANDARDS.md`).
 - A datetime is text up to staging, which appends the `timezone` var (`Europe/Amsterdam`, from `TZ` in `docker/compose.yaml`) and casts it to `timestamptz`, to the microsecond. The cast accepts only a zone that cannot be misread (`macros/cast_select.sql`). A date without a zone is assumed `Europe/Amsterdam`: warn every time this assumption is not true.
-- Empty string means null. The decimal separator is `.`.
+- Empty string means null, and so does `n.a` (the `not_available` var), which `cast_select` makes null as it cannot be cast: a value the source did not take. In journal entries it is allowed only where `reading_status` says so. The decimal separator is `.`.
 - Silver keeps the precision the source sends. Gold reduces it per dataset: for journal entries, `date_time` truncated to the second and decimals rounded to `numeric(4,2)`.
 
 ## Agent skills

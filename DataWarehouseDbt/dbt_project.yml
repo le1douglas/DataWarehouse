@@ -15,6 +15,12 @@ vars:
   # - a rebuilt table loses its keys, and the foreign keys pointing at it, until that DAG runs again
   # - nothing in the pipeline relies on the keys: they exist for OpenMetadata, Excel and Power BI
   dbt_constraints_enabled: false
+  # a value the source did not take on purpose. the same as NOT_AVAILABLE in
+  # src/bluelab_datastreamer/drip_drain.py
+  not_available: "n.a"
+  # below this many ml the probe can be dry: a journal entry may then have no ec, ph and temperature
+  # (reading_status unreliable)
+  unreliable_reading_max_ml: 300
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]

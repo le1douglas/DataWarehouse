@@ -14,7 +14,9 @@ select
     journal_entries.ec::numeric(4, 2) as ec,
     journal_entries.ph::numeric(4, 2) as ph,
     journal_entries.temperature::numeric(4, 2) as temperature,
-    journal_entries.remarks
+    journal_entries.remarks,
+    -- measured, unreliable or skipped: the measures of the last two may be null
+    journal_entries.reading_status
 from {{ ref("slvr_journal_entries") }} as journal_entries
 -- the room. a left join: staging checked the position once, at load time, and a seed change can remove it later
 left join

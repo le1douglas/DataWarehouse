@@ -1,13 +1,14 @@
 models:
   - name: fct_journal_entries
-    description: The journal entries, one row per measurement, with a key to each dimension and the measures.
+    description: The journal entries, one row per position taken or skipped, with a key to each dimension and the
+                measures. Filter on reading_status, as a skipped or unreliable row has null measures.
     # keys, constraints only through refresh_metadata:
-    # - primary key: the business key. a device cannot measure twice in one second, so it holds after truncation
+    # - primary key: the business key. a position has one entry per day (staging), so it holds after truncation
     # - row_id unique, to trace a row back to silver
     data_tests:
       - dbt_constraints.primary_key:
           arguments:
-            column_names: [date_time, device]
+            column_names: [date_time, absolute_position]
     columns:
       - name: row_id
         data_type: uuid
@@ -16,7 +17,7 @@ models:
           - dbt_constraints.unique_key
       - name: date_time
         data_type: timestamptz(0)
-        description: When the journal entry was measured, truncated to the second.
+        description: When the journal entry was measured, or its room skipped, truncated to the second.
       - name: device
         data_type: text
         description: The device that took the measurement.
@@ -57,3 +58,7 @@ models:
       - name: remarks
         data_type: text
         description: The user's own comment on this reading, such as no runoff. Usually null.
+      - name: reading_status
+        data_type: text
+        description: measured; unreliable (such as a dry probe, ec, ph and
+                    temperature may be null) or skipped (the room was skipped on purpose)
