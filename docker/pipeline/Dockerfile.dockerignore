@@ -8,11 +8,7 @@
 !docker/webapps/requirements-webapps.txt
 !docker/datastreamer/requirements-datastreamer.txt
 
-# written on Windows: the image installs its own packages and plugins
-DataWarehouseDbt/target
-DataWarehouseDbt/logs
-DataWarehouseDbt/dbt_packages
+# the image installs its own plugins. output is meltano's own folder of run output
 DataWarehouseMeltano/.meltano
 DataWarehouseMeltano/output
-DataWarehouseMeltano/.env
 **/__pycache__
