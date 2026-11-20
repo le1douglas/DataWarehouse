@@ -15,6 +15,9 @@ dialect = postgres
 runaway_limit = 10
 max_line_length = 120
 indent_unit = space
+# not in dbt Labs' config: joins use using, not on
+# - using merges the join keys, so a select * after a join has each key once
+exclude_rules = structure.using
 
 [sqlfluff:templater:dbt]
 project_dir = DataWarehouseDbt

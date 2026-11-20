@@ -75,6 +75,7 @@
         "sqlfluff.executablePath": "/opt/venvs/tools/bin/sqlfluff",
         "sqlfluff.experimental.format.executeInTerminal": true,
         "sqlfluff.linter.run": "onSave",
+        "sqlfluff.linter.diagnosticSeverity": "hint",
         "[jinja-sql]": {
           "editor.defaultFormatter": "sqlfluff.vscode-sqlfluff"
         },

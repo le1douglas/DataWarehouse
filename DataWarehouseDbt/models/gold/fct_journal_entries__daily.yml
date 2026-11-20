@@ -10,7 +10,7 @@ models:
     data_tests:
       - dbt_constraints.primary_key:
           arguments:
-            column_names: [room, date]
+            column_names: [room, local_date]
     columns:
       - name: room
         data_type: text
@@ -35,7 +35,7 @@ models:
               arguments:
                 pk_table_name: ref('dim_plants_batches')
                 pk_column_name: pp_number
-      - name: date
+      - name: local_date
         data_type: date
         description: The day of the measurements, in Europe/Amsterdam.
       - name: iso_year
