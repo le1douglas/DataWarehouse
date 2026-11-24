@@ -7,7 +7,7 @@ from nicegui import ui
 
 NAME = "MOCK-PEN"
 INTERVAL_SECONDS = 1.0
-# per quantity: where it starts, how far it may move in a step, and the range it stays in
+# per metric: where it starts, how far it may move in a step, and the range it stays in
 # - about what a drip or drain line reads
 WALKS = {
     "ph": (5.8, 0.03, 5.0, 7.0),
@@ -23,7 +23,7 @@ class MockPen:
 
     Whether it is connected, and its name once it is, are its own: the page reads them, and keeps no
     copy. What happens goes to the callbacks:
-    - on_live: a quantity (ph, ec, temperature) and its value, None for one the pen has not got
+    - on_live: a metric (ph, ec, temperature) and its value, None for one the pen has not got
     - on_disconnected
     - on_error: a message
 
@@ -43,7 +43,7 @@ class MockPen:
         self.connected = False
         # the name of the pen connected last, empty before the first
         self.name = ""
-        self.values = {quantity: start for quantity, (start, _, _, _) in WALKS.items()}
+        self.values = {metric: start for metric, (start, _, _, _) in WALKS.items()}
         self._timer = ui.timer(INTERVAL_SECONDS, self._step, active=False)
 
     def attach(self, connect: ui.button, disconnect: ui.button) -> None:
@@ -62,9 +62,9 @@ class MockPen:
         self.on_disconnected()
 
     def _step(self) -> None:
-        for quantity, (start, step, low, high) in WALKS.items():
-            value = self.values[quantity]
+        for metric, (start, step, low, high) in WALKS.items():
+            value = self.values[metric]
             moved = value + random.uniform(-step, step) + PULL * (start - value)
-            self.values[quantity] = min(high, max(low, moved))
+            self.values[metric] = min(high, max(low, moved))
             # two decimals, as the pen sends them
-            self.on_live(quantity, round(self.values[quantity], 2))
+            self.on_live(metric, round(self.values[metric], 2))

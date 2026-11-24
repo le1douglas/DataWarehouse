@@ -36,6 +36,10 @@ _Avoid_: Spot, which is the source's column; drip or drain and side, the columns
 The place in the real world where a journal entry was measured: its room, its bench and its relative position, such as `1.30_4_front_left_up`. Every one that exists is generated from the rooms, their number of benches and the relative positions.
 _Avoid_: Spot, position, location
 
+**Daily walk**:
+One pass through the rooms, in a fixed order, to measure the journal entries of each: the room open in the drip and drain web app, and every journal entry confirmed on the way. Its journal entries are one csv, which holds one daily walk.
+_Avoid_: Round, session, visit
+
 ### Plants batches
 
 **Plants batch**:
