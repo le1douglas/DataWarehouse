@@ -4,13 +4,13 @@ The page draws and asks; the daily walk (state/daily_walk.py) decides: which roo
 confirm is allowed, and every read and write of the csv. Each card (ui/journal_entry_card.py) is
 drawn again after a confirm, a delete, and a move to another room (ui/room_selector.py).
 
-The page knows nothing of the pen's bytes: the pen gives it decoded values through callbacks. For
-now the pen is MockPen.
+The page knows nothing of the pen's bytes: the pen, a OnePen connected by the browser over Web Bluetooth
+(pens/one_pen.py), gives it decoded values through callbacks.
 """
 
 from nicegui import ui
 
-from webapps.pens.mock_pen import MockPen
+from webapps.pens.one_pen import OnePen
 from webapps.settings import CSV_PATH, ROOMS
 from webapps.state.daily_walk import DailyWalk
 from webapps.state.journal_entry_csv import JournalEntryCsv
@@ -82,7 +82,7 @@ def draw_page() -> None:
                 )
 
     # the values go to the open room. a pen that is gone leaves none on the screen
-    pen = MockPen(on_live=walk.receive_live_value, on_disconnected=walk.clear_live_values, on_error=notify_error)
+    pen = OnePen(on_live=walk.receive_live_value, on_disconnected=walk.clear_live_values, on_error=notify_error)
 
     room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
 

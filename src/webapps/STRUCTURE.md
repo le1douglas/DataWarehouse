@@ -13,10 +13,10 @@ The objects of the app, what each one does, and how data moves between them. The
 | Spot | constant | `SPOTS = ("drip_left", "drip_right", "drain_left", "drain_right")` in measuring order, in the csv form. The label on screen (`Drip Left`) is derived from it. `spot` is the source's name for the glossary's relative position. |
 | Rooms | setting | `ROOMS`: the app's own ordered list of room names, the route walked. |
 | JournalEntryCsv | storage | The one csv, keyed by (room, spot), which holds one daily walk. It reads the entries of a room, appends one and deletes one. It is the only record of confirmed entries, and the app's output. It owns the file's format: the columns, `n.a` for `None`, the decimals, `date_time` without its zone. It writes an entry as it is, without looking at its `reading_status`. |
-| Pen | device | Sends live `ph`, `ec` and `temperature` values. It also owns its connection status, `connected` and `name`, which becomes `device`. The UI reads these and keeps no copy. It is `MockPen` now and will be a OnePen later. |
+| Pen | device | Sends live `ph`, `ec` and `temperature` values. It also owns its connection status, `connected` and `name`, which becomes `device`. The UI reads these and keeps no copy. It is a Bluelab OnePen, connected by the browser over Web Bluetooth: Chrome's own chooser opens on Connect, and the bytes of every notification go to Python, which decodes them. At most one event stream: each new connection first lets the previous one go. Only on a secure page, such as `http://localhost`. |
 | JournalEntryCard | UI | Shows one JournalEntry as a card. For the current entry the user fills in `ml` and `remarks`, then presses Confirm, or Skip when the spot is not measured. `remarks` is optional: it may be left empty, and an empty value is written as an empty string. A confirmed skipped entry is greyed out. |
 | RoomSelector | UI | Previous and next buttons that move through Rooms. It only asks Main for a room, and shows it once Main has moved there. |
-| PenSelector | UI | Connect and Disconnect buttons and the pen status. |
+| PenSelector | UI | One button, Connect pen or Disconnect, and the pen status. |
 | ConfirmDialog | UI | One yes or no dialog with its question set by Main. It asks before a confirmed entry is deleted. It also asks before a room change would discard a typed entry, meaning one where `ml` or `remarks` has been typed. Live values alone do not count, because the pen sends them again. |
 | Main | UI | The entry point and its one page. It creates the DailyWalk, the Pen and the UI elements and wires them together. It asks, notifies and redraws; DailyWalk decides. |
 
@@ -167,4 +167,4 @@ flowchart LR
 | JournalEntry | `state/journal_entry.py` |
 | JournalEntryState | `state/journal_entry_state.py` |
 | JournalEntryCsv | `state/journal_entry_csv.py` |
-| Pen | `pens/mock_pen.py` |
+| Pen | `pens/one_pen.py`, and its browser side `pens/one_pen.js` |
