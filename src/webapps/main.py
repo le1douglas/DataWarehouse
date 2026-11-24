@@ -42,27 +42,27 @@ def draw_page() -> None:
 
     def confirm() -> None:
         # Confirm and Enter both come here
+        # no toast: the card turning green says it
         if is_confirm_allowed():
-            label = format_spot_label(walk.room.current_entry.spot)
             walk.confirm(pen.name)
-            show_change(f"{label} confirmed", "positive")
+            redraw()
 
     def skip() -> None:
-        label = format_spot_label(walk.room.current_entry.spot)
+        # no toast: the card turning grey says it
         walk.skip()
-        show_change(f"{label} skipped", "info")
+        redraw()
 
     async def ask_delete(spot: str) -> None:
         label = format_spot_label(spot)
         if await confirm_dialog.ask(f"Delete the readings of {label}?", "Delete", "delete"):
             walk.delete(spot)
-            show_change(f"{label} deleted", "info")
+            redraw()
+            ui.notify(f"{label} deleted", type="info")
 
-    def show_change(done: str, kind: str) -> None:
-        """After a change of the csv: draws the cards again from it and says so."""
+    def redraw() -> None:
+        """After a change of the csv: draws the cards and the csv box again from it."""
         draw_cards.refresh()
         csv_box.set_value(walk.read_csv_text())
-        ui.notify(done, type=kind)
 
     def notify_error(message: str) -> None:
         ui.notify(message, type="negative")
