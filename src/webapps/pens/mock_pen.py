@@ -21,9 +21,9 @@ PULL = 0.05
 class MockPen:
     """The pen the page talks to: the callbacks, then attach.
 
-    What happens goes to the callbacks:
+    Whether it is connected, and its name once it is, are its own: the page reads them, and keeps no
+    copy. What happens goes to the callbacks:
     - on_live: a quantity (ph, ec, temperature) and its value, None for one the pen has not got
-    - on_connected: the name of the pen
     - on_disconnected
     - on_error: a message
 
@@ -34,14 +34,15 @@ class MockPen:
     def __init__(
         self,
         on_live: Callable[[str, float | None], None],
-        on_connected: Callable[[str], None],
         on_disconnected: Callable[[], None],
         on_error: Callable[[str], None],
     ) -> None:
         self.on_live = on_live
-        self.on_connected = on_connected
         self.on_disconnected = on_disconnected
         # on_error is never called: a pen that is not there cannot fail
+        self.connected = False
+        # the name of the pen connected last, empty before the first
+        self.name = ""
         self.values = {quantity: start for quantity, (start, _, _, _) in WALKS.items()}
         self._timer = ui.timer(INTERVAL_SECONDS, self._step, active=False)
 
@@ -51,11 +52,13 @@ class MockPen:
         disconnect.on_click(self.disconnect)
 
     def connect(self) -> None:
-        self.on_connected(NAME)
+        self.name = NAME
+        self.connected = True
         self._timer.activate()
 
     def disconnect(self) -> None:
         self._timer.deactivate()
+        self.connected = False
         self.on_disconnected()
 
     def _step(self) -> None:
