@@ -30,6 +30,10 @@ class DailyWalk:
         """Opens the room: its confirmed entries from the csv, and a new current entry, so a typed one is lost."""
         self.room = self._open_room(name)
 
+    def get_room_index(self) -> int:
+        """The place of the open room in the walk, 0 for the first."""
+        return self.rooms.index(self.room.name)
+
     def receive_live_value(self, metric: str, value: float | None) -> None:
         """A live value of the pen, for the open room."""
         self.room.receive_live_value(metric, value)
@@ -72,7 +76,7 @@ class DailyWalk:
 
     def _go_to_next_room(self) -> None:
         """The room after the open one, none after the last."""
-        index = self.rooms.index(self.room.name) + 1
+        index = self.get_room_index() + 1
         if index < len(self.rooms):
             self.go_to_room(self.rooms[index])
 

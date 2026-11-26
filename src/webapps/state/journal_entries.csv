@@ -1,5 +1,1 @@
 date_time,device,spot,ml,ec,ph,temperature,room,bench,remarks,reading_status
-2026-11-26T08:50:57.861646,ONE-A1F0,drip_left,5654,0.51,7.56,17.7,1.30,4,,measured
-2026-11-26T08:50:59.763954,ONE-A1F0,drip_right,8787,0.51,7.56,17.7,1.30,4,,measured
-2026-11-26T08:51:01.670319,ONE-A1F0,drain_left,787,0.51,7.56,17.6,1.30,4,,measured
-2026-11-26T08:51:04.716730,ONE-A1F0,drain_right,545,0.51,7.56,17.6,1.30,4,,measured

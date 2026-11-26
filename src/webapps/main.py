@@ -24,6 +24,7 @@ from webapps.state.room import SPOTS
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
 from webapps.ui.journal_entry_card import JournalEntryCard, format_spot_label
+from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.settings_dialog import SettingsDialog
 from webapps.ui.status_bar import StatusBar
@@ -31,8 +32,8 @@ from webapps.ui.status_bar import StatusBar
 
 @ui.page("/")
 def draw_page() -> None:
-    # at least the screen's height, so the cards can fill what the status bar leaves. more scrolls
-    ui.query(".nicegui-content").classes("min-h-screen")
+    # the screen's height, so the cards can fill what the status bar leaves. more scrolls in the room panels
+    ui.query(".nicegui-content").classes("h-screen")
 
     # local to the page. one visitor at a time works on the csv
     walk = DailyWalk(ROOMS, JournalEntryCsv(CSV_PATH))
@@ -63,20 +64,20 @@ def draw_page() -> None:
         label = format_spot_label(spot)
         if await confirm_dialog.ask(f"Delete the readings of {label}?", "Delete", "delete"):
             walk.delete(spot)
-            draw_cards.refresh()
+            show_room()
             ui.notify(f"{label} deleted", type="info")
 
     def show_room() -> None:
-        """The open room of the walk, which a confirm or skip may have changed: its name and its cards."""
+        """The open room of the walk, which a confirm or skip may have changed: its name and its cards, slid
+        in when it is another room."""
         room_selector.set_room(walk.room.name)
-        draw_cards.refresh()
+        room_panels.show(walk.get_room_index())
 
     def notify_error(message: str) -> None:
         ui.notify(message, type="negative")
 
-    @ui.refreshable
     def draw_cards() -> None:
-        """The cards as the csv last read says, Drip on top, Drain below."""
+        """The cards of the open room as the csv last read says, Drip on top, Drain below."""
         # grow: the height the status bar leaves. auto-rows-[1fr]: rows of one height, never under what a card holds
         with ui.grid().classes("w-full grow auto-rows-[1fr] grid-cols-1 sm:grid-cols-2 gap-4"):
             for spot in SPOTS:
@@ -105,7 +106,7 @@ def draw_page() -> None:
     # one dialog for the page: a delete, and a move to another room that would lose a typed entry
     confirm_dialog = ConfirmDialog()
 
-    draw_cards()
+    room_panels = RoomPanels(draw_cards, walk.get_room_index())
 
 
 # __mp_main__: the reload process of ui.run imports this module under that name
