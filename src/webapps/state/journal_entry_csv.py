@@ -5,6 +5,7 @@ What a journal entry holds is journal_entry.py: the csv writes it as it is.
 """
 
 import csv
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -26,6 +27,8 @@ CSV_COLUMNS = (
     "remarks",
     "reading_status",
 )
+# the columns a review may set, by name: every other stays as the app wrote it
+EDITABLE_COLUMNS = ("ml", "ec", "ph", "temperature", "remarks")
 # the decimals of each live value
 DECIMALS = {"ph": 2, "ec": 2, "temperature": 1}
 # a value not taken: None in a journal entry. never an empty string, so staging tells it from a value lost on the way
@@ -58,15 +61,38 @@ class JournalEntryCsv:
         """Removes the row of the room, bench and spot, by writing the csv again without it. The other rows as
         they were."""
         kept = [row for row in self._read_rows() if (row["room"], row["bench"], row["spot"]) != (room, *bench_spot)]
-        with self.path.open("w", newline="") as file:
-            writer = csv.DictWriter(file, fieldnames=CSV_COLUMNS, lineterminator="\n")
-            writer.writeheader()
-            writer.writerows(kept)
+        self._write_rows(kept)
+
+    def read_rows(self) -> list[dict[str, str]]:
+        """Every row as it is on disk, every value as text."""
+        return self._read_rows()
+
+    def update_value(self, room: str, bench_spot: BenchSpot, column: str, value: str) -> None:
+        """Sets the value of the column in the row of the room, bench and spot, as it is given, by writing the
+        csv again. The other values as they were.
+
+        - only the EDITABLE_COLUMNS. room, bench and spot are the key that finds the row
+        """
+        if column not in EDITABLE_COLUMNS:
+            raise ValueError(f"{column} is not a column to set")
+        rows = self._read_rows()
+        for row in rows:
+            if (row["room"], row["bench"], row["spot"]) == (room, *bench_spot):
+                row[column] = value
+                self._write_rows(rows)
+                return
+        raise ValueError(f"no row for room {room}, bench {bench_spot[0]}, spot {bench_spot[1]}")
 
     def read_text(self) -> str:
         """The csv as it is on disk, made with its header when missing."""
         self._create()
         return self.path.read_text()
+
+    def export(self, target: Path) -> None:
+        """Copies the csv to target as it is, overwriting a file there. Makes the folder of target when missing."""
+        self._create()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(self.path, target)
 
     def _read_rows(self) -> list[dict[str, str]]:
         self._create()
@@ -75,6 +101,12 @@ class JournalEntryCsv:
             if tuple(reader.fieldnames or ()) != CSV_COLUMNS:
                 raise ValueError(f"header of {self.path.name} not recognized: {','.join(reader.fieldnames or ())}")
             return list(reader)
+
+    def _write_rows(self, rows: list[dict[str, str]]) -> None:
+        with self.path.open("w", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=CSV_COLUMNS, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
 
     def _create(self) -> None:
         if not self.path.exists():

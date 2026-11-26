@@ -36,6 +36,10 @@ class Walk:
         """Opens the room: its confirmed entries from the csv, and a new current entry, so a typed one is lost."""
         self.room = self._open_room(name)
 
+    def is_complete(self) -> bool:
+        """Every room is complete, as the csv says: every bench and spot of each confirmed."""
+        return all(self._open_room(name).is_complete() for name in self.rooms)
+
     def get_room_index(self) -> int:
         """The place of the open room in the walk, 0 for the first."""
         return self.rooms.index(self.room.name)

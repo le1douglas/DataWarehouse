@@ -11,7 +11,8 @@ from webapps.pens.one_pen import OnePen
 
 class SettingsDialog(ui.dialog):
     """Disconnect and the name of the pen under it, read from the pen itself, then the settings: the rooms and
-    the benches, the spots and the csv of the walk, and the timezone. Last the csv as it is on disk.
+    the benches, the spots and the csv of the walk, the timezone, and where the review exports the csv. Last the
+    csv as it is on disk.
 
     - every field read only: the settings are changed in settings.py, the pen by Disconnect
     - the pen makes Disconnect disconnect it (attach_disconnect), in the browser
@@ -44,9 +45,13 @@ class SettingsDialog(ui.dialog):
         super().open()
 
     def _show_settings(self, walk_settings: settings.WalkSettings, csv_path: Path) -> None:
-        """The settings of the walk and the timezone, as settings.py had them when the app started, and the csv."""
+        """The settings of the walk and the timezone, as settings.py had them when the app started, the csv, and
+        the folder and name of its export."""
         ui.textarea("Rooms", value=", ".join(walk_settings.rooms)).props("readonly autogrow").classes("w-full")
         ui.input("Benches", value=", ".join(walk_settings.benches)).props("readonly").classes("w-full")
         ui.textarea("Spots", value=", ".join(walk_settings.spots)).props("readonly autogrow").classes("w-full")
         ui.input("Timezone", value=settings.TIMEZONE.key).props("readonly").classes("w-full")
         ui.input("Csv", value=str(csv_path)).props("readonly").classes("w-full")
+        ui.input("Export folder", value=str(settings.EXPORT_DIR)).props("readonly").classes("w-full")
+        export_name = f"<yymmdd>-{walk_settings.export_number}.csv"
+        ui.input("Export name", value=export_name).props("readonly").classes("w-full")

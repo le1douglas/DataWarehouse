@@ -16,18 +16,20 @@ The page knows nothing of the pen's bytes: the pen, a OnePen connected by the br
 (pens/one_pen.py), gives it decoded values through callbacks.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 from nicegui import ui
 
 from webapps.pens.one_pen import OnePen
-from webapps.settings import CSV_DIR, WALKS
+from webapps.settings import CSV_DIR, EXPORT_DIR, TIMEZONE, WALKS
 from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.room import BenchSpot
 from webapps.state.walk import Walk
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
 from webapps.ui.journal_entry_card import JournalEntryCard, format_bench_spot_label
+from webapps.ui.review_grid import ReviewGrid
 from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.settings_dialog import SettingsDialog
@@ -119,6 +121,8 @@ def draw_walk_page(name: str) -> None:
     settings_dialog = SettingsDialog(pen, WALKS[name], csv_path, read_csv_text=walk.read_csv_text)
 
     status_bar = StatusBar()
+    with status_bar.left:
+        ui.button("Review", icon="table_view", on_click=lambda: ui.navigate.to(f"/walk/{name}/review")).props("flat")
     with status_bar.center:
         room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
     with status_bar.right:
@@ -128,6 +132,47 @@ def draw_walk_page(name: str) -> None:
     confirm_dialog = ConfirmDialog()
 
     room_panels = RoomPanels(draw_cards, walk.get_room_index())
+
+
+@ui.page("/walk/{name}/review")
+def draw_review_page(name: str) -> None:
+    """The csv of the walk of the name as a grid, each value edited in place. Back to the walk page, where
+    the pen is connected again, and Export, only once the walk is complete. Another name goes back to the
+    choice."""
+    if name not in WALKS:
+        ui.navigate.to("/")
+        return
+    journal = JournalEntryCsv(CSV_DIR / f"journal_entries_{name}.csv")
+    # read once: the grid adds, deletes and moves no row, so the walk stays as complete as it was
+    is_complete = Walk(WALKS[name], journal).is_complete()
+
+    async def export() -> None:
+        """Copies the csv to EXPORT_DIR, named by today and the walk, as the datastreamer names its csvs. Asks
+        first when today's export of the walk is there: Cancel keeps it."""
+        target = EXPORT_DIR / f"{datetime.now(TIMEZONE):%y%m%d}-{WALKS[name].export_number}.csv"
+        if target.exists() and not await confirm_dialog.ask(f"Overwrite {target.name}?", "Overwrite", "save"):
+            return
+        try:
+            journal.export(target)
+        except OSError as error:
+            ui.notify(f"Not exported: {error}", type="negative")
+            return
+        ui.notify(f"Exported to {target.name}", type="positive")
+
+    ui.page_title(f"{format_walk_title(name)}: review")
+    # the screen's height, so the grid fills what the bar leaves
+    ui.query(".nicegui-content").classes("h-screen")
+    status_bar = StatusBar()
+    with status_bar.left:
+        ui.button("Back", icon="arrow_back", on_click=lambda: ui.navigate.to(f"/walk/{name}")).props("flat")
+    with status_bar.center:
+        ui.label(f"{format_walk_title(name)}: review").classes("text-xl font-bold")
+    with status_bar.right:
+        export_button = ui.button("Export", icon="file_download", on_click=export).props("flat")
+        export_button.set_enabled(is_complete)
+    # one dialog for the page: an export that would overwrite one
+    confirm_dialog = ConfirmDialog()
+    ReviewGrid(journal).classes("w-full grow")
 
 
 def format_walk_title(name: str) -> str:
