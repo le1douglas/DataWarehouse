@@ -1,5 +1,9 @@
 """The web app, its one page: the pen, the room selector, and the four journal entries of the open room.
 
+The page is used only with a pen connected: without one, a dialog that cannot be closed covers it, with
+Connect pen, and goes once a pen connects. The page under it stays as it is: what is typed, and the live
+values last received, until the pen that connects sends its own.
+
 The page draws and asks; the daily walk (state/daily_walk.py) decides: which room is open, when a
 confirm is allowed, and every read and write of the csv. Each card (ui/journal_entry_card.py) is
 drawn again after a confirm, a delete, and a move to another room (ui/room_selector.py).
@@ -18,8 +22,9 @@ from webapps.state.daily_walk import DailyWalk
 from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.room import SPOTS
 from webapps.ui.confirm_dialog import ConfirmDialog
+from webapps.ui.connect_dialog import ConnectDialog
+from webapps.ui.disconnect_button import DisconnectButton
 from webapps.ui.journal_entry_card import JournalEntryCard, format_spot_label
-from webapps.ui.pen_selector import PenSelector
 from webapps.ui.room_selector import RoomSelector
 
 
@@ -39,13 +44,10 @@ def draw_page() -> None:
         room_selector.set_room(name)
         draw_cards.refresh()
 
-    def is_confirm_allowed() -> bool:
-        return walk.is_confirm_allowed(pen.connected)
-
     def confirm() -> None:
         # Confirm and Enter both come here
         # no toast: the card turning green says it
-        if is_confirm_allowed():
+        if walk.is_confirm_allowed():
             walk.confirm(pen.name)
             redraw()
 
@@ -77,16 +79,18 @@ def draw_page() -> None:
                 JournalEntryCard(
                     walk.room.get_entry(spot),
                     walk.room.get_state(spot),
-                    is_confirm_allowed=is_confirm_allowed,
+                    is_confirm_allowed=walk.is_confirm_allowed,
                     on_confirm=confirm,
                     on_skip=skip,
                     on_delete=lambda spot=spot: ask_delete(spot),
                 )
 
-    # the values go to the open room. a pen that is gone leaves none on the screen
-    pen = OnePen(on_live=walk.receive_live_value, on_disconnected=walk.clear_live_values, on_error=notify_error)
+    # the values go to the open room
+    pen = OnePen(on_live=walk.receive_live_value, on_error=notify_error)
 
-    PenSelector(pen)
+    ConnectDialog(pen)
+
+    DisconnectButton(pen)
 
     room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
 

@@ -21,13 +21,14 @@ NO_READING = -9999
 
 
 class OnePen:
-    """The pen the page talks to: the callbacks, then attach.
+    """The pen the page talks to: the callbacks, then attach_connect and attach_disconnect.
 
-    Whether it is connected, and its name once it is, are its own: the page reads them, and keeps no
-    copy. What happens goes to the callbacks:
+    Whether it is connected or connecting, and its name once it is, are its own: the page reads them,
+    and keeps no copy. What happens goes to the callbacks:
     - on_live: a metric (ph, ec, temperature) and its value, None for one the pen has not got
-    - on_disconnected: by the button, or the pen gone, such as out of range
     - on_error: a message, such as a pen that could not be connected
+
+    connected turns false by the button, or with the pen gone, such as out of range.
 
     Made inside a page: its script and its events are of that page.
     """
@@ -35,25 +36,33 @@ class OnePen:
     def __init__(
         self,
         on_live: Callable[[str, float | None], None],
-        on_disconnected: Callable[[], None],
         on_error: Callable[[str], None],
     ) -> None:
         self.on_live = on_live
-        self.on_disconnected = on_disconnected
         self.on_error = on_error
         self.connected = False
+        # true from the click on Connect until the pen is connected, or the chooser closed without one
+        self.connecting = False
         # the name of the pen connected last, such as ONE-A1F0, empty before the first
         self.name = ""
         ui.add_body_html(f"<script>{JS}</script>")
+        ui.on("one_pen_connecting", self._handle_connecting)
         ui.on("one_pen_connected", self._handle_connected)
         ui.on("one_pen_disconnected", self._handle_disconnected)
         ui.on("one_pen_error", self._handle_error)
         ui.on("one_pen_notify", self._handle_notify)
 
-    def attach(self, toggle: ui.button) -> None:
-        """Makes the button connect the pen, through Chrome's chooser, or disconnect it: in the browser, as
-        Chrome opens the chooser only from a click."""
-        toggle.on("click", js_handler="() => toggleOnePen()")
+    def attach_connect(self, button: ui.button) -> None:
+        """Makes the button connect the pen, through Chrome's chooser: in the browser, as Chrome opens the
+        chooser only from a click."""
+        button.on("click", js_handler="() => connectOnePen()")
+
+    def attach_disconnect(self, button: ui.button) -> None:
+        """Makes the button disconnect the pen, in the browser, which holds the connection."""
+        button.on("click", js_handler="() => disconnectOnePen()")
+
+    def _handle_connecting(self, event: GenericEventArguments) -> None:
+        self.connecting = event.args["connecting"]
 
     def _handle_connected(self, event: GenericEventArguments) -> None:
         self.name = event.args["name"]
@@ -61,11 +70,10 @@ class OnePen:
 
     def _handle_disconnected(self) -> None:
         self.connected = False
-        self.on_disconnected()
 
     def _handle_error(self, event: GenericEventArguments) -> None:
-        """The browser has let the connection go, quietly: so it is gone here too, with any value sent before
-        the failure, such as one of a pen that went while it was being connected."""
+        """The browser has let the connection go, quietly, such as for a pen that went while it was being
+        connected: so it is gone here too."""
         self._handle_disconnected()
         self.on_error(event.args["message"])
 

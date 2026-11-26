@@ -52,8 +52,3 @@ class Room:
         """A live value of the pen, for the current entry. Ignored when every spot is confirmed."""
         if self.current_entry is not None:
             self.current_entry.receive_live_value(metric, value)
-
-    def clear_live_values(self) -> None:
-        """Clears the live values of the current entry, such as when the pen is gone."""
-        if self.current_entry is not None:
-            self.current_entry.clear_live_values()

@@ -66,17 +66,8 @@ class JournalEntry:
         """A copy of it, skipped: no reading, so ready to be confirmed as it is. Its remarks kept."""
         return replace(self, reading_status=SKIPPED)
 
-    def needs_pen(self) -> bool:
-        """A pen must be connected to confirm it: only one with a reading."""
-        return self.has_reading()
-
     def receive_live_value(self, metric: str, value: float | None) -> None:
         setattr(self, metric, value)
-
-    def clear_live_values(self) -> None:
-        """Clears the live values, so none of a pen that is gone is kept."""
-        for metric in METRICS:
-            setattr(self, metric, NOT_RECEIVED)
 
     def make_confirmed(self, device: str) -> "JournalEntry":
         """A copy of it as it is written: taken now by the device, keeping only what it holds once confirmed.
@@ -85,7 +76,7 @@ class JournalEntry:
         - a live value not received is one not got: None
         - without a reading (skipped): no device, no ml and no live values
         """
-        confirmed = replace(self, date_time=datetime.now(TIMEZONE), device=device if self.needs_pen() else "")
+        confirmed = replace(self, date_time=datetime.now(TIMEZONE), device=device if self.has_reading() else "")
         for metric in METRICS:
             if getattr(confirmed, metric) == NOT_RECEIVED:
                 setattr(confirmed, metric, None)

@@ -1,6 +1,7 @@
 // the OnePen over Web Bluetooth, in the browser: Chrome's own device chooser, and the bytes of every notification
 // sent on to Python (one_pen.py), which decodes them. the protocol is that of bluelab_datastreamer/onepen.py
-// - Chrome opens the chooser only from a click, so the button runs toggleOnePen in the browser itself
+// - Chrome opens the chooser only from a click, so the buttons run connectOnePen and disconnectOnePen in the
+//   browser itself
 // - only on a secure page: http://localhost, or https
 // - at most one event stream: the previous connection's listeners are removed before each new one, and the
 //   handlers are named functions, which the browser never adds twice to the same target
@@ -20,14 +21,11 @@ let onePen = null;
 let onePenCharacteristics = [];
 let onePenConnecting = false;
 
-async function toggleOnePen() {
+async function connectOnePen() {
   if (onePenConnecting) return;
-  if (onePen?.gatt.connected) {
-    // handleOnePenDisconnected tells Python
-    onePen.gatt.disconnect();
-    return;
-  }
   onePenConnecting = true;
+  // from the click to the end: the chooser open, then the connection being made
+  emitEvent("one_pen_connecting", { connecting: true });
   try {
     if (!navigator.bluetooth) throw new Error("this browser has no Web Bluetooth: use Chrome on http://localhost");
     const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [ONE_PEN_SERVICE] }] });
@@ -47,7 +45,13 @@ async function toggleOnePen() {
     }
   } finally {
     onePenConnecting = false;
+    emitEvent("one_pen_connecting", { connecting: false });
   }
+}
+
+function disconnectOnePen() {
+  // handleOnePenDisconnected tells Python. nothing happens without a pen connected
+  onePen?.gatt.disconnect();
 }
 
 function dropOnePenStream() {

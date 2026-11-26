@@ -10,7 +10,7 @@ class DailyWalk:
 
     - room: the open room, read from the csv when it is opened and after each confirm and delete.
       replaced only here, so whoever holds the walk always reaches the open room
-    - the pen is not its own: the page passes whether it is connected and its name
+    - the pen is not its own: the page passes its name
     """
 
     def __init__(self, rooms: tuple[str, ...], journal: JournalEntryCsv) -> None:
@@ -32,16 +32,10 @@ class DailyWalk:
         """A live value of the pen, for the open room."""
         self.room.receive_live_value(metric, value)
 
-    def clear_live_values(self) -> None:
-        """Clears the live values of the open room, such as when the pen is gone."""
-        self.room.clear_live_values()
-
-    def is_confirm_allowed(self, pen_connected: bool) -> bool:
-        """The current entry is ready, and the pen is connected when it needs one."""
+    def is_confirm_allowed(self) -> bool:
+        """The current entry is ready."""
         entry = self.room.current_entry
-        if entry is None or not entry.is_ready():
-            return False
-        return pen_connected or not entry.needs_pen()
+        return entry is not None and entry.is_ready()
 
     def confirm(self, device: str) -> None:
         """Confirms the current entry as taken by the device: appends its row and reads the room again."""
