@@ -45,20 +45,19 @@ def draw_page() -> None:
             if not await confirm_dialog.ask(question, "Discard", "delete_sweep"):
                 return
         walk.go_to_room(name)
-        room_selector.set_room(name)
-        draw_cards.refresh()
+        show_room()
 
     def confirm() -> None:
         # Confirm and Enter both come here
         # no toast: the card turning green says it
         if walk.is_confirm_allowed():
             walk.confirm(pen.name)
-            draw_cards.refresh()
+            show_room()
 
     def skip() -> None:
         # no toast: the card turning grey says it
         walk.skip()
-        draw_cards.refresh()
+        show_room()
 
     async def ask_delete(spot: str) -> None:
         label = format_spot_label(spot)
@@ -66,6 +65,11 @@ def draw_page() -> None:
             walk.delete(spot)
             draw_cards.refresh()
             ui.notify(f"{label} deleted", type="info")
+
+    def show_room() -> None:
+        """The open room of the walk, which a confirm or skip may have changed: its name and its cards."""
+        room_selector.set_room(walk.room.name)
+        draw_cards.refresh()
 
     def notify_error(message: str) -> None:
         ui.notify(message, type="negative")

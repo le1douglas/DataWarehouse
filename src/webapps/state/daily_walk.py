@@ -10,6 +10,8 @@ class DailyWalk:
 
     - room: the open room, read from the csv when it is opened and after each confirm and delete.
       replaced only here, so whoever holds the walk always reaches the open room
+    - a confirm or skip that completes the room opens the next one, the last room excepted. only then:
+      a complete room moved to by hand stays open, so its entries can be seen and deleted
     - the pen is not its own: the page passes its name
     """
 
@@ -61,9 +63,18 @@ class DailyWalk:
         return self.journal.read_text()
 
     def _write(self, confirmed: JournalEntry) -> None:
-        """Appends the row, then reads the room again: the current entry replaced only once it is written."""
+        """Appends the row, then reads the room again: the current entry replaced only once it is written. The
+        next room once this one is complete."""
         self.journal.append(confirmed)
         self._read_room()
+        if self.room.is_complete():
+            self._go_to_next_room()
+
+    def _go_to_next_room(self) -> None:
+        """The room after the open one, none after the last."""
+        index = self.rooms.index(self.room.name) + 1
+        if index < len(self.rooms):
+            self.go_to_room(self.rooms[index])
 
     def _open_room(self, name: str) -> Room:
         return Room(name, self.journal.read_entries(name))

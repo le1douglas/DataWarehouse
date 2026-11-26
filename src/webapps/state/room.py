@@ -48,6 +48,10 @@ class Room:
         elif self.current_entry is None or self.current_entry.spot != spot:
             self.current_entry = JournalEntry(spot, room=self.name)
 
+    def is_complete(self) -> bool:
+        """Every spot is confirmed: there is no current entry."""
+        return self.current_entry is None
+
     def receive_live_value(self, metric: str, value: float | None) -> None:
         """A live value of the pen, for the current entry. Ignored when every spot is confirmed."""
         if self.current_entry is not None:
