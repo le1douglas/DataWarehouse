@@ -38,8 +38,8 @@ NOT_AVAILABLE = "n.a"
 class JournalEntryCsv:
     """The csv at path: one row per journal entry confirmed, at most one per room and spot.
 
-    It holds one walk, one csv for each: emptied by hand before its next pass. Made with its header when missing. Only
-    this app works on it, one visitor at a time, so nothing guards against another program or writer.
+    It holds one walk, one csv for each: emptied once the review page has exported it. Made with its header when
+    missing. Only this app works on it, one visitor at a time, so nothing guards against another program or writer.
     A few rows on a local disk, so it is read and written in the event loop.
     """
 
@@ -93,6 +93,10 @@ class JournalEntryCsv:
         self._create()
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(self.path, target)
+
+    def empty(self) -> None:
+        """Removes every row: the header alone, for the walk's next pass."""
+        self._write_rows([])
 
     def _read_rows(self) -> list[dict[str, str]]:
         self._create()

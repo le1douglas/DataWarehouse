@@ -153,6 +153,8 @@ def draw_review_page(name: str) -> None:
 
         - temporary: the same csv in the old format too, in OLD_EXPORT_DIR under the same name, where the
           datastreamer's csvs are: asks first when either is there
+        - only once both are written, the csv is emptied for the walk's next pass, and the page goes back to the
+          choice: the grid's rows are gone
         """
         file_name = f"{datetime.now(TIMEZONE):%y%m%d}-{WALKS[name].export_number}.csv"
         target = EXPORT_DIR / file_name
@@ -163,10 +165,13 @@ def draw_review_page(name: str) -> None:
         try:
             journal.export(target)
             write_old_journal_entries(journal.read_rows(), WALKS[name], old_target)
-        except OSError as error:
+        # ValueError: a row the old format cannot place, as its room, bench or spot is not of the walk
+        except (OSError, ValueError) as error:
             ui.notify(f"Not exported: {error}", type="negative")
             return
-        ui.notify(f"Exported to {target.name}", type="positive")
+        journal.empty()
+        ui.notify(f"Exported to {target.name}, walk emptied", type="positive")
+        ui.navigate.to("/")
 
     ui.page_title(f"{format_walk_title(name)}: review")
     # the screen's height, so the grid fills what the bar leaves
