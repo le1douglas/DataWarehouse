@@ -42,7 +42,7 @@ class JournalEntryCard(ui.card):
         self.classes(f"w-full {LOOKS.get(state, '')}")
         # each step places its elements in the card, so all of them inside it
         with self:
-            self._draw_parts(entry.spot)
+            self._draw_parts(entry)
             # the buttons last, drawn by each, so they are in the same place on every card
             if state == JournalEntryState.CONFIRMED:
                 self._show_confirmed(entry, on_delete)
@@ -55,9 +55,9 @@ class JournalEntryCard(ui.card):
     def is_confirm_allowed(self) -> bool:
         return self._is_confirm_allowed()
 
-    def _draw_parts(self, spot: str) -> None:
-        """The parts every card has, empty: the spot, the live values, the ml, the remarks."""
-        ui.label(format_spot_label(spot)).classes("text-lg font-bold")
+    def _draw_parts(self, entry: JournalEntry) -> None:
+        """The parts every card has, empty: its room and spot, the live values, the ml, the remarks."""
+        ui.label(format_card_title(entry)).classes("text-lg font-bold")
         # side by side: the labels in a row, the values in a row under them
         self._live_grid = ui.grid(columns=len(LABELS)).classes("w-full text-center gap-y-0")
         with self._live_grid:
@@ -118,6 +118,11 @@ class JournalEntryCard(ui.card):
         else:
             self._live_grid.classes(add=GREYED_OUT)
         self._ml.set_enabled(has_reading)
+
+
+def format_card_title(entry: JournalEntry) -> str:
+    """The room and the spot of the card: [1.30] Drip Left."""
+    return f"[{entry.room}] {format_spot_label(entry.spot)}"
 
 
 def format_spot_label(spot: str) -> str:

@@ -8,6 +8,8 @@ The page knows nothing of the pen's bytes: the pen, a OnePen connected by the br
 (pens/one_pen.py), gives it decoded values through callbacks.
 """
 
+from pathlib import Path
+
 from nicegui import ui
 
 from webapps.pens.one_pen import OnePen
@@ -84,9 +86,9 @@ def draw_page() -> None:
     # the values go to the open room. a pen that is gone leaves none on the screen
     pen = OnePen(on_live=walk.receive_live_value, on_disconnected=walk.clear_live_values, on_error=notify_error)
 
-    room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
-
     PenSelector(pen)
+
+    room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
 
     # one dialog for the page: a delete, and a move to another room that would lose a typed entry
     confirm_dialog = ConfirmDialog()
@@ -100,5 +102,12 @@ def draw_page() -> None:
 
 # __mp_main__: the reload process of ui.run imports this module under that name
 if __name__ in {"__main__", "__mp_main__"}:
-    # show=False: there is no browser in the container to open
-    ui.run(title="Web apps", show=False)
+    # - show=False: there is no browser in the container to open
+    # - the reload polls src only, not the whole repo (the working directory), so a save comes through at once
+    # - *.js too: pens/one_pen.js is read when its module is imported
+    ui.run(
+        title="Web apps",
+        show=False,
+        uvicorn_reload_dirs=str(Path(__file__).parents[1]),
+        uvicorn_reload_includes="*.py, *.js",
+    )

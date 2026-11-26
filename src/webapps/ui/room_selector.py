@@ -23,7 +23,7 @@ class RoomSelector(ui.row):
             previous = ui.button("Previous", icon="chevron_left", on_click=self.select_previous).props("flat")
             previous.bind_enabled_from(self, "room", backward=lambda room: room != self.rooms[0])
             label = ui.label().classes("text-xl font-bold")
-            label.bind_text_from(self, "room", backward=self.format_room)
+            label.bind_text_from(self, "room")
             next_ = ui.button("Next", icon="chevron_right", on_click=self.select_next).props("flat icon-right")
             next_.bind_enabled_from(self, "room", backward=lambda room: room != self.rooms[-1])
 
@@ -36,10 +36,6 @@ class RoomSelector(ui.row):
 
     async def select_next(self) -> None:
         await self._select_neighbour(1)
-
-    def format_room(self, room: str) -> str:
-        """The room and where it is in the list: 1.30 (1 of 22)."""
-        return f"{room} ({self.rooms.index(room) + 1} of {len(self.rooms)})"
 
     async def _select_neighbour(self, step: int) -> None:
         index = self.rooms.index(self.room) + step
