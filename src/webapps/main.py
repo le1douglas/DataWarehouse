@@ -31,6 +31,9 @@ from webapps.ui.status_bar import StatusBar
 
 @ui.page("/")
 def draw_page() -> None:
+    # at least the screen's height, so the cards can fill what the status bar leaves. more scrolls
+    ui.query(".nicegui-content").classes("min-h-screen")
+
     # local to the page. one visitor at a time works on the csv
     walk = DailyWalk(ROOMS, JournalEntryCsv(CSV_PATH))
 
@@ -70,7 +73,8 @@ def draw_page() -> None:
     @ui.refreshable
     def draw_cards() -> None:
         """The cards as the csv last read says, Drip on top, Drain below."""
-        with ui.grid().classes("w-full grid-cols-1 sm:grid-cols-2 gap-4"):
+        # grow: the height the status bar leaves. auto-rows-[1fr]: rows of one height, never under what a card holds
+        with ui.grid().classes("w-full grow auto-rows-[1fr] grid-cols-1 sm:grid-cols-2 gap-4"):
             for spot in SPOTS:
                 JournalEntryCard(
                     walk.room.get_entry(spot),

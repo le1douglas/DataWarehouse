@@ -43,6 +43,8 @@ class JournalEntryCard(ui.card):
         # each step places its elements in the card, so all of them inside it
         with self:
             self._draw_parts(entry)
+            # the space between grows with the card, so the buttons are at its bottom
+            ui.space()
             # the buttons last, drawn by each, so they are in the same place on every card
             if state == JournalEntryState.CONFIRMED:
                 self._show_confirmed(entry, on_delete)
@@ -105,10 +107,10 @@ class JournalEntryCard(ui.card):
             button.disable()
 
     def _draw_confirm_and_skip(self) -> tuple[ui.button, ui.button]:
-        """Confirm, wide, and Skip next to it: no reading for the spot, its remarks kept."""
-        with ui.row().classes("w-full no-wrap"):
-            confirm = ui.button("Confirm", icon="check").classes("grow")
-            skip = ui.button("Skip", icon="skip_next", color="grey").props("outline")
+        """Confirm, and Skip under it: no reading for the spot, its remarks kept."""
+        with ui.column().classes("w-full"):
+            confirm = ui.button("Confirm", icon="check").classes("w-full")
+            skip = ui.button("Skip", icon="skip_next", color="grey").props("outline").classes("w-full")
         return confirm, skip
 
     def _show_reading(self, has_reading: bool) -> None:
