@@ -1,6 +1,7 @@
 """The settings dialog of the drip and drain page: the pen connected, its Disconnect, settings.py and the csv."""
 
 from collections.abc import Callable
+from pathlib import Path
 
 from nicegui import ui
 
@@ -9,8 +10,8 @@ from webapps.pens.one_pen import OnePen
 
 
 class SettingsDialog(ui.dialog):
-    """Disconnect and the name of the pen under it, read from the pen itself, then the settings of settings.py,
-    and the csv as it is on disk.
+    """Disconnect and the name of the pen under it, read from the pen itself, then the settings: the rooms and
+    the benches, the spots and the csv of the walk, and the timezone. Last the csv as it is on disk.
 
     - every field read only: the settings are changed in settings.py, the pen by Disconnect
     - the pen makes Disconnect disconnect it (attach_disconnect), in the browser
@@ -20,7 +21,9 @@ class SettingsDialog(ui.dialog):
       under it for after the next pen connects
     """
 
-    def __init__(self, pen: OnePen, read_csv_text: Callable[[], str]) -> None:
+    def __init__(
+        self, pen: OnePen, walk_settings: settings.WalkSettings, csv_path: Path, read_csv_text: Callable[[], str]
+    ) -> None:
         super().__init__()
         self._read_csv_text = read_csv_text
         with self, ui.card().classes("w-full"):
@@ -30,7 +33,7 @@ class SettingsDialog(ui.dialog):
             name = ui.input("Pen").props("readonly").classes("w-full")
             name.bind_value_from(pen, "name")
             ui.separator()
-            self._show_settings()
+            self._show_settings(walk_settings, csv_path)
             self._csv = ui.textarea("Csv contents").props("readonly outlined autogrow").classes("w-full font-mono")
             with ui.row().classes("w-full justify-end"):
                 ui.button("OK", on_click=self.close)
@@ -40,9 +43,10 @@ class SettingsDialog(ui.dialog):
         self._csv.set_value(self._read_csv_text())
         super().open()
 
-    def _show_settings(self) -> None:
-        """The settings of settings.py, as they were read when the app started."""
-        ui.textarea("Rooms", value=", ".join(settings.ROOMS)).props("readonly autogrow").classes("w-full")
-        ui.input("Bench", value=settings.BENCH).props("readonly").classes("w-full")
+    def _show_settings(self, walk_settings: settings.WalkSettings, csv_path: Path) -> None:
+        """The settings of the walk and the timezone, as settings.py had them when the app started, and the csv."""
+        ui.textarea("Rooms", value=", ".join(walk_settings.rooms)).props("readonly autogrow").classes("w-full")
+        ui.input("Benches", value=", ".join(walk_settings.benches)).props("readonly").classes("w-full")
+        ui.textarea("Spots", value=", ".join(walk_settings.spots)).props("readonly autogrow").classes("w-full")
         ui.input("Timezone", value=settings.TIMEZONE.key).props("readonly").classes("w-full")
-        ui.input("Csv", value=str(settings.CSV_PATH)).props("readonly").classes("w-full")
+        ui.input("Csv", value=str(csv_path)).props("readonly").classes("w-full")

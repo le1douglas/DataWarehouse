@@ -8,6 +8,7 @@ from nicegui import ui
 from webapps.state.journal_entry import ML_DIGITS, NOT_RECEIVED, JournalEntry
 from webapps.state.journal_entry_csv import NOT_AVAILABLE, format_live_value
 from webapps.state.journal_entry_state import JournalEntryState
+from webapps.state.room import BenchSpot
 
 # the live values shown, by the name the pen gives them
 LABELS = {"ph": "pH", "ec": "EC", "temperature": "Temp"}
@@ -120,12 +121,23 @@ class JournalEntryCard(ui.card):
         self._ml.set_enabled(has_reading)
 
 
+def format_bench_spot_label(bench_spot: BenchSpot) -> str:
+    """The bench and spot as the page names them in a question: T4 Drip Left."""
+    bench, spot = bench_spot
+    return f"{_format_bench_label(bench)} {_format_spot_label(spot)}"
+
+
 def _format_card_title(entry: JournalEntry) -> str:
-    """The room and the spot of the card: [1.30] Drip Left."""
-    return f"[{entry.room}] {format_spot_label(entry.spot)}"
+    """The room, the bench and the spot of the card: [1.30, T4] Drip Left."""
+    return f"[{entry.room}, {_format_bench_label(entry.bench)}] {_format_spot_label(entry.spot)}"
 
 
-def format_spot_label(spot: str) -> str:
+def _format_bench_label(bench: str) -> str:
+    """The bench as the page shows it: 4 becomes T4."""
+    return f"T{bench}"
+
+
+def _format_spot_label(spot: str) -> str:
     """The spot as the page shows it: drip_left becomes Drip Left."""
     return spot.replace("_", " ").title()
 

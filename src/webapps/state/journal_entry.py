@@ -7,7 +7,7 @@ reading_status, is here. How it is written to the csv is journal_entry_csv.py.
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from webapps.settings import BENCH, TIMEZONE
+from webapps.settings import TIMEZONE
 
 # the live values, by the name the pen gives them
 METRICS = ("ph", "ec", "temperature")
@@ -32,7 +32,7 @@ class JournalEntry:
 
     spot: str
     room: str = ""
-    bench: str = BENCH
+    bench: str = ""
     date_time: datetime | None = None
     device: str = ""
     ph: float | str | None = NOT_RECEIVED

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from webapps.settings import TIMEZONE
 from webapps.state.journal_entry import METRICS, JournalEntry
+from webapps.state.room import BenchSpot
 
 # the columns of dw_bronze.brnz_journal_entries, as CSV_COLUMNS in bluelab_datastreamer/drip_drain.py
 CSV_COLUMNS = (
@@ -34,7 +35,7 @@ NOT_AVAILABLE = "n.a"
 class JournalEntryCsv:
     """The csv at path: one row per journal entry confirmed, at most one per room and spot.
 
-    It holds one daily walk: emptied by hand before the next. Made with its header when missing. Only
+    It holds one walk, one csv for each: emptied by hand before its next pass. Made with its header when missing. Only
     this app works on it, one visitor at a time, so nothing guards against another program or writer.
     A few rows on a local disk, so it is read and written in the event loop.
     """
@@ -42,21 +43,21 @@ class JournalEntryCsv:
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def read_entries(self, room: str) -> dict[str, JournalEntry]:
-        """The journal entries of the room, by spot."""
-        return {row["spot"]: _parse_row(row) for row in self._read_rows() if row["room"] == room}
+    def read_entries(self, room: str) -> dict[BenchSpot, JournalEntry]:
+        """The journal entries of the room, by bench and spot."""
+        return {(row["bench"], row["spot"]): _parse_row(row) for row in self._read_rows() if row["room"] == room}
 
     def append(self, entry: JournalEntry) -> None:
-        """Appends the row of the entry, confirmed. Its room and spot have no row yet: the daily walk appends
+        """Appends the row of the entry, confirmed. Its room, bench and spot have no row yet: the walk appends
         only the current entry of the open room."""
         self._create()
         with self.path.open("a", newline="") as file:
             csv.DictWriter(file, fieldnames=CSV_COLUMNS, lineterminator="\n").writerow(_format_row(entry))
 
-    def delete(self, room: str, spot: str) -> None:
-        """Removes the row of the room and spot, by writing the csv again without it. The other rows as they
-        were."""
-        kept = [row for row in self._read_rows() if (row["room"], row["spot"]) != (room, spot)]
+    def delete(self, room: str, bench_spot: BenchSpot) -> None:
+        """Removes the row of the room, bench and spot, by writing the csv again without it. The other rows as
+        they were."""
+        kept = [row for row in self._read_rows() if (row["room"], row["bench"], row["spot"]) != (room, *bench_spot)]
         with self.path.open("w", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=CSV_COLUMNS, lineterminator="\n")
             writer.writeheader()
@@ -77,6 +78,7 @@ class JournalEntryCsv:
 
     def _create(self) -> None:
         if not self.path.exists():
+            self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(",".join(CSV_COLUMNS) + "\n")
 
 

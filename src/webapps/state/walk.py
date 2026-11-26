@@ -1,12 +1,15 @@
-"""The daily walk through the rooms: no UI, so it is tested without a browser."""
+"""The walk through the rooms, such as the morning walk: no UI, so it is tested without a browser."""
 
+from webapps.settings import WalkSettings
 from webapps.state.journal_entry import JournalEntry
 from webapps.state.journal_entry_csv import JournalEntryCsv
-from webapps.state.room import Room
+from webapps.state.room import BenchSpot, Room
 
 
-class DailyWalk:
+class Walk:
     """The rooms walked in their order, the one open, and every read and write of the csv.
+
+    - rooms, and bench_spots: those of every room, every spot of a bench, then the next bench (WalkSettings)
 
     - room: the open room, read from the csv when it is opened and after each confirm and delete.
       replaced only here, so whoever holds the walk always reaches the open room
@@ -15,11 +18,14 @@ class DailyWalk:
     - the pen is not its own: the page passes its name
     """
 
-    def __init__(self, rooms: tuple[str, ...], journal: JournalEntryCsv) -> None:
-        self.rooms = rooms
+    def __init__(self, settings: WalkSettings, journal: JournalEntryCsv) -> None:
+        self.rooms = settings.rooms
+        self.bench_spots: tuple[BenchSpot, ...] = tuple(
+            (bench, spot) for bench in settings.benches for spot in settings.spots
+        )
         self.journal = journal
         # the first room of the list, for now
-        self.room = self._open_room(rooms[0])
+        self.room = self._open_room(self.rooms[0])
 
     def has_typed_entry(self) -> bool:
         """The current entry of the open room has something typed, which a move to another room would lose."""
@@ -57,9 +63,9 @@ class DailyWalk:
             raise ValueError("every spot of the room is confirmed")
         self._write(entry.make_skipped().make_confirmed(""))
 
-    def delete(self, spot: str) -> None:
-        """Removes the row of the spot of the open room, and reads the room again."""
-        self.journal.delete(self.room.name, spot)
+    def delete(self, bench_spot: BenchSpot) -> None:
+        """Removes the row of the bench and spot of the open room, and reads the room again."""
+        self.journal.delete(self.room.name, bench_spot)
         self._read_room()
 
     def read_csv_text(self) -> str:
@@ -81,7 +87,7 @@ class DailyWalk:
             self.go_to_room(self.rooms[index])
 
     def _open_room(self, name: str) -> Room:
-        return Room(name, self.journal.read_entries(name))
+        return Room(name, self.bench_spots, self.journal.read_entries(name))
 
     def _read_room(self) -> None:
         self.room.set_confirmed_entries(self.journal.read_entries(self.room.name))

@@ -1,10 +1,14 @@
-"""The web app, its one page: the pen, the room selector, and the four journal entries of the open room.
+"""The web app: the walk chosen at /, then its page, /walk/<walk>: the pen, the room selector, and the journal
+entries of the open room, every spot of every bench of the walk (settings.py).
 
-The page is used only with a pen connected: without one, a dialog that cannot be closed covers it, with
+The walk is chosen before the pen is connected and the csv is read: each walk has its rooms and its own csv,
+and moving to another walk loads another page, so the pen is connected again.
+
+The walk page is used only with a pen connected: without one, a dialog that cannot be closed covers it, with
 Connect pen, and goes once a pen connects. The page under it stays as it is: what is typed, and the live
 values last received, until the pen that connects sends its own.
 
-The page draws and asks; the daily walk (state/daily_walk.py) decides: which room is open, when a
+The walk page draws and asks; the walk (state/walk.py) decides: which room is open, when a
 confirm is allowed, and every read and write of the csv. Each card (ui/journal_entry_card.py) is
 drawn again after a confirm, a delete, and a move to another room (ui/room_selector.py).
 
@@ -17,13 +21,13 @@ from pathlib import Path
 from nicegui import ui
 
 from webapps.pens.one_pen import OnePen
-from webapps.settings import CSV_PATH, ROOMS
-from webapps.state.daily_walk import DailyWalk
+from webapps.settings import CSV_DIR, WALKS
 from webapps.state.journal_entry_csv import JournalEntryCsv
-from webapps.state.room import SPOTS
+from webapps.state.room import BenchSpot
+from webapps.state.walk import Walk
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
-from webapps.ui.journal_entry_card import JournalEntryCard, format_spot_label
+from webapps.ui.journal_entry_card import JournalEntryCard, format_bench_spot_label
 from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.settings_dialog import SettingsDialog
@@ -31,18 +35,35 @@ from webapps.ui.status_bar import StatusBar
 
 
 @ui.page("/")
-def draw_page() -> None:
+def draw_choice_page() -> None:
+    """Which walk: a button for each, to its page."""
+    with ui.column().classes("w-full items-center"):
+        ui.label("Which walk?").classes("text-xl font-bold")
+        for name in WALKS:
+            ui.button(format_walk_title(name), on_click=lambda name=name: ui.navigate.to(f"/walk/{name}"))
+
+
+@ui.page("/walk/{name}")
+def draw_walk_page(name: str) -> None:
+    """The walk of the name, such as morning. Another name goes back to the choice."""
+    if name not in WALKS:
+        ui.navigate.to("/")
+        return
+    ui.page_title(format_walk_title(name))
+    csv_path = CSV_DIR / f"journal_entries_{name}.csv"
+
     # the screen's height, so the cards can fill what the status bar leaves. more scrolls in the room panels
     ui.query(".nicegui-content").classes("h-screen")
 
     # local to the page. one visitor at a time works on the csv
-    walk = DailyWalk(ROOMS, JournalEntryCsv(CSV_PATH))
+    walk = Walk(WALKS[name], JournalEntryCsv(csv_path))
 
     async def go_to_room(name: str) -> None:
         """Moves to the room. Asks first when the current entry is typed, as it would be lost: Cancel stays."""
         if walk.has_typed_entry():
-            spot = format_spot_label(walk.room.current_entry.spot)
-            question = f"Discard what is typed for {spot} in room {walk.room.name}?"
+            entry = walk.room.current_entry
+            label = format_bench_spot_label((entry.bench, entry.spot))
+            question = f"Discard what is typed for {label} in room {walk.room.name}?"
             if not await confirm_dialog.ask(question, "Discard", "delete_sweep"):
                 return
         walk.go_to_room(name)
@@ -60,10 +81,10 @@ def draw_page() -> None:
         walk.skip()
         show_room()
 
-    async def ask_delete(spot: str) -> None:
-        label = format_spot_label(spot)
+    async def ask_delete(bench_spot: BenchSpot) -> None:
+        label = format_bench_spot_label(bench_spot)
         if await confirm_dialog.ask(f"Delete the readings of {label}?", "Delete", "delete"):
-            walk.delete(spot)
+            walk.delete(bench_spot)
             show_room()
             ui.notify(f"{label} deleted", type="info")
 
@@ -80,14 +101,14 @@ def draw_page() -> None:
         """The cards of the open room as the csv last read says, Drip on top, Drain below."""
         # grow: the height the status bar leaves. auto-rows-[1fr]: rows of one height, never under what a card holds
         with ui.grid().classes("w-full grow auto-rows-[1fr] grid-cols-1 sm:grid-cols-2 gap-4"):
-            for spot in SPOTS:
+            for bench_spot in walk.bench_spots:
                 JournalEntryCard(
-                    walk.room.get_entry(spot),
-                    walk.room.get_state(spot),
+                    walk.room.get_entry(bench_spot),
+                    walk.room.get_state(bench_spot),
                     is_confirm_allowed=walk.is_confirm_allowed,
                     on_confirm=confirm,
                     on_skip=skip,
-                    on_delete=lambda spot=spot: ask_delete(spot),
+                    on_delete=lambda bench_spot=bench_spot: ask_delete(bench_spot),
                 )
 
     # the values go to the open room
@@ -95,7 +116,7 @@ def draw_page() -> None:
 
     ConnectDialog(pen)
 
-    settings_dialog = SettingsDialog(pen, read_csv_text=walk.read_csv_text)
+    settings_dialog = SettingsDialog(pen, WALKS[name], csv_path, read_csv_text=walk.read_csv_text)
 
     status_bar = StatusBar()
     with status_bar.center:
@@ -107,6 +128,11 @@ def draw_page() -> None:
     confirm_dialog = ConfirmDialog()
 
     room_panels = RoomPanels(draw_cards, walk.get_room_index())
+
+
+def format_walk_title(name: str) -> str:
+    """The walk as the pages show it: morning becomes Morning walk."""
+    return f"{name.capitalize()} walk"
 
 
 # __mp_main__: the reload process of ui.run imports this module under that name
