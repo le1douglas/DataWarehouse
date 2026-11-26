@@ -67,10 +67,6 @@ class JournalEntryCsv:
         self._create()
         return self.path.read_text()
 
-    def get_name(self) -> str:
-        """The file's name, such as journal_entries.csv: how the user finds it."""
-        return self.path.name
-
     def _read_rows(self) -> list[dict[str, str]]:
         self._create()
         with self.path.open(newline="") as file:

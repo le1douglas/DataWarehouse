@@ -57,7 +57,7 @@ class JournalEntryCard(ui.card):
 
     def _draw_parts(self, entry: JournalEntry) -> None:
         """The parts every card has, empty: its room and spot, the live values, the ml, the remarks."""
-        ui.label(format_card_title(entry)).classes("text-lg font-bold")
+        ui.label(_format_card_title(entry)).classes("text-lg font-bold")
         # side by side: the labels in a row, the values in a row under them
         self._live_grid = ui.grid(columns=len(LABELS)).classes("w-full text-center gap-y-0")
         with self._live_grid:
@@ -113,14 +113,12 @@ class JournalEntryCard(ui.card):
 
     def _show_reading(self, has_reading: bool) -> None:
         """An entry without a reading: its live values greyed out and its ml disabled."""
-        if has_reading:
-            self._live_grid.classes(remove=GREYED_OUT)
-        else:
-            self._live_grid.classes(add=GREYED_OUT)
+        if not has_reading:
+            self._live_grid.classes(GREYED_OUT)
         self._ml.set_enabled(has_reading)
 
 
-def format_card_title(entry: JournalEntry) -> str:
+def _format_card_title(entry: JournalEntry) -> str:
     """The room and the spot of the card: [1.30] Drip Left."""
     return f"[{entry.room}] {format_spot_label(entry.spot)}"
 

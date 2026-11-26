@@ -18,23 +18,23 @@ class RoomSelector(ui.row):
         self.rooms = rooms
         self.room = room
         self._on_select = on_select
-        self.classes("w-full items-center justify-between no-wrap")
+        self.classes("items-center no-wrap")
         with self:
-            previous = ui.button("Previous", icon="chevron_left", on_click=self.select_previous).props("flat")
+            previous = ui.button("Prev", icon="chevron_left", on_click=self._select_previous).props("flat")
             previous.bind_enabled_from(self, "room", backward=lambda room: room != self.rooms[0])
             label = ui.label().classes("text-xl font-bold")
             label.bind_text_from(self, "room")
-            next_ = ui.button("Next", icon="chevron_right", on_click=self.select_next).props("flat icon-right")
+            next_ = ui.button("Next", icon="chevron_right", on_click=self._select_next).props("flat icon-right")
             next_.bind_enabled_from(self, "room", backward=lambda room: room != self.rooms[-1])
 
     def set_room(self, room: str) -> None:
         """Shows the room the page has moved to."""
         self.room = room
 
-    async def select_previous(self) -> None:
+    async def _select_previous(self) -> None:
         await self._select_neighbour(-1)
 
-    async def select_next(self) -> None:
+    async def _select_next(self) -> None:
         await self._select_neighbour(1)
 
     async def _select_neighbour(self, step: int) -> None:

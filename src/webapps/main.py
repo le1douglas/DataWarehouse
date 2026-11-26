@@ -23,9 +23,10 @@ from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.room import SPOTS
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
-from webapps.ui.disconnect_button import DisconnectButton
 from webapps.ui.journal_entry_card import JournalEntryCard, format_spot_label
 from webapps.ui.room_selector import RoomSelector
+from webapps.ui.settings_dialog import SettingsDialog
+from webapps.ui.status_bar import StatusBar
 
 
 @ui.page("/")
@@ -49,24 +50,19 @@ def draw_page() -> None:
         # no toast: the card turning green says it
         if walk.is_confirm_allowed():
             walk.confirm(pen.name)
-            redraw()
+            draw_cards.refresh()
 
     def skip() -> None:
         # no toast: the card turning grey says it
         walk.skip()
-        redraw()
+        draw_cards.refresh()
 
     async def ask_delete(spot: str) -> None:
         label = format_spot_label(spot)
         if await confirm_dialog.ask(f"Delete the readings of {label}?", "Delete", "delete"):
             walk.delete(spot)
-            redraw()
+            draw_cards.refresh()
             ui.notify(f"{label} deleted", type="info")
-
-    def redraw() -> None:
-        """After a change of the csv: draws the cards and the csv box again from it."""
-        draw_cards.refresh()
-        csv_box.set_value(walk.read_csv_text())
 
     def notify_error(message: str) -> None:
         ui.notify(message, type="negative")
@@ -90,18 +86,18 @@ def draw_page() -> None:
 
     ConnectDialog(pen)
 
-    DisconnectButton(pen)
+    settings_dialog = SettingsDialog(pen, read_csv_text=walk.read_csv_text)
 
-    room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
+    status_bar = StatusBar()
+    with status_bar.center:
+        room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
+    with status_bar.right:
+        ui.button(icon="settings", on_click=settings_dialog.open).props("flat round")
 
     # one dialog for the page: a delete, and a move to another room that would lose a typed entry
     confirm_dialog = ConfirmDialog()
 
     draw_cards()
-
-    # for debugging: the csv as it is on disk, read when the page opens and after each write
-    csv_box = ui.textarea(walk.get_csv_name(), value=walk.read_csv_text())
-    csv_box.props("readonly outlined autogrow").classes("w-full font-mono")
 
 
 # __mp_main__: the reload process of ui.run imports this module under that name

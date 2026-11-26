@@ -60,9 +60,6 @@ class DailyWalk:
         """The csv as it is on disk, every room."""
         return self.journal.read_text()
 
-    def get_csv_name(self) -> str:
-        return self.journal.get_name()
-
     def _write(self, confirmed: JournalEntry) -> None:
         """Appends the row, then reads the room again: the current entry replaced only once it is written."""
         self.journal.append(confirmed)
