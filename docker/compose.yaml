@@ -209,11 +209,15 @@ services:
       POSTGRESQL_USER: *postgres_user
       POSTGRESQL_PASSWORD: *postgres_password
       USER_OUTPUT_MOUNT: *user_output_mount # the review page exports a walk's csv there
+      WORK_IN_PROGRESS_MOUNT: *work_in_progress_mount # the csv of each walk, until it is exported
     volumes:
       # long form: an anchor cannot go inside the short one's string
       - type: bind
         source: ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}
         target: *user_output_mount
+      - type: volume
+        source: work-in-progress
+        target: *work_in_progress_mount
     # one port per environment, so dev and prod can run side by side
     ports:
       - "${NICEGUI_PORT:?set NICEGUI_PORT in the env file}:8080"

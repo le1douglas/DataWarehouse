@@ -46,8 +46,9 @@ WALKS = {
 # read here, not from the container's clock, which falls back to UTC silently: an empty or unknown TZ stops the app
 TIMEZONE = ZoneInfo(os.environ["TZ"])
 # the folder of the csvs of the journal entries confirmed, one per walk: journal_entries_<walk>.csv. made when missing
-# - in dev the repo is mounted, so they outlive the container, but the prod image has its own
-CSV_DIR = Path(__file__).parent / "outputs"
+# - in the work-in-progress volume (WORK_IN_PROGRESS_MOUNT), the app's own subfolder: they outlive the container, and
+#   dev and prod each have their own
+CSV_DIR = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "webapps"
 # the folder the review page exports the csv of a walk to: the user's output folder (USER_OUTPUT_DIR in the env
 # file), the subfolder the datastreamer writes its csvs to. made when missing
 EXPORT_DIR = Path(os.environ["USER_OUTPUT_MOUNT"]) / "journal_entries"

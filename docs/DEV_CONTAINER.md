@@ -270,7 +270,7 @@ the difference between the two environments is visible in two small files.
 | **Airflow** | own metadata db, logs volume, UI port, JWT secret; DAGs read live | own of each; DAGs from the image |
 | **dbt** | the `dbt-state` volume: a folder per role in `/dbt-state/dev`, packages in `/dbt-state/dev/packages` | the `dbt-state` volume: a folder per role in `/dbt-state/<RELEASE>`; packages from the image |
 | **Meltano** | own system db; plugins in the `meltano-plugins` volume | own system db; plugins from the image |
-| **Web apps** | own port; reload on save | own port; the released image |
+| **Web apps** | own port; reload on save; own `work-in-progress` volume | own port; the released image; own `work-in-progress` volume |
 | **Datastreamer** | own `work-in-progress` volume | own `work-in-progress` volume |
 | **OpenMetadata** | own db, search volume, port, bot token | own of each |
 | **Input folder** (`USER_INPUT_DIR`) | its own Windows folder | its own Windows folder, not inside dev's |
