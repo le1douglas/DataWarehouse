@@ -22,10 +22,11 @@ from pathlib import Path
 from nicegui import ui
 
 from webapps.pens.one_pen import OnePen
-from webapps.settings import CSV_DIR, EXPORT_DIR, TIMEZONE, WALKS
+from webapps.settings import CSV_DIR, EXPORT_DIR, OLD_EXPORT_DIR, TIMEZONE, WALKS
 from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.room import BenchSpot
 from webapps.state.walk import Walk
+from webapps.to_old_journal_entries import write_old_journal_entries
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
 from webapps.ui.journal_entry_card import JournalEntryCard, format_bench_spot_label
@@ -148,12 +149,20 @@ def draw_review_page(name: str) -> None:
 
     async def export() -> None:
         """Copies the csv to EXPORT_DIR, named by today and the walk, as the datastreamer names its csvs. Asks
-        first when today's export of the walk is there: Cancel keeps it."""
-        target = EXPORT_DIR / f"{datetime.now(TIMEZONE):%y%m%d}-{WALKS[name].export_number}.csv"
-        if target.exists() and not await confirm_dialog.ask(f"Overwrite {target.name}?", "Overwrite", "save"):
+        first when today's export of the walk is there: Cancel keeps it.
+
+        - temporary: the same csv in the old format too, in OLD_EXPORT_DIR under the same name, where the
+          datastreamer's csvs are: asks first when either is there
+        """
+        file_name = f"{datetime.now(TIMEZONE):%y%m%d}-{WALKS[name].export_number}.csv"
+        target = EXPORT_DIR / file_name
+        old_target = OLD_EXPORT_DIR / file_name
+        existing = [str(path) for path in (target, old_target) if path.exists()]
+        if existing and not await confirm_dialog.ask(f"Overwrite {', '.join(existing)}?", "Overwrite", "save"):
             return
         try:
             journal.export(target)
+            write_old_journal_entries(journal.read_rows(), WALKS[name], old_target)
         except OSError as error:
             ui.notify(f"Not exported: {error}", type="negative")
             return

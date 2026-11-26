@@ -51,3 +51,6 @@ CSV_DIR = Path(__file__).parent / "outputs"
 # the folder the review page exports the csv of a walk to: the user's output folder (USER_OUTPUT_DIR in the env
 # file), the subfolder the datastreamer writes its csvs to. made when missing
 EXPORT_DIR = Path(os.environ["USER_OUTPUT_MOUNT"]) / "journal_entries"
+# temporary: the folder the same export writes the walk to in the old journal entries format (to_old_journal_entries.py)
+# - prod's output folder in the repo, next to the datastreamer's csvs, even from dev: the repo is mounted at /usr/app
+OLD_EXPORT_DIR = Path(__file__).parents[2] / "user_output_prod" / "journal_entries"
