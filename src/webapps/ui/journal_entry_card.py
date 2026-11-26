@@ -5,54 +5,60 @@ from typing import Any
 
 from nicegui import ui
 
-from webapps.state.journal_entry import ML_DIGITS, NOT_RECEIVED, JournalEntry
+from webapps.state.journal_entry import ML_DIGITS, NOT_RECEIVED, AbsolutePosition, JournalEntry
 from webapps.state.journal_entry_csv import NOT_AVAILABLE, format_live_value
-from webapps.state.journal_entry_state import JournalEntryState
-from webapps.state.room import BenchSpot
 
 # the live values shown, by the name the pen gives them
 LABELS = {"ph": "pH", "ec": "EC", "temperature": "Temp"}
-# the look of the card by its state, none while pending
-LOOKS = {JournalEntryState.CURRENT: "ring-4 ring-blue-500", JournalEntryState.CONFIRMED: "bg-green-1"}
+# the look of the card by its status
+CONFIRMED_LOOK = "bg-green-1"
+SELECTED_LOOK = "ring-4 ring-blue-500"
+# a tap anywhere on it selects it
+UNCONFIRMED_LOOK = "cursor-pointer"
 # the live values of an entry without a reading, greyed out: they are written n.a
 GREYED_OUT = "opacity-30"
 
 
 class JournalEntryCard(ui.card):
-    """A journal entry as a card, drawn again by the page whenever the csv changes.
+    """A journal entry as a card, drawn again by the page whenever the walk's selection or list changes.
 
-    Every card has the same parts in the same place: the live values, the ml, the remarks and the
-    buttons. Only what is in them differs, by the state of the entry:
-    - confirmed: its row as the csv has it, read only, and Delete (on_delete). a skipped one greyed out
-    - current: bound to the entry, so the live values and the typing show by themselves. Confirm, or
-      Enter in a field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip)
-    - pending: empty, disabled
+    It stores nothing: it shows the entry, and what is typed goes straight into it. Every card has the same parts
+    in the same place: the live values, the ml, the remarks and the buttons. Only what is in them differs, by the
+    status of the entry, derived and never stored:
+    - confirmed (its date_time set): read only, and Delete (on_delete). a skipped one greyed out
+    - selected: bound to the entry, so the live values and the typing show by themselves. Confirm, or Enter in a
+      field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip)
+    - unconfirmed: bound to the entry too, the live values it got last. Confirm and Skip disabled. a tap anywhere
+      on it selects it (on_select)
     """
 
     def __init__(
         self,
         entry: JournalEntry,
-        state: JournalEntryState,
+        is_selected: bool,
         is_confirm_allowed: Callable[[], bool],
+        on_select: Callable[[], Any],
         on_confirm: Callable[[], Any],
         on_skip: Callable[[], Any],
         on_delete: Callable[[], Any],
     ) -> None:
         super().__init__()
         self._is_confirm_allowed = is_confirm_allowed
-        self.classes(f"w-full {LOOKS.get(state, '')}")
+        self.classes("w-full")
         # each step places its elements in the card, so all of them inside it
         with self:
             self._draw_parts(entry)
             # the space between grows with the card, so the buttons are at its bottom
             ui.space()
             # the buttons last, drawn by each, so they are in the same place on every card
-            if state == JournalEntryState.CONFIRMED:
+            if entry.is_confirmed():
                 self._show_confirmed(entry, on_delete)
-            elif state == JournalEntryState.CURRENT:
-                self._bind_current(entry, on_confirm, on_skip)
+            elif is_selected:
+                self._bind_entry(entry)
+                self._enable_selected(on_confirm, on_skip)
             else:
-                self._disable_pending()
+                self._bind_entry(entry)
+                self._enable_unconfirmed(on_select)
 
     @property
     def is_confirm_allowed(self) -> bool:
@@ -74,7 +80,8 @@ class JournalEntryCard(ui.card):
         self._fields = (self._ml, self._remarks)
 
     def _show_confirmed(self, entry: JournalEntry, on_delete: Callable[[], Any]) -> None:
-        """Its row as the csv has it, read only, and Delete."""
+        """Its values, read only, and Delete."""
+        self.classes(CONFIRMED_LOOK)
         for metric, value in self._values.items():
             value.set_text(format_live_value(metric, getattr(entry, metric)))
         self._ml.value = NOT_AVAILABLE if entry.ml is None else str(entry.ml)
@@ -85,14 +92,18 @@ class JournalEntryCard(ui.card):
         self._show_reading(entry.has_reading())
         ui.button("Delete", icon="delete", color="negative", on_click=on_delete).classes("w-full")
 
-    def _bind_current(self, entry: JournalEntry, on_confirm: Callable[[], Any], on_skip: Callable[[], Any]) -> None:
-        """Bound to the entry, so the live values and the typing show by themselves, Confirm and Skip."""
+    def _bind_entry(self, entry: JournalEntry) -> None:
+        """Bound to the unconfirmed entry, so the live values and the typing show by themselves."""
         for metric, value in self._values.items():
             value.bind_text_from(entry, metric, backward=lambda v, q=metric: _format_shown_value(q, v))
-        # autofocus: the focus in it whenever the card is drawn, so the ml is typed straight away
-        self._ml.props("autofocus")
         self._ml.bind_value(entry, "ml", forward=lambda text: int(text) if text else None, backward=_format_ml)
         self._remarks.bind_value(entry, "remarks")
+
+    def _enable_selected(self, on_confirm: Callable[[], Any], on_skip: Callable[[], Any]) -> None:
+        """Confirm, or Enter in a field, and Skip."""
+        self.classes(SELECTED_LOOK)
+        # autofocus: the focus in it whenever the card is drawn, so the ml is typed straight away
+        self._ml.props("autofocus")
         for field in self._fields:
             field.on("keydown.enter", on_confirm)
         confirm, skip = self._draw_confirm_and_skip()
@@ -100,10 +111,11 @@ class JournalEntryCard(ui.card):
         confirm.bind_enabled_from(self, "is_confirm_allowed")
         skip.on_click(on_skip)
 
-    def _disable_pending(self) -> None:
-        """Empty and disabled, Confirm and Skip too."""
-        for field in self._fields:
-            field.disable()
+    def _enable_unconfirmed(self, on_select: Callable[[], Any]) -> None:
+        """A tap anywhere on it selects it, in a field too. Confirm and Skip disabled: only the selected entry is
+        confirmed."""
+        self.classes(UNCONFIRMED_LOOK)
+        self.on("click", on_select)
         for button in self._draw_confirm_and_skip():
             button.disable()
 
@@ -121,9 +133,9 @@ class JournalEntryCard(ui.card):
         self._ml.set_enabled(has_reading)
 
 
-def format_bench_spot_label(bench_spot: BenchSpot) -> str:
-    """The bench and spot as the page names them in a question: T4 Drip Left."""
-    bench, spot = bench_spot
+def format_bench_spot_label(position: AbsolutePosition) -> str:
+    """The bench and spot of the absolute position as the page names them in a question: T4 Drip Left."""
+    _, bench, spot = position
     return f"{_format_bench_label(bench)} {_format_spot_label(spot)}"
 
 

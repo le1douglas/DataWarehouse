@@ -8,9 +8,9 @@ The walk page is used only with a pen connected: without one, a dialog that cann
 Connect pen, and goes once a pen connects. The page under it stays as it is: what is typed, and the live
 values last received, until the pen that connects sends its own.
 
-The walk page draws and asks; the walk (state/walk.py) decides: which room is open, when a
-confirm is allowed, and every read and write of the csv. Each card (ui/journal_entry_card.py) is
-drawn again after a confirm, a delete, and a move to another room (ui/room_selector.py).
+The walk page draws and asks; the walk (state/walk.py) decides: which room is open, which entry is selected,
+when a confirm is allowed, and every read and write of the csv. Each card (ui/journal_entry_card.py) is drawn
+again after a selection, a confirm, a delete, and a move to another room (ui/room_selector.py).
 
 The page knows nothing of the pen's bytes: the pen, a OnePen connected by the browser over Web Bluetooth
 (pens/one_pen.py), gives it decoded values through callbacks.
@@ -23,8 +23,8 @@ from nicegui import ui
 
 from webapps.pens.one_pen import OnePen
 from webapps.settings import CSV_DIR, EXPORT_DIR, OLD_EXPORT_DIR, TIMEZONE, WALKS
+from webapps.state.journal_entry import AbsolutePosition
 from webapps.state.journal_entry_csv import JournalEntryCsv
-from webapps.state.room import BenchSpot
 from webapps.state.walk import Walk
 from webapps.to_old_journal_entries import write_old_journal_entries
 from webapps.ui.confirm_dialog import ConfirmDialog
@@ -61,15 +61,13 @@ def draw_walk_page(name: str) -> None:
     # local to the page. one visitor at a time works on the csv
     walk = Walk(WALKS[name], JournalEntryCsv(csv_path))
 
-    async def go_to_room(name: str) -> None:
-        """Moves to the room. Asks first when the current entry is typed, as it would be lost: Cancel stays."""
-        if walk.has_typed_entry():
-            entry = walk.room.current_entry
-            label = format_bench_spot_label((entry.bench, entry.spot))
-            question = f"Discard what is typed for {label} in room {walk.room.name}?"
-            if not await confirm_dialog.ask(question, "Discard", "delete_sweep"):
-                return
+    def go_to_room(name: str) -> None:
+        """Moves to the room: what is typed in every card is kept, so nothing to ask."""
         walk.go_to_room(name)
+        show_room()
+
+    def select(position: AbsolutePosition) -> None:
+        walk.select(position)
         show_room()
 
     def confirm() -> None:
@@ -84,37 +82,39 @@ def draw_walk_page(name: str) -> None:
         walk.skip()
         show_room()
 
-    async def ask_delete(bench_spot: BenchSpot) -> None:
-        label = format_bench_spot_label(bench_spot)
+    async def ask_delete(position: AbsolutePosition) -> None:
+        label = format_bench_spot_label(position)
         if await confirm_dialog.ask(f"Delete the readings of {label}?", "Delete", "delete"):
-            walk.delete(bench_spot)
+            walk.delete(position)
             show_room()
             ui.notify(f"{label} deleted", type="info")
 
     def show_room() -> None:
         """The open room of the walk, which a confirm or skip may have changed: its name and its cards, slid
         in when it is another room."""
-        room_selector.set_room(walk.room.name)
+        room_selector.set_room(walk.open_room)
         room_panels.show(walk.get_room_index())
 
     def notify_error(message: str) -> None:
         ui.notify(message, type="negative")
 
     def draw_cards() -> None:
-        """The cards of the open room as the csv last read says, Drip on top, Drain below."""
+        """The cards of the open room, from the walk's list, Drip on top, Drain below."""
         # grow: the height the status bar leaves. auto-rows-[1fr]: rows of one height, never under what a card holds
         with ui.grid().classes("w-full grow auto-rows-[1fr] grid-cols-1 sm:grid-cols-2 gap-4"):
-            for bench_spot in walk.bench_spots:
+            for entry in walk.get_entries(walk.open_room):
+                position = entry.get_absolute_position()
                 JournalEntryCard(
-                    walk.room.get_entry(bench_spot),
-                    walk.room.get_state(bench_spot),
+                    entry,
+                    is_selected=position == walk.selected,
                     is_confirm_allowed=walk.is_confirm_allowed,
+                    on_select=lambda position=position: select(position),
                     on_confirm=confirm,
                     on_skip=skip,
-                    on_delete=lambda bench_spot=bench_spot: ask_delete(bench_spot),
+                    on_delete=lambda position=position: ask_delete(position),
                 )
 
-    # the values go to the open room
+    # the values go to the selected entry
     pen = OnePen(on_live=walk.receive_live_value, on_error=notify_error)
 
     ConnectDialog(pen)
@@ -125,11 +125,11 @@ def draw_walk_page(name: str) -> None:
     with status_bar.left:
         ui.button("Review", icon="table_view", on_click=lambda: ui.navigate.to(f"/walk/{name}/review")).props("flat")
     with status_bar.center:
-        room_selector = RoomSelector(walk.rooms, walk.room.name, on_select=go_to_room)
+        room_selector = RoomSelector(walk.rooms, walk.open_room, on_select=go_to_room)
     with status_bar.right:
         ui.button(icon="settings", on_click=settings_dialog.open).props("flat round")
 
-    # one dialog for the page: a delete, and a move to another room that would lose a typed entry
+    # one dialog for the page: a delete
     confirm_dialog = ConfirmDialog()
 
     room_panels = RoomPanels(draw_cards, walk.get_room_index())

@@ -1,6 +1,7 @@
 """A journal entry: one reading and its metadata. No UI and no file, so it is tested without a browser.
 
-What a card shows, and the entry being measured. Every rule of what a journal entry needs, by its
+One per absolute position of the walk, filled in any order: what its card shows and what the csv writes. It is the
+same entry before and after it is confirmed, only stamped. Every rule of what a journal entry needs, by its
 reading_status, is here. How it is written to the csv is journal_entry_csv.py.
 """
 
@@ -19,6 +20,9 @@ NOT_RECEIVED = ""
 # the most digits of an ml, the mask of its field: up to 9999, so staging's range test still judges it
 ML_DIGITS = 4
 
+# room, bench and spot: which journal entry of the walk it is
+type AbsolutePosition = tuple[str, str, str]
+
 
 @dataclass
 class JournalEntry:
@@ -27,7 +31,8 @@ class JournalEntry:
     - live values (ph, ec, temperature): NOT_RECEIVED until the pen sends one, None for one it has not got
     - ml, remarks: typed by the user. remarks is optional, empty for none
     - reading_status: measured, until the user skips it
-    - date_time, device: stamped when it is confirmed
+    - date_time, device: stamped when it is confirmed or skipped
+    - confirmed: its date_time is set. no flag, and date_time is never set otherwise
     """
 
     spot: str
@@ -41,6 +46,13 @@ class JournalEntry:
     ml: int | None = None
     remarks: str = ""
     reading_status: str = MEASURED
+
+    def is_confirmed(self) -> bool:
+        """It is confirmed or skipped: its date_time is set."""
+        return self.date_time is not None
+
+    def get_absolute_position(self) -> AbsolutePosition:
+        return (self.room, self.bench, self.spot)
 
     def is_ready(self) -> bool:
         """It has what it needs to be confirmed.

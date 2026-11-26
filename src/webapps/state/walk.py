@@ -1,97 +1,127 @@
 """The walk through the rooms, such as the morning walk: no UI, so it is tested without a browser."""
 
 from webapps.settings import WalkSettings
-from webapps.state.journal_entry import JournalEntry
+from webapps.state.journal_entry import AbsolutePosition, JournalEntry
 from webapps.state.journal_entry_csv import JournalEntryCsv
-from webapps.state.room import BenchSpot, Room
 
 
 class Walk:
-    """The rooms walked in their order, the one open, and every read and write of the csv.
+    """Every journal entry of the walk, the open room, the selected entry, and every write of the csv.
 
-    - rooms, and bench_spots: those of every room, every spot of a bench, then the next bench (WalkSettings)
-
-    - room: the open room, read from the csv when it is opened and after each confirm and delete.
-      replaced only here, so whoever holds the walk always reaches the open room
-    - a confirm or skip that completes the room opens the next one, the last room excepted. only then:
-      a complete room moved to by hand stays open, so its entries can be seen and deleted
-    - the pen is not its own: the page passes its name
+    - entries: one per absolute position, in walk order: rooms in their order, in each every spot of a bench, then
+      the next bench (WalkSettings). read from the csv when the walk is made, an empty one where it has none, then
+      the source of truth: the csv is written from it after each confirm, skip and delete
+    - a room is the entries with its name: there is no room object
+    - open_room: the name of the room shown and worked on, set only by go_to_room
+    - selected: the absolute position of the entry being measured, or None. set only by select: an unconfirmed
+      entry of the open room
+    - the pen is not its own: the page passes its values and its name
     """
 
     def __init__(self, settings: WalkSettings, journal: JournalEntryCsv) -> None:
         self.rooms = settings.rooms
-        self.bench_spots: tuple[BenchSpot, ...] = tuple(
-            (bench, spot) for bench in settings.benches for spot in settings.spots
-        )
         self.journal = journal
+        confirmed = journal.read_entries()
+        self.entries: dict[AbsolutePosition, JournalEntry] = {}
+        for room in settings.rooms:
+            for bench in settings.benches:
+                for spot in settings.spots:
+                    position = (room, bench, spot)
+                    self.entries[position] = confirmed.get(position) or JournalEntry(spot, room=room, bench=bench)
+        self.open_room = ""
+        self.selected: AbsolutePosition | None = None
         # the first room of the list, for now
-        self.room = self._open_room(self.rooms[0])
+        self.go_to_room(self.rooms[0])
 
-    def has_typed_entry(self) -> bool:
-        """The current entry of the open room has something typed, which a move to another room would lose."""
-        entry = self.room.current_entry
-        return entry is not None and entry.is_typed()
+    def get_entries(self, room: str) -> list[JournalEntry]:
+        """The entries of the room, in walk order."""
+        return [entry for entry in self.entries.values() if entry.room == room]
+
+    def get_selected_entry(self) -> JournalEntry | None:
+        return None if self.selected is None else self.entries[self.selected]
+
+    def select(self, position: AbsolutePosition | None) -> None:
+        """Selects the entry at the position, or none. The only place the selection is set.
+
+        - an entry must be unconfirmed and of the open room: a confirmed one is only deleted
+        """
+        if position is not None:
+            entry = self.entries[position]
+            if entry.is_confirmed() or entry.room != self.open_room:
+                raise ValueError(f"{position} is confirmed or not in room {self.open_room}")
+        self.selected = position
 
     def go_to_room(self, name: str) -> None:
-        """Opens the room: its confirmed entries from the csv, and a new current entry, so a typed one is lost."""
-        self.room = self._open_room(name)
+        """Opens the room and selects its first unconfirmed entry, none when it is complete. What is typed in its
+        entries, and in those of every other room, is kept."""
+        self.open_room = name
+        self.select(self._find_first_unconfirmed(name))
 
     def is_complete(self) -> bool:
-        """Every room is complete, as the csv says: every bench and spot of each confirmed."""
-        return all(self._open_room(name).is_complete() for name in self.rooms)
+        """Every entry of every room is confirmed."""
+        return all(entry.is_confirmed() for entry in self.entries.values())
 
     def get_room_index(self) -> int:
         """The place of the open room in the walk, 0 for the first."""
-        return self.rooms.index(self.room.name)
+        return self.rooms.index(self.open_room)
 
     def receive_live_value(self, metric: str, value: float | None) -> None:
-        """A live value of the pen, for the open room."""
-        self.room.receive_live_value(metric, value)
+        """A live value of the pen, for the selected entry. Dropped when none is selected."""
+        entry = self.get_selected_entry()
+        if entry is not None:
+            entry.receive_live_value(metric, value)
 
     def is_confirm_allowed(self) -> bool:
-        """The current entry is ready."""
-        entry = self.room.current_entry
+        """The selected entry is ready."""
+        entry = self.get_selected_entry()
         return entry is not None and entry.is_ready()
 
     def confirm(self, device: str) -> None:
-        """Confirms the current entry as taken by the device: appends its row and reads the room again."""
-        entry = self.room.current_entry
+        """Confirms the selected entry as taken by the device, then selects the next."""
+        entry = self.get_selected_entry()
         if entry is None or not entry.is_ready():
-            raise ValueError("the current entry is not ready to be confirmed")
+            raise ValueError("the selected entry is not ready to be confirmed")
         self._write(entry.make_confirmed(device))
+        self._select_next()
 
     def skip(self) -> None:
-        """Confirms the current entry as skipped: no pen needed, its remarks kept."""
-        entry = self.room.current_entry
+        """Confirms the selected entry as skipped: no pen needed, its remarks kept. Then selects the next."""
+        entry = self.get_selected_entry()
         if entry is None:
-            raise ValueError("every spot of the room is confirmed")
+            raise ValueError("no entry is selected")
         self._write(entry.make_skipped().make_confirmed(""))
+        self._select_next()
 
-    def delete(self, bench_spot: BenchSpot) -> None:
-        """Removes the row of the bench and spot of the open room, and reads the room again."""
-        self.journal.delete(self.room.name, bench_spot)
-        self._read_room()
+    def delete(self, position: AbsolutePosition) -> None:
+        """Empties the confirmed entry at the position, of the open room, and selects it."""
+        entry = self.entries[position]
+        if not entry.is_confirmed():
+            raise ValueError(f"{position} is not confirmed")
+        room, bench, spot = position
+        self._write(JournalEntry(spot, room=room, bench=bench))
+        self.select(position)
 
     def read_csv_text(self) -> str:
         """The csv as it is on disk, every room."""
         return self.journal.read_text()
 
-    def _write(self, confirmed: JournalEntry) -> None:
-        """Appends the row, then reads the room again: the current entry replaced only once it is written. The
-        next room once this one is complete."""
-        self.journal.append(confirmed)
-        self._read_room()
-        if self.room.is_complete():
-            self._go_to_next_room()
+    def _write(self, entry: JournalEntry) -> None:
+        """Puts the entry in the list in place of the one at its position, then writes the csv again from the
+        list."""
+        self.entries[entry.get_absolute_position()] = entry
+        self.journal.write_entries(self.entries.values())
 
-    def _go_to_next_room(self) -> None:
-        """The room after the open one, none after the last."""
+    def _select_next(self) -> None:
+        """The first unconfirmed entry of the open room. When it is complete, the next room is opened, the last
+        room excepted: nothing selected then."""
+        position = self._find_first_unconfirmed(self.open_room)
         index = self.get_room_index() + 1
-        if index < len(self.rooms):
+        if position is None and index < len(self.rooms):
             self.go_to_room(self.rooms[index])
+        else:
+            self.select(position)
 
-    def _open_room(self, name: str) -> Room:
-        return Room(name, self.bench_spots, self.journal.read_entries(name))
-
-    def _read_room(self) -> None:
-        self.room.set_confirmed_entries(self.journal.read_entries(self.room.name))
+    def _find_first_unconfirmed(self, room: str) -> AbsolutePosition | None:
+        """The absolute position of the first unconfirmed entry of the room, in walk order. None when complete."""
+        entry = next((entry for entry in self.get_entries(room) if not entry.is_confirmed()), None)
+        return None if entry is None else entry.get_absolute_position()

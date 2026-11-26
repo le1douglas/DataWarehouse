@@ -1,6 +1,6 @@
 """The room selector of the drip and drain page: the room shown, and buttons to the previous and the next."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 
 from nicegui import ui
 
@@ -9,11 +9,11 @@ class RoomSelector(ui.row):
     """Previous and Next through rooms, which stop at the first and the last room.
 
     It does not change the room itself: a button asks for the neighbour with on_select, and the page
-    shows it with set_room once it has moved there, so the page may refuse, such as when a typed entry
-    would be lost.
+    shows it with set_room once the walk has moved there. The walk moves on its own too, after a confirm
+    that completes a room, so set_room is how the selector follows it.
     """
 
-    def __init__(self, rooms: tuple[str, ...], room: str, on_select: Callable[[str], Awaitable[None]]) -> None:
+    def __init__(self, rooms: tuple[str, ...], room: str, on_select: Callable[[str], None]) -> None:
         super().__init__()
         self.rooms = rooms
         self.room = room
@@ -31,14 +31,13 @@ class RoomSelector(ui.row):
         """Shows the room the page has moved to."""
         self.room = room
 
-    async def _select_previous(self) -> None:
-        await self._select_neighbour(-1)
+    def _select_previous(self) -> None:
+        self._select_neighbour(-1)
 
-    async def _select_next(self) -> None:
-        await self._select_neighbour(1)
+    def _select_next(self) -> None:
+        self._select_neighbour(1)
 
-    async def _select_neighbour(self, step: int) -> None:
+    def _select_neighbour(self, step: int) -> None:
         index = self.rooms.index(self.room) + step
         if 0 <= index < len(self.rooms):
-            # async: the page may ask first
-            await self._on_select(self.rooms[index])
+            self._on_select(self.rooms[index])

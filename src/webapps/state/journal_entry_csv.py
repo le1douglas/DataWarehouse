@@ -1,4 +1,5 @@
-"""The csv of the journal entries confirmed, of every room: the only record of them, which the page is drawn from.
+"""The csv of the journal entries confirmed, of every room: written from the walk's list, which reads it when the
+page opens.
 
 Everything of the file's format is here: the columns, n.a, the decimals, the date_time without its zone.
 What a journal entry holds is journal_entry.py: the csv writes it as it is.
@@ -6,12 +7,12 @@ What a journal entry holds is journal_entry.py: the csv writes it as it is.
 
 import csv
 import shutil
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
 from webapps.settings import TIMEZONE
-from webapps.state.journal_entry import METRICS, JournalEntry
-from webapps.state.room import BenchSpot
+from webapps.state.journal_entry import METRICS, AbsolutePosition, JournalEntry
 
 # the columns of dw_bronze.brnz_journal_entries, as CSV_COLUMNS in bluelab_datastreamer/drip_drain.py
 CSV_COLUMNS = (
@@ -36,40 +37,36 @@ NOT_AVAILABLE = "n.a"
 
 
 class JournalEntryCsv:
-    """The csv at path: one row per journal entry confirmed, at most one per room and spot.
+    """The csv at path: one row per journal entry confirmed, at most one per absolute position.
 
     It holds one walk, one csv for each: emptied once the review page has exported it. Made with its header when
     missing. Only this app works on it, one visitor at a time, so nothing guards against another program or writer.
     A few rows on a local disk, so it is read and written in the event loop.
+    - the walk page writes it whole, from its list. the review page sets values in place
     """
 
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def read_entries(self, room: str) -> dict[BenchSpot, JournalEntry]:
-        """The journal entries of the room, by bench and spot."""
-        return {(row["bench"], row["spot"]): _parse_row(row) for row in self._read_rows() if row["room"] == room}
+    def read_entries(self) -> dict[AbsolutePosition, JournalEntry]:
+        """Every journal entry of the csv, confirmed, by absolute position.
 
-    def append(self, entry: JournalEntry) -> None:
-        """Appends the row of the entry, confirmed. Its room, bench and spot have no row yet: the walk appends
-        only the current entry of the open room."""
-        self._create()
-        with self.path.open("a", newline="") as file:
-            csv.DictWriter(file, fieldnames=CSV_COLUMNS, lineterminator="\n").writerow(_format_row(entry))
+        - assumed, not checked: each absolute position is of the walk, and once only
+        """
+        entries = (_parse_row(row) for row in self._read_rows())
+        return {entry.get_absolute_position(): entry for entry in entries}
 
-    def delete(self, room: str, bench_spot: BenchSpot) -> None:
-        """Removes the row of the room, bench and spot, by writing the csv again without it. The other rows as
-        they were."""
-        kept = [row for row in self._read_rows() if (row["room"], row["bench"], row["spot"]) != (room, *bench_spot)]
-        self._write_rows(kept)
+    def write_entries(self, entries: Iterable[JournalEntry]) -> None:
+        """Writes the csv again from the confirmed entries, in the order given: the walk's. The others left out."""
+        self._write_rows([_format_row(entry) for entry in entries if entry.is_confirmed()])
 
     def read_rows(self) -> list[dict[str, str]]:
         """Every row as it is on disk, every value as text."""
         return self._read_rows()
 
-    def update_value(self, room: str, bench_spot: BenchSpot, column: str, value: str) -> None:
-        """Sets the value of the column in the row of the room, bench and spot, as it is given, by writing the
-        csv again. The other values as they were.
+    def update_value(self, position: AbsolutePosition, column: str, value: str) -> None:
+        """Sets the value of the column in the row of the absolute position, as it is given, by writing the csv
+        again. The other values as they were.
 
         - only the EDITABLE_COLUMNS. room, bench and spot are the key that finds the row
         """
@@ -77,11 +74,12 @@ class JournalEntryCsv:
             raise ValueError(f"{column} is not a column to set")
         rows = self._read_rows()
         for row in rows:
-            if (row["room"], row["bench"], row["spot"]) == (room, *bench_spot):
+            if (row["room"], row["bench"], row["spot"]) == position:
                 row[column] = value
                 self._write_rows(rows)
                 return
-        raise ValueError(f"no row for room {room}, bench {bench_spot[0]}, spot {bench_spot[1]}")
+        room, bench, spot = position
+        raise ValueError(f"no row for room {room}, bench {bench}, spot {spot}")
 
     def read_text(self) -> str:
         """The csv as it is on disk, made with its header when missing."""
