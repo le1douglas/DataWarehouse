@@ -44,11 +44,16 @@ class Walk:
         """Selects the entry at the position, or none. The only place the selection is set.
 
         - an entry must be unconfirmed and of the open room: a confirmed one is only deleted
+        - the entry deselected, when unconfirmed, loses its live values: only the selected entry holds the pen's
         """
         if position is not None:
             entry = self.entries[position]
             if entry.is_confirmed() or entry.room != self.open_room:
                 raise ValueError(f"{position} is confirmed or not in room {self.open_room}")
+        deselected = self.get_selected_entry()
+        # confirmed: its values are its reading, kept
+        if position != self.selected and deselected is not None and not deselected.is_confirmed():
+            deselected.clear_live_values()
         self.selected = position
 
     def go_to_room(self, name: str) -> None:

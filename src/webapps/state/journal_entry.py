@@ -81,6 +81,11 @@ class JournalEntry:
     def receive_live_value(self, metric: str, value: float | None) -> None:
         setattr(self, metric, value)
 
+    def clear_live_values(self) -> None:
+        """Every live value back to not received, as before the pen sent any."""
+        for metric in METRICS:
+            setattr(self, metric, NOT_RECEIVED)
+
     def make_confirmed(self, device: str) -> "JournalEntry":
         """A copy of it as it is written: taken now by the device, keeping only what it holds once confirmed.
 

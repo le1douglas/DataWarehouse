@@ -28,8 +28,8 @@ class JournalEntryCard(ui.card):
     - confirmed (its date_time set): read only, and Delete (on_delete). a skipped one greyed out
     - selected: bound to the entry, so the live values and the typing show by themselves. Confirm, or Enter in a
       field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip)
-    - unconfirmed: bound to the entry too, the live values it got last. Confirm and Skip disabled. a tap anywhere
-      on it selects it (on_select)
+    - unconfirmed: bound to the entry too, no live values: the walk clears them when it is deselected. Confirm and
+      Skip disabled. a tap anywhere on it selects it (on_select)
     """
 
     def __init__(
