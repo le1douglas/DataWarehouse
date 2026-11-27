@@ -27,7 +27,7 @@ class JournalEntryCard(ui.card):
     It stores nothing: it shows the entry, and what is typed goes straight into it. Every card has the same parts
     in the same place: the live values, the ml, the remarks and the buttons. Only what is in them differs, by the
     status of the entry, derived and never stored:
-    - confirmed (its date_time set): read only, and Delete (on_delete). a skipped one greyed out
+    - confirmed (its reading_status not in_progress): read only, and Delete (on_delete). a skipped one greyed out
     - selected: bound to the entry, so the live values and the typing show by themselves. Confirm, or Enter in a
       field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip). an arrow key in the ml
       moves to another card (on_move, the key's name)

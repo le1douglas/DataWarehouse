@@ -106,7 +106,7 @@ class Walk:
         entry = self.get_selected_entry()
         if entry is None:
             raise ValueError("no entry is selected")
-        self._write(entry.make_skipped().make_confirmed(""))
+        self._write(entry.make_skipped())
         self._select_next()
 
     def delete(self, position: AbsolutePosition) -> None:

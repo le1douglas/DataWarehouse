@@ -15,6 +15,8 @@ METRICS = ("ph", "ec", "temperature")
 # the reading_status values the app writes, of those the warehouse accepts. not unreliable, for now
 MEASURED = "measured"
 SKIPPED = "skipped"
+# the reading_status of an entry not confirmed yet: never written, as the csv holds only confirmed entries
+IN_PROGRESS = "in_progress"
 # a live value not received from the pen yet, told apart from None, a value the pen has not got
 NOT_RECEIVED = ""
 # the most digits of an ml, the mask of its field: up to 9999, so staging's range test still judges it
@@ -30,9 +32,9 @@ class JournalEntry:
 
     - live values (ph, ec, temperature): NOT_RECEIVED until the pen sends one, None for one it has not got
     - ml, remarks: typed by the user. remarks is optional, empty for none
-    - reading_status: measured, until the user skips it
-    - date_time, device: stamped when it is confirmed or skipped
-    - confirmed: its date_time is set. no flag, and date_time is never set otherwise
+    - reading_status: in_progress, until it is confirmed (measured) or skipped
+    - date_time, device: stamped when it is confirmed or skipped, with its reading_status
+    - confirmed: its reading_status is not in_progress. measured or skipped
     """
 
     spot: str
@@ -45,11 +47,11 @@ class JournalEntry:
     temperature: float | str | None = NOT_RECEIVED
     ml: int | None = None
     remarks: str = ""
-    reading_status: str = MEASURED
+    reading_status: str = IN_PROGRESS
 
     def is_confirmed(self) -> bool:
-        """It is confirmed or skipped: its date_time is set."""
-        return self.date_time is not None
+        """It is confirmed or skipped: its reading_status is not in_progress."""
+        return self.reading_status != IN_PROGRESS
 
     def get_absolute_position(self) -> AbsolutePosition:
         return (self.room, self.bench, self.spot)
@@ -57,7 +59,7 @@ class JournalEntry:
     def is_ready(self) -> bool:
         """It has what it needs to be confirmed.
 
-        - with a reading (measured): the ml and every live value, none of them n.a
+        - with a reading (in_progress): the ml and every live value, none of them n.a
         - without (skipped): nothing
         """
         if not self.has_reading():
@@ -71,12 +73,19 @@ class JournalEntry:
         return self.ml is not None or self.remarks.strip() != ""
 
     def has_reading(self) -> bool:
-        """It has a reading: ml and live values. Every reading_status but skipped."""
+        """It has a reading: ml and live values. Every reading_status but skipped, in_progress too."""
         return self.reading_status != SKIPPED
 
     def make_skipped(self) -> "JournalEntry":
-        """A copy of it, skipped: no reading, so ready to be confirmed as it is. Its remarks kept."""
-        return replace(self, reading_status=SKIPPED)
+        """A copy of it, skipped, as it is written: stamped now, its remarks kept.
+
+        A copy, so it is unchanged should the write fail.
+        - no reading: no device, no ml and no live values
+        """
+        skipped = replace(self, reading_status=SKIPPED, date_time=datetime.now(TIMEZONE), device="", ml=None)
+        for metric in METRICS:
+            setattr(skipped, metric, None)
+        return skipped
 
     def receive_live_value(self, metric: str, value: float | None) -> None:
         setattr(self, metric, value)
@@ -87,18 +96,13 @@ class JournalEntry:
             setattr(self, metric, NOT_RECEIVED)
 
     def make_confirmed(self, device: str) -> "JournalEntry":
-        """A copy of it as it is written: taken now by the device, keeping only what it holds once confirmed.
+        """A copy of it, measured, as it is written: taken now by the device.
 
         A copy, so it is unchanged should the write fail.
         - a live value not received is one not got: None
-        - without a reading (skipped): no device, no ml and no live values
         """
-        confirmed = replace(self, date_time=datetime.now(TIMEZONE), device=device if self.has_reading() else "")
+        confirmed = replace(self, reading_status=MEASURED, date_time=datetime.now(TIMEZONE), device=device)
         for metric in METRICS:
             if getattr(confirmed, metric) == NOT_RECEIVED:
-                setattr(confirmed, metric, None)
-        if not confirmed.has_reading():
-            confirmed.ml = None
-            for metric in METRICS:
                 setattr(confirmed, metric, None)
         return confirmed
