@@ -13,6 +13,10 @@ LABELS = {"ph": "pH", "ec": "EC", "temperature": "Temp"}
 # the look of the card by its status
 CONFIRMED_LOOK = "bg-green-1"
 SELECTED_LOOK = "ring-4 ring-blue-500"
+# the live values of the selected entry, as the pen streams them. a confirmed one's are solid
+STREAMING_LOOK = "animate-pulse"
+# its pace, half of Tailwind's 2s. inline: it always wins over the class's own
+STREAMING_PACE = "animation-duration: 1s"
 # a tap anywhere on it selects it
 UNCONFIRMED_LOOK = "cursor-pointer"
 # the live values of an entry without a reading, greyed out: they are written n.a
@@ -28,9 +32,9 @@ class JournalEntryCard(ui.card):
     in the same place: the live values, the ml, the remarks and the buttons. Only what is in them differs, by the
     status of the entry, derived and never stored:
     - confirmed (its reading_status not in_progress): read only, and Delete (on_delete). a skipped one greyed out
-    - selected: bound to the entry, so the live values and the typing show by themselves. Confirm, or Enter in a
-      field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip). an arrow key in the ml
-      moves to another card (on_move, the key's name)
+    - selected: bound to the entry, so the live values and the typing show by themselves, the live values
+      blinking. Confirm, or Enter in a field (on_confirm), enabled while is_confirm_allowed says so, and Skip
+      (on_skip). an arrow key in the ml moves to another card (on_move, the key's name)
     - unconfirmed: bound to the entry too, no live values: the walk clears them when it is deselected. Confirm and
       Skip disabled. a tap anywhere on it selects it (on_select)
     """
@@ -123,6 +127,8 @@ class JournalEntryCard(ui.card):
     ) -> None:
         """Confirm, or Enter in a field, and Skip. An arrow key in the ml moves to another card."""
         self.classes(SELECTED_LOOK)
+        for value in self._values.values():
+            value.classes(STREAMING_LOOK).style(STREAMING_PACE)
         # autofocus: the focus in it whenever the card is drawn, so the ml is typed straight away
         self._ml.props("autofocus")
         for field in self._fields:
