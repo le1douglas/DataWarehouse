@@ -1,4 +1,5 @@
-"""Temporary: a pen without a pen, for working on the walk page with no OnePen at hand (MOCK_PEN in settings.py).
+"""Temporary: a pen without a pen, for working on the walk page with no OnePen at hand (Mock pen in the settings
+dialog).
 
 What the page reads of a OnePen, and nothing of Bluetooth:
 - connected from the start, so the connect dialog stays closed
@@ -9,12 +10,20 @@ What the page reads of a OnePen, and nothing of Bluetooth:
 import random
 from collections.abc import Callable
 
-from nicegui import ui
+from nicegui import app, ui
 
+# the key in app.storage.general of whether the walk page uses a mock pen, set in the settings dialog
+# - one value for every browser, kept across restarts
+STORAGE_KEY = "mock_pen"
 # the name confirmed entries are written with, so a mock reading is never taken for a real one
 NAME = "MOCK"
 # every metric, the range its random values are drawn from, and the digits they keep
 LIVE_RANGES = {"ph": (5.5, 6.5, 2), "ec": (1.5, 3.0, 2), "temperature": (18.0, 24.0, 1)}
+
+
+def is_mock_pen_on() -> bool:
+    """Whether the walk page uses a mock pen: false until the settings dialog sets it."""
+    return app.storage.general.get(STORAGE_KEY, False)
 
 
 class MockPen:
