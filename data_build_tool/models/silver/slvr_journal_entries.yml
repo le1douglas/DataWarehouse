@@ -14,7 +14,7 @@ models:
       unique_key: [date_time, absolute_position]
     columns:
       - name: date_time
-        description: When the journal entry was measured, or its room skipped, in the timezone var, to the
+        description: When the journal entry was measured, or its room skipped, with the offset and to the
                     microsecond as the csv sends it.
       - name: device
         description: The device that took the measurement.

@@ -1,7 +1,7 @@
 """The csv of the journal entries confirmed, of every room: written from the walk's list, which reads it when the
 page opens.
 
-Everything of the file's format is here: the columns, n.a, the decimals, the date_time without its zone.
+Everything of the file's format is here: the columns, n.a, the decimals, the date_time with its offset.
 What a journal entry holds is journal_entry.py: the csv writes it as it is.
 """
 
@@ -137,8 +137,8 @@ def format_live_value(metric: str, value: float | None) -> str:
 def _format_row(entry: JournalEntry) -> dict[str, str]:
     """The row of a confirmed entry, every value as text: None is n.a."""
     row = {
-        # without its zone: staging appends the timezone var
-        "date_time": entry.date_time.replace(tzinfo=None).isoformat(timespec="microseconds"),
+        # ISO 8601 with its offset, such as +01:00: TIMEZONE's when it was stamped, summer time included
+        "date_time": entry.date_time.isoformat(timespec="microseconds"),
         "device": entry.device,
         "spot": entry.spot,
         "ml": format_ml(entry.ml),
@@ -160,7 +160,7 @@ def _parse_row(row: dict[str, str]) -> JournalEntry:
         spot=row["spot"],
         room=row["room"],
         bench=row["bench"],
-        date_time=datetime.fromisoformat(row["date_time"]).replace(tzinfo=TIMEZONE),
+        date_time=datetime.fromisoformat(row["date_time"]).astimezone(TIMEZONE),
         device=row["device"],
         ml=_parse_number(row["ml"], int),
         remarks=row["remarks"],

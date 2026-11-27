@@ -1,8 +1,8 @@
 -- the journal entries, typed. the csv is written by a program of ours, so only this is mapped:
 -- - empty to null
 -- - remarks trimmed
--- - the time zone appended
 -- - spot to relative position
+-- date_time is taken with the offset the csv sends, such as +01:00: one without fails not_null
 -- anything else is an upstream fault and fails a data test
 with
     -- the open load only (landed or accepted): there is at most one, so every data test judges it alone
@@ -34,27 +34,6 @@ with
         from select_open_load
     ),
 
-    -- the csv sends no zone, so the timezone var is appended: a name, not an offset, so each date gets its own
-    -- daylight saving
-    -- - n.a stays n.a plus the zone, and becomes null in cast_select
-    -- TODO take the zone from the csv
-    append_timezone as (
-        select
-            row_id,
-            reading_status,
-            date_time || ' {{ var("timezone") }}' as date_time,
-            device,
-            spot,
-            ml,
-            ec,
-            ph,
-            temperature,
-            room,
-            bench,
-            remarks
-        from nullify_empty
-    ),
-
     -- spot to relative position, such as drip_left to front_left_up:
     -- - always front
     -- - drip is up, drain is down
@@ -79,7 +58,7 @@ with
             room,
             bench,
             remarks
-        from append_timezone
+        from nullify_empty
     ),
 
     -- the place, such as 1.30_4_front_left_up:

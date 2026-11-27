@@ -50,12 +50,14 @@ models:
           - elementary.not_null_with_context:
               config:
                 meta:
-                  description: date_time is missing or not a date and time
+                  description: date_time is missing, not a date and time, or has no timezone offset
       - name: device
         data_type: text
         data_tests:
           - elementary.not_null_with_context:
               config:
+                # a skipped entry has none
+                where: "reading_status != 'skipped'"
                 meta:
                   description: device is missing
           - elementary.relationships_with_context:

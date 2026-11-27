@@ -8,9 +8,10 @@ The old format has no spot, bench or reading_status:
 """
 
 import csv
+from datetime import datetime
 from pathlib import Path
 
-from webapps.settings import WalkSettings
+from webapps.settings import TIMEZONE, WalkSettings
 from webapps.state.journal_entry import SKIPPED
 from webapps.state.journal_entry_csv import NOT_AVAILABLE
 
@@ -52,6 +53,7 @@ def _walk_position(row: dict[str, str], walk: WalkSettings) -> tuple[int, int, i
 def _to_old_row(row: dict[str, str]) -> dict[str, str]:
     """The old row of a new one.
 
+    - date_time: without its offset, the time in TIMEZONE, as the old format has no zone
     - notes: the ml, then the remarks
     - n.a is empty, as the old format has none
     - tags: the room
@@ -62,7 +64,7 @@ def _to_old_row(row: dict[str, str]) -> dict[str, str]:
     notes = " ".join(value for value in (_old_value(row["ml"]), row["remarks"]) if value)
     old_row = dict.fromkeys(OLD_CSV_COLUMNS, "")
     old_row.update(
-        date_time=row["date_time"],
+        date_time=_old_date_time(row["date_time"]),
         subject=f"{row['device']} - Measurement",
         notes=notes,
         type="measurement",
@@ -72,6 +74,10 @@ def _to_old_row(row: dict[str, str]) -> dict[str, str]:
         tags=row["room"],
     )
     return old_row
+
+
+def _old_date_time(text: str) -> str:
+    return datetime.fromisoformat(text).astimezone(TIMEZONE).replace(tzinfo=None).isoformat(timespec="microseconds")
 
 
 def _old_value(value: str) -> str:
