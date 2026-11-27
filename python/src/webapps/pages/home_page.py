@@ -8,8 +8,11 @@ from webapps.ui.status_bar import StatusBar
 
 
 @ui.page("/")
-def draw_home_page() -> None:
-    """Which walk: a button for each, to its page. The gear of the status bar opens the settings."""
+def draw_home_page(exported: str | None = None) -> None:
+    """Which walk: a button for each, to its page. The gear of the status bar opens the settings. exported: the
+    file a walk's review has just exported, said in a toast."""
+    if exported:
+        ui.notify(f"File exported: {exported}", type="positive")
     settings_dialog = SettingsDialog()
     status_bar = StatusBar()
     with status_bar.center:

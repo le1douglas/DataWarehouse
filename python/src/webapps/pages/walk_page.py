@@ -32,12 +32,6 @@ from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.status_bar import StatusBar
 
-# what each key does, by the name the browser gives it, outside the fields and from the card's alike
-# - an arrow key: the walk's direction through the cards of the open room
-# - page up and down: the step through the rooms, the previous and the next
-CARD_KEYS = {"ArrowLeft": "left", "ArrowRight": "right", "ArrowUp": "up", "ArrowDown": "down"}
-ROOM_KEYS = {"PageUp": -1, "PageDown": 1}
-
 
 @ui.page("/walk/{name}")
 def draw_walk_page(name: str) -> None:
@@ -69,11 +63,29 @@ def draw_walk_page(name: str) -> None:
             show_room()
 
     def press(key: str) -> None:
-        """A key of CARD_KEYS or ROOM_KEYS, by the name the browser gives it. Any other: nothing."""
-        if key in CARD_KEYS:
-            move(CARD_KEYS[key])
-        elif key in ROOM_KEYS:
-            move_room(ROOM_KEYS[key])
+        """A key by the name the browser gives it, outside the fields and from the ml alike. Any other: nothing.
+
+        - an arrow key: the walk's direction through the cards of the open room
+        - page up and down: the step through the rooms, the previous and the next
+        - enter and s: confirm and skip the selected entry
+        """
+        match key:
+            case "ArrowLeft":
+                move("left")
+            case "ArrowRight":
+                move("right")
+            case "ArrowUp":
+                move("up")
+            case "ArrowDown":
+                move("down")
+            case "PageUp":
+                move_room(-1)
+            case "PageDown":
+                move_room(1)
+            case "Enter":
+                confirm()
+            case "s":
+                skip()
 
     def press_by_key(event: events.KeyEventArguments) -> None:
         if event.action.keydown:
@@ -87,9 +99,12 @@ def draw_walk_page(name: str) -> None:
             show_room()
 
     def skip() -> None:
-        # no toast: the card turning grey says it
-        walk.skip()
-        show_room()
+        # Skip and S both come here
+        # - none selected: S outside the fields, the room complete
+        # - no toast: the card turning grey says it
+        if walk.get_selected_entry() is not None:
+            walk.skip()
+            show_room()
 
     async def ask_delete(position: AbsolutePosition) -> None:
         label = format_bench_spot_label(position)
@@ -144,7 +159,7 @@ def draw_walk_page(name: str) -> None:
     # one dialog for the page: a delete
     confirm_dialog = ConfirmDialog()
 
-    # the keys outside the fields. in the fields the card passes them on (JournalEntryCard)
+    # the keys outside the fields. in the ml the card passes them on, in the remarks none (JournalEntryCard)
     ui.keyboard(on_key=press_by_key)
 
     room_panels = RoomPanels(draw_cards, walk.get_room_index())

@@ -32,7 +32,7 @@ def draw_walk_review_page(name: str) -> None:
         - temporary: the same csv in the old format too, in OLD_EXPORT_DIR under the same name: asks first when
           either is there
         - only once both are written, the csv is emptied for the walk's next pass, and the page goes back to the
-          home page: the grid's rows are gone
+          home page, which says it: the grid's rows are gone
         """
         file_name = f"{datetime.now(TIMEZONE):%Y-%m-%d}-{name}.csv"
         target = EXPORT_DIR / file_name
@@ -48,8 +48,8 @@ def draw_walk_review_page(name: str) -> None:
             ui.notify(f"Not exported: {error}", type="negative")
             return
         journal.empty()
-        ui.notify(f"Exported to {target.name}, walk emptied", type="positive")
-        ui.navigate.to("/")
+        # the toast on the home page: shown here, it would go with this page
+        ui.navigate.to(f"/?exported={target.name}")
 
     ui.page_title(f"{name.capitalize()} walk: review")
     # the screen's height, so the grid fills what the bar leaves

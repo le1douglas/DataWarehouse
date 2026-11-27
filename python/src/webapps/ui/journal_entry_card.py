@@ -19,12 +19,6 @@ STREAMING_PACE = "animation-duration: 1s"
 UNCONFIRMED_LOOK = "cursor-pointer"
 # the live values of an entry without a reading, greyed out: they are written n.a
 GREYED_OUT = "opacity-30"
-# the keys each field of the selected card passes on to the page, by their Vue key modifier. what they do is the
-# page's
-# - the arrow keys from the ml only: a few digits, its cursor hardly needed. in the remarks they stay with the text
-# - page up and down from both
-ML_KEYS = ("left", "right", "up", "down", "page-up", "page-down")
-REMARKS_KEYS = ("page-up", "page-down")
 
 
 class JournalEntryCard(ui.card):
@@ -35,8 +29,8 @@ class JournalEntryCard(ui.card):
     status of the entry, derived and never stored:
     - confirmed (its reading_status not in_progress): read only, and Delete (on_delete). a skipped one greyed out
     - selected: bound to the entry, so the live values and the typing show by themselves, the live values
-      blinking. Confirm, or Enter in a field (on_confirm), enabled while is_confirm_allowed says so, and Skip
-      (on_skip). a key of ML_KEYS or REMARKS_KEYS is passed on (on_key, the name the browser gives it)
+      blinking. Confirm (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip). every key
+      in the ml is passed on (on_key, the name the browser gives it)
     - unconfirmed: bound to the entry too, no live values: the walk clears them when it is deselected. Confirm and
       Skip disabled. a tap anywhere on it selects it (on_select)
     """
@@ -128,18 +122,18 @@ class JournalEntryCard(ui.card):
     def _enable_selected(
         self, on_confirm: Callable[[], Any], on_skip: Callable[[], Any], on_key: Callable[[str], Any]
     ) -> None:
-        """Confirm, or Enter in a field, and Skip. The keys of ML_KEYS and REMARKS_KEYS passed on."""
+        """Confirm and Skip. Every key in the ml passed on."""
         self.classes(SELECTED_LOOK)
         for value in self._values.values():
             value.classes(STREAMING_LOOK).style(STREAMING_PACE)
         # autofocus: the focus in it whenever the card is drawn, so the ml is typed straight away
         self._ml.props("autofocus")
-        for field in self._fields:
-            field.on("keydown.enter", on_confirm)
-        for field, modifiers in ((self._ml, ML_KEYS), (self._remarks, REMARKS_KEYS)):
-            for modifier in modifiers:
-                # key: the name the browser gives it, such as PageUp
-                field.on(f"keydown.{modifier}", lambda event: on_key(event.args["key"]), args=["key"])
+        # every key in the ml passed on to the page, which does what it knows. what they do is the page's
+        # - the ml: a few digits, its cursor hardly needed, and s not taken by its mask
+        # - the field still has every key too: a digit typed, an arrow its cursor moved
+        # - the remarks keep every key for the text
+        # - key: the name the browser gives it, such as PageUp
+        self._ml.on("keydown", lambda event: on_key(event.args["key"]), args=["key"])
         confirm, skip = self._draw_confirm_and_skip()
         confirm.on_click(on_confirm)
         confirm.bind_enabled_from(self, "is_confirm_allowed")
