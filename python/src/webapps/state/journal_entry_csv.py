@@ -74,7 +74,7 @@ class JournalEntryCsv:
             raise ValueError(f"{column} is not a column to set")
         rows = self._read_rows()
         for row in rows:
-            if (row["room"], row["bench"], row["spot"]) == position:
+            if get_row_absolute_position(row) == position:
                 row[column] = value
                 self._write_rows(rows)
                 return
@@ -114,6 +114,14 @@ class JournalEntryCsv:
         if not self.path.exists():
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(",".join(CSV_COLUMNS) + "\n")
+
+
+def get_row_absolute_position(row: dict[str, str]) -> AbsolutePosition:
+    """The absolute position of a row: its room, bench and spot, the key that finds it.
+
+    - mirrored in JavaScript by the review grid's getRowId (review_grid.py)
+    """
+    return row["room"], row["bench"], row["spot"]
 
 
 def format_live_value(metric: str, value: float | None) -> str:

@@ -2,7 +2,7 @@
 
 from nicegui import events, ui
 
-from webapps.state.journal_entry_csv import CSV_COLUMNS, EDITABLE_COLUMNS, JournalEntryCsv
+from webapps.state.journal_entry_csv import CSV_COLUMNS, EDITABLE_COLUMNS, JournalEntryCsv, get_row_absolute_position
 
 
 class ReviewGrid(ui.aggrid):
@@ -19,7 +19,7 @@ class ReviewGrid(ui.aggrid):
             {
                 "columnDefs": [_define_column(column) for column in CSV_COLUMNS],
                 "rowData": journal.read_rows(),
-                # the key of the row, as the csv finds it
+                # the key of the row: get_row_absolute_position in JavaScript, joined
                 ":getRowId": "params => [params.data.room, params.data.bench, params.data.spot].join('|')",
                 "stopEditingWhenCellsLoseFocus": True,
                 # the columns stay in the csv's order
@@ -34,7 +34,7 @@ class ReviewGrid(ui.aggrid):
         value = event.args["newValue"]
         try:
             self._journal.update_value(
-                (row["room"], row["bench"], row["spot"]), event.args["colId"], "" if value is None else str(value)
+                get_row_absolute_position(row), event.args["colId"], "" if value is None else str(value)
             )
         except (OSError, ValueError) as error:
             ui.notify(f"Not written: {error}", type="negative")
