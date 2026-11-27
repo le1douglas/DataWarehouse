@@ -240,7 +240,7 @@ Setup is done.
   | Dataset | DAG | File | Extractor | Bronze table |
   | --- | --- | --- | --- | --- |
   | Journal entries | `load_journal_entries` | `manual/journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
-  | Plants batches | `load_plants_batches` | `manual/plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
+  | Plants batches | `load_plants_batches` | `plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
 
 - The run, one task after the other (`airflow/dags/load_datasets.py`):
   - `no_open_load`: stops the run when the dataset has a load still `landed` or `accepted` (see pitfalls)

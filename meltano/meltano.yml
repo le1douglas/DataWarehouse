@@ -41,7 +41,7 @@ plugins:
   # one child per dataset
   # - entity is the table in dw_bronze
   # - USER_FILES_MOUNT is the user files folder, mounted read only (docker/compose.yaml)
-  # - a file placed by hand is in its manual subfolder
+  # - one subfolder per source and kind of data
   - name: tap-csv-journal-entries
     inherit_from: tap-csv
     config:
@@ -56,7 +56,7 @@ plugins:
     config:
       files:
       - entity: brnz_plants_batches
-        path: ${USER_FILES_MOUNT}/manual/plants_batches/plants_batches.csv
+        path: ${USER_FILES_MOUNT}/plants_batches/plants_batches.csv
         <<: *default_csv_dialect
 
   loaders:

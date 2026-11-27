@@ -3,7 +3,7 @@ x-timezone: &timezone Europe/Amsterdam
 
 # each mount path is written only here: the anchor is both the mount target and the env var the code reads
 # - user files: USER_FILES_DIR, the windows folder of every file a person or a program hands on, one subfolder per
-#   writer: webapps (its exports), manual (placed by hand). meltano.yml loads from it
+#   source and kind of data: webapps (its exports), plants_batches. meltano.yml loads from it
 x-user-files-mount: &user_files_mount /user_files
 # - work in progress: a volume, so a program's unfinished work survives run --rm, and dev and prod each have their own
 x-work-in-progress-mount: &work_in_progress_mount /work_in_progress

@@ -57,7 +57,7 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
    - Check: `dbt ls --select +exposure:excel_journal_entries_daily` lists what the sheet reads; dbt parses. Passed
      2026-11-16. Exposures are not built, so `dbt build` and the DAGs (Cosmos draws only nodes) are unaffected.
 6. ~~**Give dev and prod their own user files folders.**~~ Done: `user_files_dev` and `user_files_prod` in the repo
-   root, one subfolder per writer (`webapps`, `manual`), since 2026-11-27. They replace the input and output folders
+   root, one subfolder per source and kind of data (`webapps`, `plants_batches`), since 2026-11-27. They replace the input and output folders
    (`user_input_*`, `user_output_*`): one program's output is another's input. Passed 2026-11-16, with the old folders:
    a dev load read dev's folder.
    Renaming a mounted folder from inside a container breaks its view there: rename on Windows, then recreate the

@@ -48,6 +48,5 @@ CSV_DIR = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "webapps"
 # files (USER_FILES_DIR in the env file), which the loads read. made when missing
 EXPORT_DIR = Path(os.environ["USER_FILES_MOUNT"]) / "webapps" / "journal_entries"
 # temporary: the folder the same export writes the walk to in the old journal entries format (to_old_journal_entries.py)
-# - prod's user files in the repo, the app's subfolder, even from dev: the repo is mounted at /usr/app, three folders
-#   up from here (python/src/webapps)
-OLD_EXPORT_DIR = Path(__file__).parents[3] / "user_files_prod" / "webapps" / "old_journal_entries"
+# - next to EXPORT_DIR, in the same user files (USER_FILES_DIR in the env file): dev and prod each have their own
+OLD_EXPORT_DIR = Path(os.environ["USER_FILES_MOUNT"]) / "webapps" / "old_journal_entries"

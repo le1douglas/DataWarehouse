@@ -68,7 +68,7 @@ AIRFLOW_PORT=8090
 # the key the airflow components sign each other's tokens with
 AIRFLOW_JWT_SECRET=$(New-Secret)
 RELEASE=dev
-# every file a person or a program hands on, one subfolder per writer: webapps, manual. the loads read it
+# every file a person or a program hands on, one subfolder per source and kind of data: webapps, plants_batches. the loads read it
 # - to move it, change the line and recreate the containers
 # - dev's own: neither environment's folder is inside the other's
 USER_FILES_DIR=../user_files_dev
@@ -95,7 +95,7 @@ AIRFLOW_PORT=8091
 AIRFLOW_JWT_SECRET=$(New-Secret)
 # the git tag, the newest when this file was written. prod does not start before its image exists
 RELEASE=$release
-# every file a person or a program hands on, one subfolder per writer: webapps, manual. the loads read it
+# every file a person or a program hands on, one subfolder per source and kind of data: webapps, plants_batches. the loads read it
 # - prod's own: neither environment's folder is inside the other's
 USER_FILES_DIR=../user_files_prod
 
