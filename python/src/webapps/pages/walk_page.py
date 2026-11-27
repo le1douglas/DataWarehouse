@@ -27,7 +27,6 @@ from webapps.state.walk import Walk
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
 from webapps.ui.journal_entry_card import JournalEntryCard, format_bench_spot_label
-from webapps.ui.pen_dialog import PenDialog
 from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.status_bar import StatusBar
@@ -126,11 +125,9 @@ def draw_walk_page(name: str) -> None:
 
     ConnectDialog(pen)
 
-    pen_dialog = PenDialog(pen)
-
     status_bar = StatusBar()
     with status_bar.left:
-        ui.button(icon="bluetooth", on_click=pen_dialog.open).props("flat round")
+        ui.button("Back", icon="arrow_back", on_click=lambda: ui.navigate.to("/")).props("flat")
     with status_bar.center:
         room_selector = RoomSelector(walk.rooms, walk.open_room, on_select=go_to_room)
     with status_bar.right:

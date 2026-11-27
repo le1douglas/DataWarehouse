@@ -9,6 +9,7 @@ class ConnectDialog(ui.dialog):
     """Connect pen, open while the pen is not connected, read from the pen itself: it keeps no copy.
 
     - persistent: Escape and a click outside do not close it, only a pen that connects
+    - Back, to the home page: another walk can be chosen without a pen
     - Connect pen, or a spinner while the pen is connecting: from the click, with Chrome's chooser open
     - the pen makes the button connect it (attach_connect), as Chrome opens its chooser only from a click
     """
@@ -25,4 +26,5 @@ class ConnectDialog(ui.dialog):
                 ui.spinner()
                 ui.label("Connecting...")
             connecting.bind_visibility_from(pen, "connecting")
+            ui.button("Back", icon="arrow_back", on_click=lambda: ui.navigate.to("/")).props("flat")
         pen.attach_connect(connect)
