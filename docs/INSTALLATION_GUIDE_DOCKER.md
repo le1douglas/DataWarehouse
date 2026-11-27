@@ -234,13 +234,13 @@ Setup is done.
 - A load is one dataset, one run of its DAG, `load_<dataset>`, started by hand in the Airflow UI (dev
   `http://localhost:8090`, prod `http://localhost:8091`): the DAG → **Trigger**. A new DAG starts paused: unpause it
   first. From the dev container, `airflow dags trigger load_<dataset>` does the same
-- Each dataset has its own file in `USER_INPUT_DIR` (`docker/.env`), its own extractor in
-  `DataWarehouseMeltano/meltano.yml` and its own bronze table. Dev and prod read the same folder:
+- Each dataset has its own file in `USER_FILES_DIR` (`docker/.env`), its own extractor in
+  `DataWarehouseMeltano/meltano.yml` and its own bronze table. Dev and prod each read their own folder:
 
   | Dataset | DAG | File | Extractor | Bronze table |
   | --- | --- | --- | --- | --- |
-  | Journal entries | `load_journal_entries` | `journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
-  | Plants batches | `load_plants_batches` | `plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
+  | Journal entries | `load_journal_entries` | `manual/journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
+  | Plants batches | `load_plants_batches` | `manual/plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
 
 - The run, one task after the other (`DataWarehouseAirflow/dags/load_datasets.py`):
   - `no_open_load`: stops the run when the dataset has a load still `landed` or `accepted` (see pitfalls)
@@ -306,7 +306,7 @@ All in the dev container, from `/usr/app`:
 
 - **`docker` fails with `Docker Desktop is unable to start`, or a setup script with `docker does not answer`:** open
   Docker Desktop and wait until the engine runs; tick autostart (section 1).
-- **`set USER_INPUT_DIR / NICEGUI_PORT / USER_OUTPUT_DIR in the env file`:** `docker/.env` is missing or incomplete.
+- **`set USER_FILES_DIR / NICEGUI_PORT in the env file`:** `docker/.env` is missing or incomplete.
   The env files live in `docker/`, not in the repo root.
 - **Prod command hits dev:** `--env-file docker/.env.prod` was left out.
 - **Prod `up` fails with `pull access denied for pipeline` / `webapps`:** the images of `RELEASE` were not built: run `03_setup_prod.ps1`.

@@ -41,5 +41,4 @@ def _show_walk_settings(name: str, walk_settings: settings.WalkSettings) -> None
     ui.textarea("Rooms", value=", ".join(walk_settings.rooms)).props("readonly autogrow").classes("w-full")
     ui.input("Benches", value=", ".join(walk_settings.benches)).props("readonly").classes("w-full")
     ui.textarea("Spots", value=", ".join(walk_settings.spots)).props("readonly autogrow").classes("w-full")
-    export_name = f"<yymmdd>-{walk_settings.export_number}.csv"
-    ui.input("Export name", value=export_name).props("readonly").classes("w-full")
+    ui.input("Export name", value=f"<yyyy-mm-dd>-{name}.csv").props("readonly").classes("w-full")

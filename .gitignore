@@ -496,12 +496,10 @@ $RECYCLE.BIN/
 
 # the csv files to load and the files the programs write: data, not code, one folder of each per environment
 # - the folders stay in git through their .gitkeep
-user_input_*/**
-!user_input_*/*/
-!user_input_*/*/.gitkeep
-user_output_*/**
-!user_output_*/*/
-!user_output_*/*/.gitkeep
+user_files_*/**
+!user_files_*/*/
+!user_files_*/*/*/
+!user_files_*/*/*/.gitkeep
 
 # Claude Code's permissions, per machine. a global git ignore does the same on windows, but not in the dev container
 .claude/settings.local.json

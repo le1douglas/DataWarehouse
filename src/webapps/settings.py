@@ -17,8 +17,6 @@ class WalkSettings:
     benches: tuple[str, ...]
     # as the csv writes them
     spots: tuple[str, ...]
-    # the number of its export in EXPORT_DIR, <yymmdd>-<number>.csv: as PART_NUMBERS of the datastreamer
-    export_number: int
 
 
 # the walks, by the name in their url: the app's own lists
@@ -28,19 +26,16 @@ WALKS = {
         rooms=("1.30", "1.29", "1.28", "1.27", "1.26", "1.25", "1.24", "0.31", "0.32", "0.33"),
         benches=("4",),
         spots=("drip_left", "drip_right", "drain_left", "drain_right"),
-        export_number=1,
     ),
     "afternoon": WalkSettings(
         rooms=("1.23", "1.22", "1.21", "1.20", "1.19", "1.18", "1.17", "0.27", "0.28", "0.29"),
         benches=("4",),
         spots=("drip_left", "drip_right", "drain_left", "drain_right"),
-        export_number=2,
     ),
     "mother": WalkSettings(
         rooms=("0.14", "0.15"),
         benches=("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
         spots=("drip_left", "drain_left"),
-        export_number=3,
     ),
 }
 # read here, not from the container's clock, which falls back to UTC silently: an empty or unknown TZ stops the app
@@ -49,12 +44,12 @@ TIMEZONE = ZoneInfo(os.environ["TZ"])
 # - in the work-in-progress volume (WORK_IN_PROGRESS_MOUNT), the app's own subfolder: they outlive the container, and
 #   dev and prod each have their own
 CSV_DIR = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "webapps"
-# the folder the review page exports the csv of a walk to: the user's output folder (USER_OUTPUT_DIR in the env
-# file), the subfolder the datastreamer writes its csvs to. made when missing
-EXPORT_DIR = Path(os.environ["USER_OUTPUT_MOUNT"]) / "journal_entries"
+# the folder the review page exports the csv of a walk to, <yyyy-mm-dd>-<walk>.csv: the app's subfolder of the user
+# files (USER_FILES_DIR in the env file), which the loads read. made when missing
+EXPORT_DIR = Path(os.environ["USER_FILES_MOUNT"]) / "webapps" / "journal_entries"
 # temporary: the folder the same export writes the walk to in the old journal entries format (to_old_journal_entries.py)
-# - prod's output folder in the repo, next to the datastreamer's csvs, even from dev: the repo is mounted at /usr/app
-OLD_EXPORT_DIR = Path(__file__).parents[2] / "user_output_prod" / "journal_entries"
+# - prod's user files in the repo, the app's subfolder, even from dev: the repo is mounted at /usr/app
+OLD_EXPORT_DIR = Path(__file__).parents[2] / "user_files_prod" / "webapps" / "old_journal_entries"
 # temporary: true puts a mock pen (pens/mock_pen.py) in place of the OnePen, connected from the start, sending
 # random live values. false to use a real pen
 MOCK_PEN = True

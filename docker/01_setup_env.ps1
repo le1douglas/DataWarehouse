@@ -1,6 +1,6 @@
 # creates the env files .env (dev) and .env.prod next to compose.yaml
 # - when some exist, one question: yes overwrites them all, no creates only the missing ones
-# - the input and output folders are temporary, until the day-to-day ones are decided
+# - the user files folder is temporary, until the day-to-day one is decided
 # run from Windows: powershell -ExecutionPolicy Bypass -File docker\01_setup_env.ps1
 $ErrorActionPreference = 'Stop'
 
@@ -68,11 +68,10 @@ AIRFLOW_PORT=8090
 # the key the airflow components sign each other's tokens with
 AIRFLOW_JWT_SECRET=$(New-Secret)
 RELEASE=dev
-# every csv to load, one subfolder per dataset. to move it, change the line and recreate the containers
+# every file a person or a program hands on, one subfolder per writer: webapps, manual. the loads read it
+# - to move it, change the line and recreate the containers
 # - dev's own: neither environment's folder is inside the other's
-USER_INPUT_DIR=../user_input_dev
-# every file the programs write for the user, one subfolder per program. dev's own
-USER_OUTPUT_DIR=../user_output_dev
+USER_FILES_DIR=../user_files_dev
 
 "@
 }
@@ -96,10 +95,9 @@ AIRFLOW_PORT=8091
 AIRFLOW_JWT_SECRET=$(New-Secret)
 # the git tag, the newest when this file was written. prod does not start before its image exists
 RELEASE=$release
-# every csv to load, one subfolder per dataset. prod's own: neither environment's folder is inside the other's
-USER_INPUT_DIR=../user_input_prod
-# every file the programs write for the user, one subfolder per program. prod's own
-USER_OUTPUT_DIR=../user_output_prod
+# every file a person or a program hands on, one subfolder per writer: webapps, manual. the loads read it
+# - prod's own: neither environment's folder is inside the other's
+USER_FILES_DIR=../user_files_prod
 
 "@
 }

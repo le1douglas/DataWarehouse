@@ -2,10 +2,9 @@
 x-timezone: &timezone Europe/Amsterdam
 
 # each mount path is written only here: the anchor is both the mount target and the env var the code reads
-# - user input: USER_INPUT_DIR, the windows folder of every csv to load, read by meltano.yml
-x-user-input-mount: &user_input_mount /user_input
-# - user output: USER_OUTPUT_DIR, the windows folder of every file the programs write for the user
-x-user-output-mount: &user_output_mount /user_output
+# - user files: USER_FILES_DIR, the windows folder of every file a person or a program hands on, one subfolder per
+#   writer: webapps (its exports), manual (placed by hand). meltano.yml loads from it
+x-user-files-mount: &user_files_mount /user_files
 # - work in progress: a volume, so a program's unfinished work survives run --rm, and dev and prod each have their own
 x-work-in-progress-mount: &work_in_progress_mount /work_in_progress
 
@@ -144,7 +143,7 @@ services:
     environment:
       <<: [*airflow_env, *dbt_env]
 
-  # runs every task itself (LocalExecutor), so it is the only component that needs meltano and the input folder
+  # runs every task itself (LocalExecutor), so it is the only component that needs meltano and the user files
   airflow-scheduler:
     <<: *airflow
     command: ["scheduler"]
@@ -157,14 +156,15 @@ services:
       TARGET_POSTGRES_DATABASE: *postgres_db
       TARGET_POSTGRES_USER: *postgres_user
       TARGET_POSTGRES_PASSWORD: *postgres_password
-      USER_INPUT_MOUNT: *user_input_mount
+      USER_FILES_MOUNT: *user_files_mount
     volumes:
       - airflow-logs:/opt/airflow/logs
       - dbt-state:/dbt-state
-      # read only, so meltano never changes an export. long form: an anchor cannot go inside the short one's string
+      # every writer's subfolder, read only, so meltano never changes a file. long form: an anchor cannot go inside the
+      # short one's string
       - type: bind
-        source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
-        target: *user_input_mount
+        source: ${USER_FILES_DIR:?set USER_FILES_DIR in the env file}
+        target: *user_files_mount
         read_only: true
     depends_on:
       airflow-init:
@@ -182,13 +182,14 @@ services:
     image: datastreamer:${RELEASE}
     environment:
       TZ: *timezone # stamps each reading and names the daily csv
-      USER_OUTPUT_MOUNT: *user_output_mount
+      # its own subfolder of the user files, at the path the released images write to
+      USER_OUTPUT_MOUNT: /user_output
       WORK_IN_PROGRESS_MOUNT: *work_in_progress_mount
     volumes:
       # long form: an anchor cannot go inside the short one's string
       - type: bind
-        source: ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}
-        target: *user_output_mount
+        source: ${USER_FILES_DIR:?set USER_FILES_DIR in the env file}/datastreamer
+        target: /user_output
       - type: volume
         source: work-in-progress
         target: *work_in_progress_mount
@@ -208,13 +209,14 @@ services:
       POSTGRESQL_DB: *postgres_db
       POSTGRESQL_USER: *postgres_user
       POSTGRESQL_PASSWORD: *postgres_password
-      USER_OUTPUT_MOUNT: *user_output_mount # the review page exports a walk's csv there
+      USER_FILES_MOUNT: *user_files_mount # the review page exports a walk's csv to its subfolder
       WORK_IN_PROGRESS_MOUNT: *work_in_progress_mount # the csv of each walk, until it is exported
     volumes:
-      # long form: an anchor cannot go inside the short one's string
+      # its own subfolder of the user files only, at the same path as in the whole folder
+      # - long form: an anchor cannot go inside the short one's string
       - type: bind
-        source: ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}
-        target: *user_output_mount
+        source: ${USER_FILES_DIR:?set USER_FILES_DIR in the env file}/webapps
+        target: /user_files/webapps
       - type: volume
         source: work-in-progress
         target: *work_in_progress_mount

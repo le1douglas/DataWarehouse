@@ -62,11 +62,8 @@ services:
       - dbt-state:/dbt-state
       - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
       # the paths of the x-*-mount anchors in compose.yaml
-      - type: bind
-        source: ${USER_INPUT_DIR:?set USER_INPUT_DIR in the env file}
-        target: /user_input
-        read_only: true
-      - ${USER_OUTPUT_DIR:?set USER_OUTPUT_DIR in the env file}:/user_output
+      # - the user files whole, writable: a file placed by hand, an export of the webapps
+      - ${USER_FILES_DIR:?set USER_FILES_DIR in the env file}:/user_files
       - work-in-progress:/work_in_progress
       # Claude Code's login, settings and memory: they survive a rebuild, and are lost only with the volume
       # (docs/DEV_CONTAINER.md)
@@ -103,9 +100,9 @@ services:
       TARGET_POSTGRES_DATABASE: ${POSTGRES_DB}
       TARGET_POSTGRES_USER: ${POSTGRES_USER}
       TARGET_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      USER_INPUT_MOUNT: /user_input
-      # datastreamer
-      USER_OUTPUT_MOUNT: /user_output
+      USER_FILES_MOUNT: /user_files
+      # datastreamer: its subfolder of the user files
+      USER_OUTPUT_MOUNT: /user_files/datastreamer
       WORK_IN_PROGRESS_MOUNT: /work_in_progress
       # webapps
       POSTGRESQL_SERVER: postgres

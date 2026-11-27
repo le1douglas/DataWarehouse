@@ -26,15 +26,15 @@ def draw_walk_review_page(name: str) -> None:
     is_complete = Walk(WALKS[name], journal).is_complete()
 
     async def export() -> None:
-        """Copies the csv to EXPORT_DIR, named by today and the walk, as the datastreamer names its csvs. Asks
-        first when today's export of the walk is there: Cancel keeps it.
+        """Copies the csv to EXPORT_DIR, named by today and the walk, <yyyy-mm-dd>-<walk>.csv. Asks first when
+        today's export of the walk is there: Cancel keeps it.
 
         - temporary: the same csv in the old format too, in OLD_EXPORT_DIR under the same name, where the
           datastreamer's csvs are: asks first when either is there
         - only once both are written, the csv is emptied for the walk's next pass, and the page goes back to the
           home page: the grid's rows are gone
         """
-        file_name = f"{datetime.now(TIMEZONE):%y%m%d}-{WALKS[name].export_number}.csv"
+        file_name = f"{datetime.now(TIMEZONE):%Y-%m-%d}-{name}.csv"
         target = EXPORT_DIR / file_name
         old_target = OLD_EXPORT_DIR / file_name
         existing = [str(path) for path in (target, old_target) if path.exists()]
