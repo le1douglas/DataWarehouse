@@ -67,15 +67,19 @@ class JournalEntryCard(ui.card):
     def _draw_parts(self, entry: JournalEntry) -> None:
         """The parts every card has, empty: its room and spot, the live values, the ml, the remarks."""
         ui.label(_format_card_title(entry)).classes("text-lg font-bold")
-        # side by side: the labels in a row, the values in a row under them
-        self._live_grid = ui.grid(columns=len(LABELS)).classes("w-full text-center gap-y-0")
+        # side by side, the ml first: the labels in a row, the values in a row under them
+        self._live_grid = ui.grid(columns=len(LABELS) + 1).classes("w-full text-center gap-y-0 items-center")
         with self._live_grid:
-            for label in LABELS.values():
+            for label in ("ml", *LABELS.values()):
                 ui.label(label).classes("text-grey-7")
+            # text with a mask of digits, not ui.number: a number field takes e, + and -, and reads 4e2 as 400
+            # - inputmode: the number pad on a phone
+            # - input-class: its text as the live values', its underline the only sign it is typed in
+            self._ml = ui.input(placeholder="–").props(
+                f'mask="{"#" * ML_DIGITS}" inputmode=numeric dense hide-bottom-space '
+                'input-class="text-center font-mono text-lg"'
+            )
             self._values = {metric: ui.label("–").classes("font-mono text-lg") for metric in LABELS}
-        # text with a mask of digits, not ui.number: a number field takes e, + and -, and reads 4e2 as 400
-        # - inputmode: the number pad on a phone
-        self._ml = ui.input("ml").classes("w-full").props(f'mask="{"#" * ML_DIGITS}" inputmode=numeric')
         self._remarks = ui.input("remarks (optional)").classes("w-full")
         self._fields = (self._ml, self._remarks)
 
@@ -120,10 +124,11 @@ class JournalEntryCard(ui.card):
             button.disable()
 
     def _draw_confirm_and_skip(self) -> tuple[ui.button, ui.button]:
-        """Confirm, and Skip under it: no reading for the spot, its remarks kept."""
-        with ui.column().classes("w-full"):
-            confirm = ui.button("Confirm", icon="check").classes("w-full")
-            skip = ui.button("Skip", icon="skip_next", color="grey").props("outline").classes("w-full")
+        """Skip and Confirm side by side, Confirm on the right. Skip: no reading for the spot, its remarks kept."""
+        # - no-wrap and flex-1: side by side and the same width on any screen
+        with ui.row().classes("w-full no-wrap"):
+            skip = ui.button("Skip", icon="skip_next", color="grey").props("outline").classes("flex-1")
+            confirm = ui.button("Confirm", icon="check").classes("flex-1")
         return confirm, skip
 
     def _show_reading(self, has_reading: bool) -> None:

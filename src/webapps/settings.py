@@ -55,3 +55,6 @@ EXPORT_DIR = Path(os.environ["USER_OUTPUT_MOUNT"]) / "journal_entries"
 # temporary: the folder the same export writes the walk to in the old journal entries format (to_old_journal_entries.py)
 # - prod's output folder in the repo, next to the datastreamer's csvs, even from dev: the repo is mounted at /usr/app
 OLD_EXPORT_DIR = Path(__file__).parents[2] / "user_output_prod" / "journal_entries"
+# temporary: true puts a mock pen (pens/mock_pen.py) in place of the OnePen, connected from the start, sending
+# random live values. false to use a real pen
+MOCK_PEN = True

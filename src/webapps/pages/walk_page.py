@@ -18,8 +18,9 @@ The page knows nothing of the pen's bytes: the pen, a OnePen connected by the br
 
 from nicegui import ui
 
+from webapps.pens.mock_pen import MockPen
 from webapps.pens.one_pen import OnePen
-from webapps.settings import CSV_DIR, WALKS
+from webapps.settings import CSV_DIR, MOCK_PEN, WALKS
 from webapps.state.journal_entry import AbsolutePosition
 from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.walk import Walk
@@ -101,7 +102,8 @@ def draw_walk_page(name: str) -> None:
                 )
 
     # the values go to the selected entry
-    pen = OnePen(on_live=walk.receive_live_value, on_error=notify_error)
+    # temporary: the mock pen, when settings.py asks for it
+    pen = (MockPen if MOCK_PEN else OnePen)(on_live=walk.receive_live_value, on_error=notify_error)
 
     ConnectDialog(pen)
 
