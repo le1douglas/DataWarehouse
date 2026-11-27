@@ -16,7 +16,7 @@ The page knows nothing of the pen's bytes: the pen, a OnePen connected by the br
 (pens/one_pen.py), gives it decoded values through callbacks.
 """
 
-from nicegui import ui
+from nicegui import events, ui
 
 from webapps.pens.mock_pen import MockPen
 from webapps.pens.one_pen import OnePen
@@ -27,10 +27,14 @@ from webapps.state.walk import Walk
 from webapps.ui.confirm_dialog import ConfirmDialog
 from webapps.ui.connect_dialog import ConnectDialog
 from webapps.ui.journal_entry_card import JournalEntryCard, format_bench_spot_label
+from webapps.ui.pen_dialog import PenDialog
 from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
-from webapps.ui.settings_dialog import SettingsDialog
 from webapps.ui.status_bar import StatusBar
+
+# the step of each arrow key through the open room, by the grid of two columns: left and right in walk order, up
+# and down in the same column. one column, on a narrow screen, is not followed: a keyboard means a wide one
+ARROW_STEPS = {"ArrowLeft": -1, "ArrowRight": 1, "ArrowUp": -2, "ArrowDown": 2}
 
 
 @ui.page("/walk/{name}")
@@ -56,6 +60,17 @@ def draw_walk_page(name: str) -> None:
     def select(position: AbsolutePosition) -> None:
         walk.select(position)
         show_room()
+
+    def move(key: str) -> None:
+        """Selects the nearest unconfirmed card the arrow key points to, as a tap would. None there: nothing
+        changes."""
+        position = walk.find_selectable(ARROW_STEPS[key])
+        if position is not None:
+            select(position)
+
+    def move_by_key(event: events.KeyEventArguments) -> None:
+        if event.action.keydown and event.key.name in ARROW_STEPS:
+            move(event.key.name)
 
     def confirm() -> None:
         # Confirm and Enter both come here
@@ -99,6 +114,7 @@ def draw_walk_page(name: str) -> None:
                     on_confirm=confirm,
                     on_skip=skip,
                     on_delete=lambda position=position: ask_delete(position),
+                    on_move=move,
                 )
 
     # the values go to the selected entry
@@ -107,17 +123,20 @@ def draw_walk_page(name: str) -> None:
 
     ConnectDialog(pen)
 
-    settings_dialog = SettingsDialog(pen, WALKS[name], csv_path, read_csv_text=walk.read_csv_text)
+    pen_dialog = PenDialog(pen)
 
     status_bar = StatusBar()
     with status_bar.left:
-        ui.button("Review", icon="table_view", on_click=lambda: ui.navigate.to(f"/walk/{name}/review")).props("flat")
+        ui.button(icon="bluetooth", on_click=pen_dialog.open).props("flat round")
     with status_bar.center:
         room_selector = RoomSelector(walk.rooms, walk.open_room, on_select=go_to_room)
     with status_bar.right:
-        ui.button(icon="settings", on_click=settings_dialog.open).props("flat round")
+        ui.button("Review", icon="table_view", on_click=lambda: ui.navigate.to(f"/walk/{name}/review")).props("flat")
 
     # one dialog for the page: a delete
     confirm_dialog = ConfirmDialog()
+
+    # the arrow keys outside the fields. in the ml the card passes them on, in the remarks they stay with the text
+    ui.keyboard(on_key=move_by_key)
 
     room_panels = RoomPanels(draw_cards, walk.get_room_index())

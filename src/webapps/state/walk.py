@@ -56,6 +56,18 @@ class Walk:
             deselected.clear_live_values()
         self.selected = position
 
+    def find_selectable(self, step: int) -> AbsolutePosition | None:
+        """The nearest unconfirmed entry of the open room from the selected one, stepping through the room in walk
+        order: 1 the next, -1 the one before, 2 the next in the same column of two. None when there is none or
+        nothing is selected: the steps stop at the edge of the room."""
+        if self.selected is None:
+            return None
+        entries = self.get_entries(self.open_room)
+        index = next(i for i, entry in enumerate(entries) if entry.get_absolute_position() == self.selected)
+        end = len(entries) if step > 0 else -1
+        ahead = (entries[i] for i in range(index + step, end, step))
+        return next((entry.get_absolute_position() for entry in ahead if not entry.is_confirmed()), None)
+
     def go_to_room(self, name: str) -> None:
         """Opens the room and selects its first unconfirmed entry, none when it is complete. What is typed in its
         entries, and in those of every other room, is kept."""

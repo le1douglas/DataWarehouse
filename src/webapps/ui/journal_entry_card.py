@@ -17,6 +17,8 @@ SELECTED_LOOK = "ring-4 ring-blue-500"
 UNCONFIRMED_LOOK = "cursor-pointer"
 # the live values of an entry without a reading, greyed out: they are written n.a
 GREYED_OUT = "opacity-30"
+# the arrow keys the ml passes on, by their Vue key modifier: the name the browser gives them
+ARROW_KEYS = {"left": "ArrowLeft", "right": "ArrowRight", "up": "ArrowUp", "down": "ArrowDown"}
 
 
 class JournalEntryCard(ui.card):
@@ -27,7 +29,8 @@ class JournalEntryCard(ui.card):
     status of the entry, derived and never stored:
     - confirmed (its date_time set): read only, and Delete (on_delete). a skipped one greyed out
     - selected: bound to the entry, so the live values and the typing show by themselves. Confirm, or Enter in a
-      field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip)
+      field (on_confirm), enabled while is_confirm_allowed says so, and Skip (on_skip). an arrow key in the ml
+      moves to another card (on_move, the key's name)
     - unconfirmed: bound to the entry too, no live values: the walk clears them when it is deselected. Confirm and
       Skip disabled. a tap anywhere on it selects it (on_select)
     """
@@ -41,6 +44,7 @@ class JournalEntryCard(ui.card):
         on_confirm: Callable[[], Any],
         on_skip: Callable[[], Any],
         on_delete: Callable[[], Any],
+        on_move: Callable[[str], Any],
     ) -> None:
         super().__init__()
         self._is_confirm_allowed = is_confirm_allowed
@@ -55,7 +59,7 @@ class JournalEntryCard(ui.card):
                 self._show_confirmed(entry, on_delete)
             elif is_selected:
                 self._bind_entry(entry)
-                self._enable_selected(on_confirm, on_skip)
+                self._enable_selected(on_confirm, on_skip, on_move)
             else:
                 self._bind_entry(entry)
                 self._enable_unconfirmed(on_select)
@@ -103,13 +107,19 @@ class JournalEntryCard(ui.card):
         self._ml.bind_value(entry, "ml", forward=lambda text: int(text) if text else None, backward=_format_ml)
         self._remarks.bind_value(entry, "remarks")
 
-    def _enable_selected(self, on_confirm: Callable[[], Any], on_skip: Callable[[], Any]) -> None:
-        """Confirm, or Enter in a field, and Skip."""
+    def _enable_selected(
+        self, on_confirm: Callable[[], Any], on_skip: Callable[[], Any], on_move: Callable[[str], Any]
+    ) -> None:
+        """Confirm, or Enter in a field, and Skip. An arrow key in the ml moves to another card."""
         self.classes(SELECTED_LOOK)
         # autofocus: the focus in it whenever the card is drawn, so the ml is typed straight away
         self._ml.props("autofocus")
         for field in self._fields:
             field.on("keydown.enter", on_confirm)
+        # - the ml only: a few digits, its cursor hardly needed
+        # - in the remarks the arrow keys stay with the text
+        for modifier, key in ARROW_KEYS.items():
+            self._ml.on(f"keydown.{modifier}", lambda key=key: on_move(key))
         confirm, skip = self._draw_confirm_and_skip()
         confirm.on_click(on_confirm)
         confirm.bind_enabled_from(self, "is_confirm_allowed")

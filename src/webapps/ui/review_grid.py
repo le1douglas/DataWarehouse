@@ -22,6 +22,8 @@ class ReviewGrid(ui.aggrid):
                 # the key of the row, as the csv finds it
                 ":getRowId": "params => [params.data.room, params.data.bench, params.data.spot].join('|')",
                 "stopEditingWhenCellsLoseFocus": True,
+                # the columns stay in the csv's order
+                "suppressMovableColumns": True,
             }
         )
         self.on("cellValueChanged", self._write_value)

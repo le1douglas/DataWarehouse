@@ -1,5 +1,5 @@
-"""The status bar of the drip and drain pages, the walk and its review: a bar at the top, its elements given
-by the page."""
+"""The status bar of the drip and drain pages, the home page, the walk and its review: a bar at the top, its
+elements given by the page."""
 
 from nicegui import ui
 
