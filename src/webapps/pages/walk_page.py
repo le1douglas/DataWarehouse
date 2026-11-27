@@ -106,7 +106,7 @@ def draw_walk_page(name: str) -> None:
         with ui.grid().classes("w-full grow auto-rows-[1fr] grid-cols-1 sm:grid-cols-2 gap-4"):
             for entry in walk.get_entries(walk.open_room):
                 position = entry.get_absolute_position()
-                JournalEntryCard(
+                card = JournalEntryCard(
                     entry,
                     is_selected=position == walk.selected,
                     is_confirm_allowed=walk.is_confirm_allowed,
@@ -116,6 +116,9 @@ def draw_walk_page(name: str) -> None:
                     on_delete=lambda position=position: ask_delete(position),
                     on_move=move,
                 )
+                # selected by a key, a confirm or a delete, it may be out of view, such as on the mother walk
+                if position == walk.selected:
+                    card.scroll_into_view()
 
     # the values go to the selected entry
     # temporary: the mock pen, when settings.py asks for it

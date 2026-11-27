@@ -68,6 +68,17 @@ class JournalEntryCard(ui.card):
     def is_confirm_allowed(self) -> bool:
         return self._is_confirm_allowed()
 
+    def scroll_into_view(self) -> None:
+        """Scrolls the panel until the card is in view, when it is not: Quasar's autofocus focuses without a
+        scroll."""
+        # - JavaScript: no Python API scrolls to an element
+        # - setTimeout: Vue draws the card after its update, which may reach the browser after this
+        # - scroll-m-2: its ring in view too, not cut at the panel's edge
+        self.classes("scroll-m-2")
+        ui.run_javascript(
+            f"setTimeout(() => getHtmlElement({self.id})?.scrollIntoView({{block: 'nearest', behavior: 'smooth'}}))"
+        )
+
     def _draw_parts(self, entry: JournalEntry) -> None:
         """The parts every card has, empty: its room and spot, the live values, the ml, the remarks."""
         ui.label(_format_card_title(entry)).classes("text-lg font-bold")
