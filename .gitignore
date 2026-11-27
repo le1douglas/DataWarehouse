@@ -503,3 +503,6 @@ user_files_*/**
 
 # Claude Code's permissions, per machine. a global git ignore does the same on windows, but not in the dev container
 .claude/settings.local.json
+
+# NiceGUI app.storage, written in the working directory: the repo root, in dev
+.nicegui/

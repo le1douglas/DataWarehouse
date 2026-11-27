@@ -1,14 +1,16 @@
-"""The settings dialog of the home page: every setting of settings.py, read only."""
+"""The settings dialog of the home page: every setting of settings.py, read only, and the mock pen."""
 
-from nicegui import ui
+from nicegui import app, events, ui
 
 from webapps import settings
+from webapps.pens.mock_pen import STORAGE_KEY, is_mock_pen_on
 
 
 class SettingsDialog(ui.dialog):
     """Every setting of settings.py as the app read it when it started: what every walk shares, then each walk.
 
     - every field read only: the settings are changed in settings.py
+    - but the mock pen: set here, kept in app.storage.general, used by the next walk page opened
     - opened by the page, such as from the gear of the status bar. OK, Escape or a click outside closes it
     """
 
@@ -31,8 +33,14 @@ def _show_shared_settings() -> None:
     ui.input("Export folder", value=str(settings.EXPORT_DIR)).props("readonly").classes("w-full")
     # temporary: the same export in the old format, as long as the review writes it
     ui.input("Old export folder", value=str(settings.OLD_EXPORT_DIR)).props("readonly").classes("w-full")
-    # temporary: as long as settings.py has it
-    ui.input("Mock pen", value=str(settings.MOCK_PEN)).props("readonly").classes("w-full")
+    # temporary: as long as the mock pen exists
+    ui.select(
+        {False: "False", True: "True"}, label="Mock pen", value=is_mock_pen_on(), on_change=_set_mock_pen
+    ).classes("w-full")
+
+
+def _set_mock_pen(event: events.ValueChangeEventArguments) -> None:
+    app.storage.general[STORAGE_KEY] = event.value
 
 
 def _show_walk_settings(name: str, walk_settings: settings.WalkSettings) -> None:

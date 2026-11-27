@@ -51,6 +51,3 @@ EXPORT_DIR = Path(os.environ["USER_FILES_MOUNT"]) / "webapps" / "journal_entries
 # - prod's user files in the repo, the app's subfolder, even from dev: the repo is mounted at /usr/app, three folders
 #   up from here (python/src/webapps)
 OLD_EXPORT_DIR = Path(__file__).parents[3] / "user_files_prod" / "webapps" / "old_journal_entries"
-# temporary: true puts a mock pen (pens/mock_pen.py) in place of the OnePen, connected from the start, sending
-# random live values. false to use a real pen
-MOCK_PEN = True
