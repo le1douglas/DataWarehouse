@@ -371,7 +371,7 @@ Reviewed after the simplifications in As built (every run ends its load, one row
 | `source_row_number` | A refused file is fixed at the source: the line, not only the value | 6 |
 | Silver rebuild from the published loads; history from bronze | Silver cannot be rebuilt (`full_refresh: false`), and without snapshots a row's history is only in bronze and `ctl_loads`. Needs its own path: staging holds the open load only | 6, 8 |
 | Landing zone, checksum, `duplicate` | A file sent twice loads twice: harmless to silver (merge by business key), kept twice in bronze | 4, 6 |
-| Delivery checks before bronze, `rejected` | Encoding, header and shape faults (`SampleData/drip_drain_csv/malformed_csv`) are not all caught | 3, 5 |
+| Delivery checks before bronze, `rejected` | Encoding, header and shape faults (`SampleData/drip_drain_csv/malformed_csv`, deleted 2026-11-27, in git at `842c7a5`) are not all caught | 3, 5 |
 | `indexes` model config instead of the `pg_index` post-hook | Cleanup of `unique_key_index` | 8, 13 |
 | OpenLineage, OpenMetadata, CI | OpenMetadata is planned; CI catches a broken build before a merge | 11 |
 | Roles | Everything runs as one user | 12 |
@@ -409,7 +409,7 @@ publish ends the load as `failed`, a fifth state, for a person to look at. `refu
 failing task's failure callback.
 
 **dbt runs through Cosmos**, not as plain BashOperator commands: `audit` and `publish` are Cosmos task groups
-(`DataWarehouseAirflow/dags/utils/dbt_task_group.py`), one Airflow task per dbt node, each a `dbt build` of that node
+(`airflow/dags/utils/dbt_task_group.py`), one Airflow task per dbt node, each a `dbt build` of that node
 and its tests, so the UI shows which model or test refused or failed the load. The tasks are drawn from the dbt
 manifest, not from `dbt ls`: Airflow's manifest, in `/dbt-state/<RELEASE>/airflow-manifest` of the `dbt-state`
 volume, written only by `airflow-init` on every `up`. Every other dbt command has a target of its own, so none
@@ -467,14 +467,14 @@ flowchart LR
 
 | Piece | Where |
 |---|---|
-| `dw_control.ctl_loads` | `Database/01_create_schemas_and_tables.sql` |
+| `dw_control.ctl_loads` | `postgres/01_create_schemas_and_tables.sql` |
 | Loads in a state | `macros/loads_in_state.sql` |
 | `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
 | `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
-| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
-| The setup build, its dbt selection, run by the setup scripts | `DataWarehouseDbt/selectors.yml`, `docker/02_setup_dev.ps1`, `docker/03_setup_prod.ps1` |
-| A dbt build as a Cosmos task group, drawn from the manifest | `DataWarehouseAirflow/dags/utils/dbt_task_group.py` |
-| Gold's keys, by hand, for its readers: every key test with dbt_constraints on, which adds every missing key | `DataWarehouseAirflow/dags/refresh_metadata.py` |
+| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `airflow/dags/load_datasets.py` |
+| The setup build, its dbt selection, run by the setup scripts | `data_build_tool/selectors.yml`, `docker/02_setup_dev.ps1`, `docker/03_setup_prod.ps1` |
+| A dbt build as a Cosmos task group, drawn from the manifest | `airflow/dags/utils/dbt_task_group.py` |
+| Gold's keys, by hand, for its readers: every key test with dbt_constraints on, which adds every missing key | `airflow/dags/refresh_metadata.py` |
 | The `publish` pool | `airflow-init` in `docker/compose.yaml` |
 
 Removed: the `load_id` var, `-- depends_on: ref_*`, the bootstrap build that fails on purpose, snapshots (tables

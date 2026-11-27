@@ -1,0 +1,13 @@
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.4.1
+  - package: metaplane/dbt_expectations
+    version: 0.10.10
+  # dbt_expectations' dependency, pinned here too: cosmos copies the project without package-lock.yml, and dbt then
+  # checks this file against the installed packages
+  - package: godatadriven/dbt_date
+    version: 0.21.0
+  - package: elementary-data/elementary
+    version: 0.26.1
+  - package: Snowflake-Labs/dbt_constraints
+    version: 1.0.12

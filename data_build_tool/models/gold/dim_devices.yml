@@ -1,0 +1,14 @@
+models:
+  - name: dim_devices
+    description: The measuring devices. Change a device in seed_devices.csv, not here.
+    # publishes ref_devices: its data tests are there. the key below becomes a constraint only through
+    # refresh_metadata
+    columns:
+      - name: device
+        data_type: text
+        data_tests:
+          - dbt_constraints.primary_key
+      - name: manufacturer
+        data_type: text
+      - name: is_working
+        data_type: boolean

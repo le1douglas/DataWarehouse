@@ -1,0 +1,174 @@
+# every column, type and data test of journal entries, declared only here:
+# - cast_select casts to these types, the contract checks the view against them, silver takes them
+# - an uncastable value is null, so not_null reports it; range and relationship tests ignore nulls, so it
+#   gives one error
+# - n.a becomes null too, as it cannot be cast. reading_status, sent by the web app and trusted, says where a null
+#   is allowed: not_null runs only where the value is due, so a skipped room and an unreliable reading pass
+# - a data test's description is the message the user sees
+models:
+  - name: stg_journal_entries
+    data_tests:
+      # the file as a whole: staging holds one load, so this counts its rows
+      # TODO a test for row counts that are a power of 10 or of 2, common silent limits
+      - dbt_expectations.expect_table_row_count_to_equal:
+          arguments:
+            value: 40 # 10 rooms, 4 measurements each: a file cut short has fewer
+          config:
+            meta:
+              description: the file must have 40 rows (10 rooms with 4 measurements each)
+      # the business key, read from slvr_journal_entries.yml
+      - unique_business_key_in_load_and_silver:
+          config:
+            meta:
+              description: another journal entry in this load has the same business key
+      - warn_overwritten_rows
+      # one reading per position per day, within the load and against silver, whatever its reading_status: a skipped
+      # position is that day's entry, and is never taken again the same day
+      - unique_columns_in_load_and_silver:
+          arguments:
+            columns:
+              - (date_time at time zone '{{ var("timezone") }}')::date
+              - absolute_position
+          config:
+            meta:
+              description: this position already has a reading on this day, in this load or in silver
+      # a skipped room has no values: the web app writes them n.a, which becomes null
+      - elementary.expression_is_true_with_context:
+          arguments:
+            expression: ml is null and ec is null and ph is null and temperature is null
+          config:
+            where: "reading_status = 'skipped'"
+            meta:
+              description: the room was skipped, so ml, ec, ph and temperature must be n.a or empty
+    columns:
+      - name: row_id
+        data_type: uuid
+      - name: date_time
+        data_type: timestamptz
+        data_tests:
+          # every row has one, a skipped room the time it was skipped
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: date_time is missing or not a date and time
+      - name: device
+        data_type: text
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: device is missing
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('ref_devices')
+                field: device
+              config:
+                meta:
+                  description: device is not in seed_devices
+      - name: absolute_position
+        data_type: text
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: room or spot is missing, or spot is not drip or drain and left or right joined by _, such as drip_left
+          - elementary.relationships_with_context:
+              arguments:
+                to: ref('ref_absolute_positions')
+                field: absolute_position
+              config:
+                meta:
+                  description: this room, bench and relative position are not in ref_absolute_positions
+      - name: ml
+        data_type: integer
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                # a skipped room has none
+                where: "reading_status in ('measured', 'unreliable')"
+                meta:
+                  description: ml is missing or not a whole number
+          # a dry probe only where the amount is low enough for the probe to be dry
+          - elementary.expression_is_true_with_context:
+              arguments:
+                expression: "< {{ var('unreliable_reading_max_ml') }}"
+              config:
+                where: "reading_status = 'unreliable'"
+                meta:
+                  description: ec, ph and temperature are n.a, which is allowed only below {{ var('unreliable_reading_max_ml') }} ml
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5000
+              config:
+                meta:
+                  description: ml must be between 0 and 5000
+      - name: ec
+        data_type: numeric
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                # an unreliable reading has none, see reading_status
+                where: "reading_status = 'measured'"
+                meta:
+                  description: ec is missing or not a number
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10
+              config:
+                meta:
+                  description: ec must be between 0 and 10
+      - name: ph
+        data_type: numeric
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                # an unreliable reading has none, see reading_status
+                where: "reading_status = 'measured'"
+                meta:
+                  description: ph is missing or not a number
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 14
+              config:
+                meta:
+                  description: ph must be between 0 and 14
+      - name: temperature
+        data_type: numeric
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                # an unreliable reading has none, see reading_status
+                where: "reading_status = 'measured'"
+                meta:
+                  description: temperature is missing or not a number
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 50
+              config:
+                meta:
+                  description: temperature must be between 0 and 50
+      # free text from the grower, such as no runoff: any text passes
+      - name: remarks
+        data_type: text
+      # decided by the web app and trusted, each accepted:
+      # - measured
+      # - unreliable: its judgment, such as a dry probe: ec, ph and temperature may be null
+      # - skipped: the room was skipped on purpose, date_time is when: ml, ec, ph and temperature must be null
+      # last, so silver's column added by hand keeps the same order
+      - name: reading_status
+        data_type: text
+        data_tests:
+          - elementary.not_null_with_context:
+              config:
+                meta:
+                  description: reading_status is missing
+          - elementary.expression_is_true_with_context:
+              arguments:
+                expression: "in ('measured', 'unreliable', 'skipped')"
+              config:
+                meta:
+                  description: reading_status is not measured, unreliable or skipped

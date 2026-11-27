@@ -1,14 +1,9 @@
-# prod setup: builds the pipeline, webapps and datastreamer images of the git tag in RELEASE (docker/.env.prod), starts
-# postgres, creates the airflow database when it is missing, starts the rest (airflow-init refreshes airflow's manifest
-# into the release's folder of the dbt-state volume), checks dbt's connection and builds every relation, silver and
-# gold empty on a new database (the dbt selector setup, DataWarehouseDbt/selectors.yml). the images are built from the
-# tag's code: the repo is switched to the tag for the build and back to where it was after, even when the build fails.
-# the steps both setups share are in setup_common.ps1.
-# safe to run again: images of RELEASE that exist are not rebuilt, the airflow database is created only once, up changes
-# only what changed, and the setup build rebuilds the seeds and every model, and adds nothing to silver: a release that
-# changes a seed or a model is set up by running this again. not while a load runs: up recreates the scheduler, and
-# refreshes airflow's manifest, and the setup build builds staging and silver. loads nothing: a load dag, in the
-# airflow ui
+# prod setup: builds the images of the git tag in RELEASE (docker/.env.prod), starts the stack and builds every relation
+# - the images are built from the tag's code: the repo is switched to it and back, even when the build fails
+# - images of RELEASE that exist are not rebuilt
+# - safe to run again, and needed again after a seed or a model changes. silver keeps what it holds
+# - not during a load: up can recreate the scheduler and refreshes airflow's manifest, and the build touches silver
+# - loads nothing: start a load dag in airflow (docs/INSTALLATION_GUIDE_DOCKER.md)
 # needs the prod env file (01_setup_env.ps1), Docker Desktop running and no uncommitted changes. from the repo root:
 #   powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1
 $ErrorActionPreference = 'Stop'
@@ -17,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 
 $prod = @("compose", "-f", "docker/compose.yaml", "-f", "docker/compose.prod.yaml", "--env-file", "docker/.env.prod")
 
-# the paths below are from the repo root (the compose files and env files are in docker/)
+# the paths below are from the repo root
 Push-Location (Resolve-Path "$PSScriptRoot\..")
 try {
     Assert-Ready 'docker\.env.prod'
@@ -27,14 +22,14 @@ try {
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "pipeline:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
+    if ((Test-Docker image inspect "pipeline:$release") -and (Test-Docker image inspect "webapps:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {
         git rev-parse -q --verify "refs/tags/$release" | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "no git tag ${release}: run git fetch --tags, or fix RELEASE in docker\.env.prod" }
 
-        # the switch would carry uncommitted changes into the build, or refuse. ignored files (the env files) stay
+        # the switch would carry uncommitted changes into the build, or refuse. ignored files, the env files, stay
         $changes = @(git status --porcelain --untracked-files=no)
         Assert-Ok 'git status'
         if ($changes.Count -gt 0) { throw 'uncommitted changes: commit or stash them first' }
@@ -47,8 +42,8 @@ try {
         git switch --detach $release
         Assert-Ok "git switch to $release"
         try {
-            # the airflow services share one image: building airflow-init builds it for all of them
-            & docker @prod build airflow-init webapps datastreamer
+            # the airflow services share one image, built through airflow-init
+            & docker @prod build airflow-init webapps
             Assert-Ok 'the build'
         }
         finally {

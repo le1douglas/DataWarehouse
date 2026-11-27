@@ -1,6 +1,9 @@
-# the dev tools that run on their own, the only place their versions are written. installed into /opt/venvs/tools by
-# the dev stage of docker/pipeline/Dockerfile. their config is in pyproject.toml at the repo root.
-# sqlfmt formats the dbt sql, jinjafmt the jinja inside it with black. ruff lints and formats the python
-shandy-sqlfmt[jinjafmt]==0.32.0
-black==26.10.0
+# configured in pyproject.toml (ruff) and .sqlfluff (sqlfluff)
+# - sqlfluff lints and formats the dbt sql, compiling it with dbt (its dbt templater)
+# - the templater needs dbt in this venv: keep dbt-core and dbt-postgres at requirements-dbt.txt's versions
+# - ruff lints and formats the python
+sqlfluff==4.5.0
+sqlfluff-templater-dbt==4.5.0
+dbt-core==1.12.5
+dbt-postgres==1.11.0
 ruff==0.16.10

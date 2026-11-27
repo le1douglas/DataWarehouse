@@ -1,0 +1,59 @@
+# sqlfluff lints and formats the dbt sql. run from the repo root, where this file is:
+#   sqlfluff format data_build_tool/models data_build_tool/tests      (layout only: indentation, line breaks, case)
+#   sqlfluff lint data_build_tool/models                               (every rule, reported, not fixed)
+# - the dbt templater compiles each model as dbt does, so the database must be up
+# - profiles.yml is found through DBT_PROFILES_DIR, set in the dev container
+#
+# dbt Labs' own config, as in their style guide (https://docs.getdbt.com/best-practices/how-we-style/2-how-we-style-our-sql),
+# from https://github.com/dbt-labs/jaffle-shop/blob/main/.sqlfluff, changed only where this repo differs:
+# - templater dbt, not dbt-cloud (that one is for the dbt Cloud IDE)
+# - dialect postgres, not snowflake
+# - project_dir set, and profiles_dir left to DBT_PROFILES_DIR
+[sqlfluff]
+templater = dbt
+dialect = postgres
+runaway_limit = 10
+max_line_length = 120
+indent_unit = space
+# not in dbt Labs' config: joins use using, not on
+# - using merges the join keys, so a select * after a join has each key once
+exclude_rules = structure.using
+
+[sqlfluff:templater:dbt]
+project_dir = data_build_tool
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+[sqlfluff:layout:type:comma]
+spacing_before = touch
+line_position = trailing
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:aliasing.table]
+aliasing = explicit
+
+[sqlfluff:rules:aliasing.column]
+aliasing = explicit
+
+[sqlfluff:rules:aliasing.expression]
+allow_scalar = False
+
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+
+# not in dbt Labs' config: a comment line may be longer than max_line_length
+[sqlfluff:rules:layout.long_lines]
+ignore_comment_lines = True
+
+# number in group by
+[sqlfluff:rules:ambiguous.column_references]
+group_by_and_order_by_style = implicit

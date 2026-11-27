@@ -491,20 +491,15 @@ $RECYCLE.BIN/
 # dbt per-user id file
 .user.yml
 
-# database dumps, anywhere in the repo: data, not code. the prod dumps of the dev refresh are in Database/dumps,
-# next to their script, which is in git. not the backups of prod
+# database dumps, anywhere: data, not code. the dev refresh keeps prod's in postgres/dumps
 *.dump
 
-# the csv files to load (USER_INPUT_DIR in docker/.env and docker/.env.prod) and the files the programs write, such as
-# the daily csv of the datastreamer (USER_OUTPUT_DIR): data, not code, one folder of each per environment
-# (user_input_dev, user_input_prod, ...). the folders stay in git through their .gitkeep
-user_input_*/**
-!user_input_*/*/
-!user_input_*/*/.gitkeep
-user_output_*/**
-!user_output_*/*/
-!user_output_*/*/.gitkeep
+# the csv files to load and the files the programs write: data, not code, one folder of each per environment
+# - the folders stay in git through their .gitkeep
+user_files_*/**
+!user_files_*/*/
+!user_files_*/*/*/
+!user_files_*/*/*/.gitkeep
 
-# claude code's own permissions for this project, per machine: never committed. on windows a global git ignore
-# does the same, but the dev container does not have it
+# Claude Code's permissions, per machine. a global git ignore does the same on windows, but not in the dev container
 .claude/settings.local.json

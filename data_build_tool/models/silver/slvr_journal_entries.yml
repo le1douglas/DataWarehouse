@@ -1,0 +1,33 @@
+# documentation and the business key only: the columns, types and data tests are in stg_journal_entries.yml
+models:
+  - name: slvr_journal_entries
+    description: The published journal entries, one row per position taken or skipped.
+                A load is added only when staging passes every data test, and replaces the rows with the same
+                date_time and absolute_position.
+    config:
+      # the business key, declared only here. used by:
+      # - delete+insert, to replace rows
+      # - the staging uniqueness tests
+      # - unique_key_index
+      # - date_time and absolute_position: the rows of a skipped room share one time and one device, so the position
+      #   tells them apart. the device is not in it: two devices at one place and time are the same entry
+      unique_key: [date_time, absolute_position]
+    columns:
+      - name: date_time
+        description: When the journal entry was measured, or its room skipped, in the timezone var, to the
+                    microsecond as the csv sends it.
+      - name: device
+        description: The device that took the measurement.
+      - name: absolute_position
+        description: Where it was measured, room, bench and relative position joined by _, such as 1.30_4_front_left_up.
+      - name: ml
+        description: The amount of water.
+      - name: ec
+      - name: ph
+      - name: temperature
+      - name: remarks
+        description: The user's own comment on this reading, such as no runoff, trimmed. Usually null.
+      - name: reading_status
+        description: measured; unreliable, the writer's judgment, such as a dry probe below the
+                    unreliable_reading_max_ml var, when ec, ph and temperature may be null; or skipped, when the room
+                    was skipped on purpose and ml, ec, ph and temperature are null. Decided by the web app.

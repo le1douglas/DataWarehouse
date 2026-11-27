@@ -1,5 +1,3 @@
-# the libraries of meltano, the only place their versions are written. installed into their own venv by the venvs
-# stage of docker/pipeline/Dockerfile, which runtime and the dev container share, so dev runs the same build.
-# the plugins are not here: their versions are in DataWarehouseMeltano/meltano.yml.
-# the postgres extra: the driver for the system database, the meltano database of the postgres service
+# the plugins' versions are in meltano.yml
+# postgres: the driver for meltano's system database
 meltano[postgres]==4.4.1

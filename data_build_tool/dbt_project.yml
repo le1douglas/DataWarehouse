@@ -1,0 +1,82 @@
+name: 'data_build_tool'
+version: '1.0.0'
+
+profile: 'data_build_tool'
+
+vars:
+  # appended in staging to a datetime sent without a zone
+  # - TZ is set once, in docker/compose.yaml
+  # - no default: without TZ dbt stops instead of guessing
+  timezone: "{{ env_var('TZ') }}"
+  # failing rows elementary stores per data test: all of them, not the default 5
+  test_sample_row_count: -1
+  # off in every dbt run: gold's key tests run as plain data tests, and no constraint is created
+  # - only the DAG refresh_metadata turns it on, adding every missing key whose test passes
+  # - a rebuilt table loses its keys, and the foreign keys pointing at it, until that DAG runs again
+  # - nothing in the pipeline relies on the keys: they exist for OpenMetadata, Excel and Power BI
+  dbt_constraints_enabled: false
+  # a value the source did not take on purpose. the same as NOT_AVAILABLE in
+  # python/src/webapps/state/journal_entry_csv.py
+  not_available: "n.a"
+  # below this many ml the probe can be dry: a journal entry may then have no ec, ph and temperature
+  # (reading_status unreliable)
+  unreliable_reading_max_ml: 300
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+# dev installs the packages in the dbt-state volume (docker/compose.dev.yaml), prod next to this file, in the image
+packages-install-path: "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
+
+# the interactive target and dev's packages, never another role's folder
+# - outside the project, so dbt clean needs --no-clean-project-files-only
+clean-targets:
+  - "{{ env_var('DBT_TARGET_PATH', 'target') }}"
+  - "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
+
+models:
+  data_build_tool:
+    staging:
+      +materialized: view
+      +schema: bronze    # bronze's tables hold the raw data, its views are staging
+      +contract:
+        enforced: true
+    silver:
+      # - a row replaces the one with the same unique_key (in the model's yml)
+      # - full_refresh off: staging holds only the open load, so a rebuild would lose every published one
+      # - no contract: the types come from staging, and on_schema_change fails the build when they change
+      +materialized: incremental
+      +incremental_strategy: delete+insert
+      +on_schema_change: fail
+      +full_refresh: false
+      # no constraints: every rule is a data test on staging, and nothing writes to silver outside dbt build
+      +post-hook:
+        - "{{ unique_key_index() }}"
+      +schema: silver
+    ref:
+      +materialized: view  # always equal to the seeds
+      +schema: silver
+    gold:
+      +materialized: table # tables, so they can hold keys and a catalog can draw the diagram
+      +schema: gold
+      +contract:
+        enforced: true
+  elementary:
+    +schema: elementary
+
+# reference data kept by hand, with no yml: dbt infers every type
+# - room is text: 1.30 inferred as a number would become 1.3
+# - a seed without room logs a warning that the override is ignored
+# - after a type changes, run dbt seed --full-refresh once
+seeds:
+  data_build_tool:
+    +schema: seeds
+    +column_types: {room: text}
+
+# a data test that only warns sets severity: warn in its own config, with a comment saying why
+data_tests:
+  data_build_tool:
+    +severity: error

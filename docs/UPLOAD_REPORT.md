@@ -2,7 +2,7 @@
 
 Adversarial testing of the upload: `meltano run tap-csv target-postgres` with a fresh `MELTANO_RUN_ID`, then
 `dbt build --select source:dw_bronze.brnz_journal_entries+ --vars "{load_id: ...}"`. No code was changed.
-Test files are `SampleData/drip_drain_csv/synthetic/fuzz-NN-*.csv`, each a copy of `valid-morning.csv` with the
+Test files are `SampleData/drip_drain_csv/synthetic/fuzz-NN-*.csv` (deleted 2026-11-27, in git at `842c7a5`), each a copy of `valid-morning.csv` with the
 change named below (line 2 = first data row) unless said otherwise.
 Each test starts from the same bootstrapped database (DDL, then one whole `dbt build`) unless said otherwise.
 

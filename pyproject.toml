@@ -1,20 +1,14 @@
-# config of the dev tools only. the libraries and their versions are in the requirements files under docker/:
-# docker/<image>/requirements-<venv>.txt, one per venv, and docker/pipeline/requirements-tools.txt and requirements-pytest.txt
-# for the dev tools
+# config of the dev tools only: every version is in docker/<image>/requirements-<venv>.txt
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["python/tests"]
 
-# sql (dbt models and tests) is formatted by sqlfmt, the formatter used by the dbt Power User extension:
-#   sqlfmt DataWarehouseDbt/models DataWarehouseDbt/tests      (add --diff to only see what would change)
-[tool.sqlfmt]
-line_length = 120
+# the dbt sql is linted and formatted by sqlfluff, configured in .sqlfluff
 
-# python is linted and formatted by ruff
 # lint:   ruff check        (add --fix to apply the safe fixes)
 # format: ruff format       (add --diff to only see what would change)
 [tool.ruff]
-src = ["src", "tests"]
+src = ["python/src", "python/tests"]
 line-length = 120
 
 [tool.ruff.lint]

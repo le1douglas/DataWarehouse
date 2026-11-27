@@ -36,6 +36,16 @@ _Avoid_: Spot, which is the source's column; drip or drain and side, the columns
 The place in the real world where a journal entry was measured: its room, its bench and its relative position, such as `1.30_4_front_left_up`. Every one that exists is generated from the rooms, their number of benches and the relative positions.
 _Avoid_: Spot, position, location
 
+**Walk**:
+One pass through a set of rooms, in a fixed order, to measure the journal entries of each: the room open in the drip and drain web app, and every journal entry confirmed on the way. The walk is chosen before the pen is connected, and each walk has its own csv, which holds one pass. There are three:
+- the morning walk and the afternoon walk, through the rooms whose room time is morning or afternoon: 4 journal entries per room, all at bench 4, one at each of its relative positions measured
+- the mother walk, through the two mother rooms: 2 journal entries at each of the 10 benches of a room
+
+_Avoid_: Daily walk, as there is more than one a day; round, session, visit
+
+**Room time**:
+The part of the day a room is measured in: `morning`, `afternoon`, or `all_day` for the mother rooms. It decides which walk a room is in.
+
 ### Plants batches
 
 **Plants batch**:
@@ -93,8 +103,9 @@ One state of a row in a snapshot, valid from the build that first saw it until t
 A check on the content of the data that must pass before silver is published.
 _Avoid_: Test on its own, which can also mean a unit or integration test of the code
 
-**Upload**:
-One file going into the warehouse: it is loaded, judged, and either accepted or refused.
+**Load**:
+One file of one dataset going into the warehouse: it is landed in bronze, judged, and either accepted or refused. Each load has a `load_id`, and its state is in `dw_control.ctl_loads`.
+_Avoid_: Upload
 
 **Refused**:
 What happens to a file that fails a data test: none of it reaches silver, the user is told each failing row, and it is fixed where it came from. One bad row refuses the whole file. Bronze keeps it, as the record of what arrived.

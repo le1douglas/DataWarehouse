@@ -56,11 +56,13 @@ The new-database problems in `docs/REMINDERS.md` were worked around once in dev,
    The rule is in `docs/CODING_STANDARDS.md`: a reader that starts reading a model adds it to its exposure.
    - Check: `dbt ls --select +exposure:excel_journal_entries_daily` lists what the sheet reads; dbt parses. Passed
      2026-11-16. Exposures are not built, so `dbt build` and the DAGs (Cosmos draws only nodes) are unaffected.
-6. ~~**Give dev and prod their own input and output folders.**~~ Done: `user_input_dev`, `user_output_dev`,
-   `user_input_prod`, `user_output_prod` in the repo root. Passed 2026-11-16: a dev load read `user_input_dev`.
+6. ~~**Give dev and prod their own user files folders.**~~ Done: `user_files_dev` and `user_files_prod` in the repo
+   root, one subfolder per writer (`webapps`, `manual`), since 2026-11-27. They replace the input and output folders
+   (`user_input_*`, `user_output_*`): one program's output is another's input. Passed 2026-11-16, with the old folders:
+   a dev load read dev's folder.
    Renaming a mounted folder from inside a container breaks its view there: rename on Windows, then recreate the
-   containers. Four Windows folders, none inside another; their paths are
-   the user's choice. Update `USER_INPUT_DIR` and `USER_OUTPUT_DIR` in `.env` and `.env.prod`, and the template and
+   containers. Two Windows folders, neither inside the other; their paths are
+   the user's choice. Update `USER_FILES_DIR` in `.env` and `.env.prod`, and the template and
    comments of `01_setup_env.ps1` ("the same files as dev"). The files are moved by the user.
    - Check: `docker compose config` of each environment shows its own folders; a dev load reads dev's folder only; a dev
      datastreamer run writes to dev's folder only.
@@ -109,7 +111,6 @@ flowchart LR
     end
     subgraph apps["Apps: their own images"]
         webapps[NiceGUI web apps]
-        datastreamer[datastreamer]
     end
     subgraph vendor["Vendor images"]
         postgres[(Postgres<br/>the hub)]
@@ -121,14 +122,14 @@ flowchart LR
     meltano -->|loads bronze| postgres
     dbt -->|builds silver, gold| postgres
     webapps <-->|data contract| postgres
-    datastreamer -.->|csv contract| meltano
+    webapps -.->|csv contract| meltano
     om -->|reads| postgres
 ```
 
 | Group | What | Coupling | Changes | Image |
 |---|---|---|---|---|
 | **Pipeline** | Airflow, dbt, Meltano (and later OpenMetadata ingestion) | Tight: the DAGs are drawn from the dbt manifest, the tasks call dbt and Meltano | Together, often | one image (`docker/pipeline`) |
-| **Apps** | NiceGUI web apps, datastreamer | Loose: only through data contracts | Often, on their own | their own images (`docker/webapps`, `docker/datastreamer`) |
+| **Apps** | NiceGUI web apps | Loose: only through data contracts | Often, on their own | their own image (`docker/webapps`) |
 | **Hub** | Postgres | Everything depends on it | Rarely, as a planned event | vendor (`postgres:18`) |
 | **Vendor apps** | OpenMetadata server and search | Reads the hub, nothing depends on it | On the vendor's schedule | vendor images, never rebuilt; in `compose.yaml` under the profile `openmetadata` |
 
@@ -159,7 +160,7 @@ release cycles can split whenever that is useful.
 | Contract | Direction | What it is | Broken by |
 |---|---|---|---|
 | **Warehouse → apps** | apps read, and sometimes write | the gold (and `dw_control`) tables and views an app uses | a dbt change that renames, drops or retypes one of them |
-| **Datastreamer → warehouse** | the datastreamer is a data source | the csv it writes, which a Meltano tap reads like any other input | a change to the csv's columns or format |
+| **Web apps → warehouse** | the web apps are a data source | the csv a walk exports, which a Meltano tap reads like any other input | a change to the csv's columns or format |
 
 A change on either side of a contract is a change to both, and is checked as one.
 
@@ -169,8 +170,8 @@ reader of gold, an app or a report such as the Excel daily sheet, listing the mo
 a dbt change that touches a contract shows before it is built. A reader gets its exposure when it first reads a model:
 the web apps read none yet.
 
-The datastreamer → warehouse contract is the dataset's input definition, as for any source: where the tap reads the file
-and the entity it loads into (`DataWarehouseMeltano/meltano.yml`), and the columns, types and data tests in
+The web apps → warehouse contract is the dataset's input definition, as for any source: where the tap reads the file
+and the entity it loads into (`meltano/meltano.yml`), and the columns, types and data tests in
 `stg_<dataset>.yml`. A csv that breaks it is refused at the audit, like any other bad file.
 
 ## 4. OpenMetadata: a vendor app inside our projects
@@ -202,9 +203,9 @@ flowchart TB
     subgraph pipeline_df["docker/pipeline/Dockerfile"]
         venvs[stage venvs<br/>airflow, dbt, meltano venvs]
         runtime[stage runtime<br/>+ projects, DAGs, dbt packages and manifest, meltano plugins]
-        dev[stage dev<br/>+ webapps and datastreamer venvs<br/>+ ruff, sqlfmt, pytest, psql]
+        dev[stage dev<br/>+ webapps venv<br/>+ ruff, sqlfluff, pytest, psql]
     end
-    apps_df[docker/webapps, docker/datastreamer<br/>stage runtime]
+    apps_df[docker/webapps<br/>stage runtime]
     features[devcontainer.json features<br/>node, Claude Code, pwsh]
 
     base --> venvs
@@ -212,7 +213,7 @@ flowchart TB
     venvs --> dev
     base --> apps_df
     runtime -->|prod and dev| svc_airflow[airflow components]
-    apps_df -->|prod and dev| svc_apps[web apps, datastreamer]
+    apps_df -->|prod and dev| svc_apps[web apps]
     dev -->|dev only| devc[the dev container]
     features -->|added when the container is created| devc
 ```
@@ -270,11 +271,9 @@ the difference between the two environments is visible in two small files.
 | **Airflow** | own metadata db, logs volume, UI port, JWT secret; DAGs read live | own of each; DAGs from the image |
 | **dbt** | the `dbt-state` volume: a folder per role in `/dbt-state/dev`, packages in `/dbt-state/dev/packages` | the `dbt-state` volume: a folder per role in `/dbt-state/<RELEASE>`; packages from the image |
 | **Meltano** | own system db; plugins in the `meltano-plugins` volume | own system db; plugins from the image |
-| **Web apps** | own port; reload on save | own port; the released image |
-| **Datastreamer** | own `work-in-progress` volume | own `work-in-progress` volume |
+| **Web apps** | own port; reload on save; own `work-in-progress` volume | own port; the released image; own `work-in-progress` volume |
 | **OpenMetadata** | own db, search volume, port, bot token | own of each |
-| **Input folder** (`USER_INPUT_DIR`) | its own Windows folder | its own Windows folder, not inside dev's |
-| **Output folder** (`USER_OUTPUT_DIR`) | its own Windows folder | its own Windows folder, not inside dev's |
+| **User files** (`USER_FILES_DIR`) | its own Windows folder | its own Windows folder, not inside dev's |
 | **Dev container, Claude Code, dev tools** | yes | never |
 
 ### Volumes
@@ -284,8 +283,8 @@ the difference between the two environments is visible in two small files.
 | `pgdata` | both | the database | `/var/lib/postgresql` |
 | `work-in-progress` | both | what a program has not finished yet, one subfolder per program | `/work_in_progress` |
 | `airflow-logs` | both | the task logs, written by the scheduler, read by the UI | `/opt/airflow/logs` |
-| `dbt-state` | both | what dbt writes, one folder per role, each a target and logs: in `<RELEASE>/`, `airflow-manifest` (the manifest the DAGs are drawn from, written by `airflow-init`), `setup-build`, `interactive`, and dev's `packages`; `metadata-export`, shared by the releases (`x-dbt-env` in `docker/compose.yaml`) | `/dbt-state` |
-| `meltano-plugins` | dev | the plugin venvs, shared by the scheduler and the dev container | `DataWarehouseMeltano/.meltano` |
+| `dbt-state` | both | what dbt writes, one folder per role, each a target and logs: in `<RELEASE>/`, `airflow-manifest` (the manifest the DAGs are drawn from, written by `airflow-init` and `refresh_metadata`), `setup-build`, `interactive`, and dev's `packages`; `metadata-export`, shared by the releases (`x-dbt-env` in `docker/compose.yaml`) | `/dbt-state` |
+| `meltano-plugins` | dev | the plugin venvs, shared by the scheduler and the dev container | `meltano/.meltano` |
 | `claude-config` | dev | Claude Code's login, settings, skills, memory | `/claude-config` |
 
 Every volume is prefixed by its project (`dw-dev_*`, `dw-prod_*`). All but `claude-config` are refilled from the repo or
@@ -293,12 +292,10 @@ the image. `claude-config` has to be carried (section 9).
 
 ## 8. What stays on Windows
 
-- The repo, and the folders shared with the containers: the input and output folders of each environment, and
-  `Database/dumps`.
+- The repo, and the folders shared with the containers: the user files folder of each environment, and
+  `postgres/dumps`.
 - Docker Desktop, Excel, and VS Code with only the Dev Containers extension. The project is opened only in the dev
   container, whose extensions are listed in `devcontainer.json`.
-- The OnePen bridge (`onepen_bridge.py` with bleak, started by `OnePen.cmd`), because the Bluetooth adapter is on
-  Windows.
 - The setup scripts `docker/0*_setup_*.ps1`.
 
 ## 9. Moving Claude Code to another machine

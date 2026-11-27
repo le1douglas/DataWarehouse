@@ -1,0 +1,20 @@
+models:
+  - name: dim_rooms
+    description: The growing rooms. Change a room in seed_rooms.csv, not here.
+    # publishes ref_rooms: its data tests are there. the key below becomes a constraint only through
+    # refresh_metadata
+    columns:
+      - name: room
+        data_type: text
+        description: The room, as text so 1.30 keeps its zero.
+        data_tests:
+          - dbt_constraints.primary_key
+      - name: room_time
+        data_type: text
+        description: The part of the day the room is measured in.
+      - name: floor_number
+        data_type: integer
+      - name: assigned_stage
+        data_type: text
+      - name: benches_total
+        data_type: integer

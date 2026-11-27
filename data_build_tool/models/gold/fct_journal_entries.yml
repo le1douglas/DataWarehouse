@@ -1,0 +1,64 @@
+models:
+  - name: fct_journal_entries
+    description: The journal entries, one row per position taken or skipped, with a key to each dimension and the
+                measures. Filter on reading_status, as a skipped or unreliable row has null measures.
+    # keys, constraints only through refresh_metadata:
+    # - primary key: the business key. a position has one entry per day (staging), so it holds after truncation
+    # - row_id unique, to trace a row back to silver
+    data_tests:
+      - dbt_constraints.primary_key:
+          arguments:
+            column_names: [date_time, absolute_position]
+    columns:
+      - name: row_id
+        data_type: uuid
+        description: Uniquely identifies this row, across bronze, silver and gold.
+        data_tests:
+          - dbt_constraints.unique_key
+      - name: date_time
+        data_type: timestamptz(0)
+        description: When the journal entry was measured, or its room skipped, truncated to the second.
+      - name: device
+        data_type: text
+        description: The device that took the measurement.
+        data_tests:
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_devices')
+                pk_column_name: device
+      - name: absolute_position
+        data_type: text
+        description: Where it was measured, such as 1.30_4_front_left_up.
+        data_tests:
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_absolute_positions')
+                pk_column_name: absolute_position
+      - name: pp_number
+        data_type: text
+        description: The plants batch flowering in the room of the measurement on its day, null when there is none.
+        data_tests:
+          # null when no batch is flowering: only the rows that have one are checked
+          - dbt_constraints.foreign_key:
+              arguments:
+                pk_table_name: ref('dim_plants_batches')
+                pk_column_name: pp_number
+      - name: ml
+        data_type: integer
+        description: The volume.
+      - name: ec
+        data_type: numeric(4,2)
+        description: Rounded to 2 decimals.
+      - name: ph
+        data_type: numeric(4,2)
+        description: Rounded to 2 decimals.
+      - name: temperature
+        data_type: numeric(4,2)
+        description: The temperature, rounded to 2 decimals.
+      - name: remarks
+        data_type: text
+        description: The user's own comment on this reading, such as no runoff. Usually null.
+      - name: reading_status
+        data_type: text
+        description: measured; unreliable (such as a dry probe, ec, ph and
+                    temperature may be null) or skipped (the room was skipped on purpose)
