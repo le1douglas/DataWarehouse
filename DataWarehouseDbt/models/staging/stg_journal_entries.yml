@@ -2,7 +2,7 @@
 # - cast_select casts to these types, the contract checks the view against them, silver takes them
 # - an uncastable value is null, so not_null reports it; range and relationship tests ignore nulls, so it
 #   gives one error
-# - n.a becomes null too, as it cannot be cast. reading_status, sent by the datastreamer and trusted, says where a null
+# - n.a becomes null too, as it cannot be cast. reading_status, sent by the web app and trusted, says where a null
 #   is allowed: not_null runs only where the value is due, so a skipped room and an unreliable reading pass
 # - a data test's description is the message the user sees
 models:
@@ -32,7 +32,7 @@ models:
           config:
             meta:
               description: this position already has a reading on this day, in this load or in silver
-      # a skipped room has no values: the datastreamer writes them n.a, which becomes null
+      # a skipped room has no values: the web app writes them n.a, which becomes null
       - elementary.expression_is_true_with_context:
           arguments:
             expression: ml is null and ec is null and ph is null and temperature is null
@@ -154,7 +154,7 @@ models:
       # free text from the grower, such as no runoff: any text passes
       - name: remarks
         data_type: text
-      # decided by the datastreamer and trusted, each accepted:
+      # decided by the web app and trusted, each accepted:
       # - measured
       # - unreliable: its judgment, such as a dry probe: ec, ph and temperature may be null
       # - skipped: the room was skipped on purpose, date_time is when: ml, ec, ph and temperature must be null

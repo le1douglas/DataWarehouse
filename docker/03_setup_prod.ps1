@@ -22,7 +22,7 @@ try {
     $release = $line.Matches[0].Groups[1].Value.Trim()
     Write-Host "release $release"
 
-    if ((Test-Docker image inspect "pipeline:$release") -and (Test-Docker image inspect "webapps:$release") -and (Test-Docker image inspect "datastreamer:$release")) {
+    if ((Test-Docker image inspect "pipeline:$release") -and (Test-Docker image inspect "webapps:$release")) {
         Write-Host "the images of $release exist, not rebuilt"
     }
     else {
@@ -43,7 +43,7 @@ try {
         Assert-Ok "git switch to $release"
         try {
             # the airflow services share one image, built through airflow-init
-            & docker @prod build airflow-init webapps datastreamer
+            & docker @prod build airflow-init webapps
             Assert-Ok 'the build'
         }
         finally {

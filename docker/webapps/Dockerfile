@@ -7,13 +7,13 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /usr/app
 
-# - PYTHONPATH: the package in src runs without being installed, so in dev the mounted code runs
+# - PYTHONPATH: the package in python/src runs without being installed, so in dev the mounted code runs
 # - no __pycache__ in the mounted repo
-ENV PYTHONPATH=/usr/app/src \
+ENV PYTHONPATH=/usr/app/python/src \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-COPY src/webapps/ ./src/webapps/
+COPY python/src/webapps/ ./python/src/webapps/
 
 # serves on 0.0.0.0:8080, ui.run's defaults
-ENTRYPOINT ["python", "src/webapps/main.py"]
+ENTRYPOINT ["python", "python/src/webapps/main.py"]

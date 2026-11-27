@@ -119,7 +119,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 
 - No uncommitted changes (commit or stash first): the build switches the repo to the tag
 - `powershell -ExecutionPolicy Bypass -File docker\03_setup_prod.ps1`
-  - Builds the `pipeline`, `webapps` and `datastreamer` images of `RELEASE` from the tag's code, then switches the
+  - Builds the `pipeline` and `webapps` images of `RELEASE` from the tag's code, then switches the
     repo back. The `pipeline` image holds dbt, Meltano, their projects and the dbt packages; its build runs
     `dbt parse` to check the project
   - Images of `RELEASE` that exist are not rebuilt
@@ -135,7 +135,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "SHOW timezone;"` → `Europe/Amsterdam`
 - `docker exec dw-prod-postgres-1 psql -U postgres -d DataWarehouse -c "\dt dw_*.*"` → the same tables as dev
 - `docker exec dw-prod-postgres-1 psql -U postgres -l` → `DataWarehouse`, `airflow` and `meltano`
-- `docker image ls` → `pipeline`, `webapps` and `datastreamer`, tag = `RELEASE`
+- `docker image ls` → `pipeline` and `webapps`, tag = `RELEASE`
 - Airflow UI at `http://localhost:8091` (`AIRFLOW_PORT` in `docker/.env.prod`)
 - `docker compose -f docker/compose.yaml -f docker/compose.prod.yaml --env-file docker/.env.prod exec airflow-scheduler dbt debug`
   → `All checks passed!`

@@ -1,2 +1,0 @@
-# none for now: the readings use only the standard library
-# - the bridge to the pen (onepen_bridge.py) needs bleak, but runs on windows, where the bluetooth adapter is

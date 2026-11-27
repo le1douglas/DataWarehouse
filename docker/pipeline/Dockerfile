@@ -79,10 +79,9 @@ RUN install -d /usr/share/postgresql-common/pgdg \
 # one venv per app, from its own requirements file, and one for the dev tools
 # - pytest goes into the webapps venv, so it can import the web apps
 COPY docker/webapps/requirements-webapps.txt /tmp/requirements/webapps.txt
-COPY docker/datastreamer/requirements-datastreamer.txt /tmp/requirements/datastreamer.txt
 COPY docker/pipeline/requirements-tools.txt /tmp/requirements/tools.txt
 COPY docker/pipeline/requirements-pytest.txt /tmp/requirements/pytest.txt
-RUN for venv in webapps datastreamer tools; do \
+RUN for venv in webapps tools; do \
         python -m venv /opt/venvs/$venv \
         && /opt/venvs/$venv/bin/pip install --no-cache-dir -r /tmp/requirements/$venv.txt || exit 1; \
     done \
@@ -90,13 +89,13 @@ RUN for venv in webapps datastreamer tools; do \
     && rm -rf /tmp/requirements
 
 # webapps first, so "python" and "pytest" are the web apps'. each tool still runs with its own venv's python
-ENV PATH=/opt/venvs/webapps/bin:/opt/venvs/tools/bin:/opt/venvs/datastreamer/bin:$PATH
+ENV PATH=/opt/venvs/webapps/bin:/opt/venvs/tools/bin:$PATH
 
 # - LANG: the slim image sets no locale, so psql, perl and less would fall back to ascii
-# - PYTHONPATH: the packages in src run without being installed
+# - PYTHONPATH: the packages in python/src run without being installed
 # - no __pycache__ in the mounted repo
 ENV LANG=C.UTF-8 \
-    PYTHONPATH=/usr/app/src \
+    PYTHONPATH=/usr/app/python/src \
     PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /usr/app

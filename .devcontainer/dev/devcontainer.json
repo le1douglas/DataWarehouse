@@ -13,7 +13,7 @@
   // closing the window leaves the containers running: postgres is shared with Excel
   "shutdownAction": "none",
   // the diagram's server (dbterd.serverPort): its tab runs in VS Code on windows and reaches it only through this
-  // forward. 8765, 8080/8081 and 5432/5433 are taken by the OnePen bridge, NiceGUI and postgres
+  // forward. 8080/8081 and 5432/5433 are taken by NiceGUI and postgres
   "forwardPorts": [8790],
   // Claude Code's command line needs node
   "features": {
@@ -63,7 +63,7 @@
         "dbterd.serverPort": 8790,
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
-        "python.testing.pytestArgs": ["tests"],
+        "python.testing.pytestArgs": ["python/tests"],
         // the ruff of docker/pipeline/requirements-tools.txt, not the one bundled with the extension
         "ruff.path": ["/opt/venvs/tools/bin/ruff"],
         "[python]": {

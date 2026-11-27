@@ -1,14 +1,14 @@
 # config of the dev tools only: every version is in docker/<image>/requirements-<venv>.txt
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["python/tests"]
 
 # the dbt sql is linted and formatted by sqlfluff, configured in .sqlfluff
 
 # lint:   ruff check        (add --fix to apply the safe fixes)
 # format: ruff format       (add --diff to only see what would change)
 [tool.ruff]
-src = ["src", "tests"]
+src = ["python/src", "python/tests"]
 line-length = 120
 
 [tool.ruff.lint]

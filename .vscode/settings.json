@@ -1,8 +1,11 @@
 {
     "python.terminal.useEnvFile": true,
-    // airflow puts the dags folder on the python path, so the dags import utils/ from it: pylance needs the same
+    // the python path of the code, for pylance:
+    // - airflow puts the dags folder on it, so the dags import utils/ from it
+    // - PYTHONPATH of the images has python/src, so the web apps import webapps from it
     "python.analysis.extraPaths": [
-        "DataWarehouseAirflow/dags"
+        "DataWarehouseAirflow/dags",
+        "python/src"
     ],
     "dbt.perspectiveTheme": "Vintage"
 }

@@ -37,10 +37,6 @@ services:
     environment:
       <<: *dbt_packages_env
 
-  datastreamer:
-    volumes:
-      - ..:/usr/app
-
   webapps:
     # a save on windows sends no change event into the container, so the reload polls the files
     environment:
@@ -101,8 +97,6 @@ services:
       TARGET_POSTGRES_USER: ${POSTGRES_USER}
       TARGET_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       USER_FILES_MOUNT: /user_files
-      # datastreamer: its subfolder of the user files
-      USER_OUTPUT_MOUNT: /user_files/datastreamer
       WORK_IN_PROGRESS_MOUNT: /work_in_progress
       # webapps
       POSTGRESQL_SERVER: postgres

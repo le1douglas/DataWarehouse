@@ -6,7 +6,6 @@
 !docker/pipeline/requirements*.txt
 # for the dev stage's venvs only
 !docker/webapps/requirements-webapps.txt
-!docker/datastreamer/requirements-datastreamer.txt
 
 # the image installs its own plugins. output is meltano's own folder of run output
 DataWarehouseMeltano/.meltano

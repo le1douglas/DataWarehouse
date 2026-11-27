@@ -371,7 +371,7 @@ Reviewed after the simplifications in As built (every run ends its load, one row
 | `source_row_number` | A refused file is fixed at the source: the line, not only the value | 6 |
 | Silver rebuild from the published loads; history from bronze | Silver cannot be rebuilt (`full_refresh: false`), and without snapshots a row's history is only in bronze and `ctl_loads`. Needs its own path: staging holds the open load only | 6, 8 |
 | Landing zone, checksum, `duplicate` | A file sent twice loads twice: harmless to silver (merge by business key), kept twice in bronze | 4, 6 |
-| Delivery checks before bronze, `rejected` | Encoding, header and shape faults (`SampleData/drip_drain_csv/malformed_csv`) are not all caught | 3, 5 |
+| Delivery checks before bronze, `rejected` | Encoding, header and shape faults (`SampleData/drip_drain_csv/malformed_csv`, deleted 2026-11-27, in git at `842c7a5`) are not all caught | 3, 5 |
 | `indexes` model config instead of the `pg_index` post-hook | Cleanup of `unique_key_index` | 8, 13 |
 | OpenLineage, OpenMetadata, CI | OpenMetadata is planned; CI catches a broken build before a merge | 11 |
 | Roles | Everything runs as one user | 12 |

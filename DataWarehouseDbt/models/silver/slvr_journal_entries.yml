@@ -28,6 +28,6 @@ models:
       - name: remarks
         description: The user's own comment on this reading, such as no runoff, trimmed. Usually null.
       - name: reading_status
-        description: measured; unreliable, the datastreamer's judgment, such as a dry probe below the
+        description: measured; unreliable, the writer's judgment, such as a dry probe below the
                     unreliable_reading_max_ml var, when ec, ph and temperature may be null; or skipped, when the room
-                    was skipped on purpose and ml, ec, ph and temperature are null. Decided by the datastreamer.
+                    was skipped on purpose and ml, ec, ph and temperature are null. Decided by the web app.

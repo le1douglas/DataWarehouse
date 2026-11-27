@@ -17,7 +17,7 @@ with
     nullify_empty as (
         select
             row_id,
-            -- measured, unreliable or skipped, decided by the datastreamer and taken as sent: it says which nulls the
+            -- measured, unreliable or skipped, decided by the web app and taken as sent: it says which nulls the
             -- data tests allow, see stg_journal_entries.yml
             nullif(reading_status, '') as reading_status,
             nullif(date_time, '') as date_time,
