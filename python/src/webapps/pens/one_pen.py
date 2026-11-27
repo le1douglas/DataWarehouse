@@ -10,6 +10,8 @@ from pathlib import Path
 from nicegui import ui
 from nicegui.events import GenericEventArguments
 
+from webapps.pens.pen import Pen
+
 # the browser's side: the chooser, the connection and the notifications
 JS = (Path(__file__).parent / "one_pen.js").read_text()
 # the characteristics of the live values, 01 to 03 of the pen service
@@ -20,11 +22,10 @@ LIVE_TAGS = {ord("P"): "ph", ord("E"): "ec", ord("T"): "temperature"}
 NO_READING = -9999
 
 
-class OnePen:
-    """The pen the page talks to: the callbacks, then attach_connect and attach_disconnect.
+class OnePen(Pen):
+    """The pen the page talks to (Pen): the callbacks, then attach_connect and attach_disconnect.
 
-    Whether it is connected or connecting, and its name once it is, are its own: the page reads them,
-    and keeps no copy. What happens goes to the callbacks:
+    What happens goes to the callbacks:
     - on_live: a metric (ph, ec, temperature) and its value, None for one the pen has not got
     - on_error: a message, such as a pen that could not be connected
 

@@ -5,11 +5,9 @@ from typing import Any
 
 from nicegui import ui
 
-from webapps.state.journal_entry import ML_DIGITS, NOT_RECEIVED, AbsolutePosition, JournalEntry
-from webapps.state.journal_entry_csv import NOT_AVAILABLE, format_live_value
+from webapps.state.journal_entry import METRICS, ML_DIGITS, NOT_RECEIVED, AbsolutePosition, JournalEntry
+from webapps.state.journal_entry_csv import format_live_value, format_ml
 
-# the live values shown, by the name the pen gives them
-LABELS = {"ph": "pH", "ec": "EC", "temperature": "Temp"}
 # the look of the card by its status
 CONFIRMED_LOOK = "bg-green-1"
 SELECTED_LOOK = "ring-4 ring-blue-500"
@@ -91,9 +89,10 @@ class JournalEntryCard(ui.card):
         """The parts every card has, empty: its room and spot, the live values, the ml, the remarks."""
         ui.label(_format_card_title(entry)).classes("text-lg font-bold")
         # side by side, the ml first: the labels in a row, the values in a row under them
-        self._live_grid = ui.grid(columns=len(LABELS) + 1).classes("w-full text-center gap-y-0 items-center")
+        # - each labelled by its name in the entry, as it is written in the csv
+        self._live_grid = ui.grid(columns=len(METRICS) + 1).classes("w-full text-center gap-y-0 items-center")
         with self._live_grid:
-            for label in ("ml", *LABELS.values()):
+            for label in ("ml", *METRICS):
                 ui.label(label).classes("text-grey-7")
             # text with a mask of digits, not ui.number: a number field takes e, + and -, and reads 4e2 as 400
             # - inputmode: the number pad on a phone
@@ -102,7 +101,7 @@ class JournalEntryCard(ui.card):
                 f'mask="{"#" * ML_DIGITS}" inputmode=numeric dense hide-bottom-space '
                 'input-class="text-center font-mono text-lg"'
             )
-            self._values = {metric: ui.label("–").classes("font-mono text-lg") for metric in LABELS}
+            self._values = {metric: ui.label("–").classes("font-mono text-lg") for metric in METRICS}
         self._remarks = ui.input("remarks (optional)").classes("w-full")
         self._fields = (self._ml, self._remarks)
 
@@ -111,7 +110,7 @@ class JournalEntryCard(ui.card):
         self.classes(CONFIRMED_LOOK)
         for metric, value in self._values.items():
             value.set_text(format_live_value(metric, getattr(entry, metric)))
-        self._ml.value = NOT_AVAILABLE if entry.ml is None else str(entry.ml)
+        self._ml.value = format_ml(entry.ml)
         self._remarks.value = entry.remarks
         # read only, not disabled: shown as clearly as when it was typed
         for field in self._fields:
@@ -123,7 +122,7 @@ class JournalEntryCard(ui.card):
         """Bound to the unconfirmed entry, so the live values and the typing show by themselves."""
         for metric, value in self._values.items():
             value.bind_text_from(entry, metric, backward=lambda v, q=metric: _format_shown_value(q, v))
-        self._ml.bind_value(entry, "ml", forward=lambda text: int(text) if text else None, backward=_format_ml)
+        self._ml.bind_value(entry, "ml", forward=lambda text: int(text) if text else None, backward=_format_ml_field)
         self._remarks.bind_value(entry, "remarks")
 
     def _enable_selected(
@@ -190,7 +189,7 @@ def _format_spot_label(spot: str) -> str:
     return spot.replace("_", " ").title()
 
 
-def _format_ml(ml: int | None) -> str:
+def _format_ml_field(ml: int | None) -> str:
     """The ml as the field shows it, empty for none."""
     return "" if ml is None else str(ml)
 

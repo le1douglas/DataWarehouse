@@ -124,6 +124,11 @@ def get_row_absolute_position(row: dict[str, str]) -> AbsolutePosition:
     return row["room"], row["bench"], row["spot"]
 
 
+def format_ml(ml: int | None) -> str:
+    """The ml as the csv writes it: n.a for none."""
+    return NOT_AVAILABLE if ml is None else str(ml)
+
+
 def format_live_value(metric: str, value: float | None) -> str:
     """A live value as the csv writes it: n.a for one not got."""
     return NOT_AVAILABLE if value is None else f"{value:.{DECIMALS[metric]}f}"
@@ -136,7 +141,7 @@ def _format_row(entry: JournalEntry) -> dict[str, str]:
         "date_time": entry.date_time.replace(tzinfo=None).isoformat(timespec="microseconds"),
         "device": entry.device,
         "spot": entry.spot,
-        "ml": NOT_AVAILABLE if entry.ml is None else str(entry.ml),
+        "ml": format_ml(entry.ml),
         "room": entry.room,
         "bench": entry.bench,
         # only spaces is none

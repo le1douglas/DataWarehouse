@@ -2,7 +2,7 @@
 
 from nicegui import ui
 
-from webapps.pens.one_pen import OnePen
+from webapps.pens.pen import Pen
 
 
 class ConnectDialog(ui.dialog):
@@ -14,7 +14,7 @@ class ConnectDialog(ui.dialog):
     - the pen makes the button connect it (attach_connect), as Chrome opens its chooser only from a click
     """
 
-    def __init__(self, pen: OnePen) -> None:
+    def __init__(self, pen: Pen) -> None:
         super().__init__()
         self.props("persistent")
         self.bind_value_from(pen, "connected", backward=lambda connected: not connected)

@@ -20,6 +20,7 @@ from nicegui import events, ui
 
 from webapps.pens.mock_pen import MockPen, is_mock_pen_on
 from webapps.pens.one_pen import OnePen
+from webapps.pens.pen import Pen
 from webapps.settings import WALKS, get_work_in_progress_csv_path
 from webapps.state.journal_entry import AbsolutePosition
 from webapps.state.journal_entry_csv import JournalEntryCsv
@@ -128,7 +129,7 @@ def draw_walk_page(name: str) -> None:
 
     # the values go to the selected entry
     # temporary: the mock pen, when the settings dialog asks for it. read as the page opens
-    pen = (MockPen if is_mock_pen_on() else OnePen)(on_live=walk.receive_live_value, on_error=notify_error)
+    pen: Pen = (MockPen if is_mock_pen_on() else OnePen)(on_live=walk.receive_live_value, on_error=notify_error)
 
     ConnectDialog(pen)
 

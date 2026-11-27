@@ -12,6 +12,8 @@ from collections.abc import Callable
 
 from nicegui import app, ui
 
+from webapps.pens.pen import Pen
+
 # the key in app.storage.general of whether the walk page uses a mock pen, set in the settings dialog
 # - one value for every browser, kept across restarts
 STORAGE_KEY = "mock_pen"
@@ -26,8 +28,8 @@ def is_mock_pen_on() -> bool:
     return app.storage.general.get(STORAGE_KEY, False)
 
 
-class MockPen:
-    """In place of a OnePen: same attributes, same attach_connect and attach_disconnect. on_error is never called.
+class MockPen(Pen):
+    """A Pen in place of a OnePen: same attach_connect, and attach_disconnect. on_error is never called.
 
     Made inside a page: its timer is of that page.
     """

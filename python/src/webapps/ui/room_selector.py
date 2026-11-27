@@ -20,12 +20,13 @@ class RoomSelector(ui.row):
         self.room = room
         self.classes("items-center no-wrap")
         with self:
-            previous = ui.button("Prev", icon="chevron_left", on_click=lambda: on_move(-1)).props("flat")
+            # each chevron next to the room: Quasar's icon-right is the icon after the text, icon the one before
+            previous = ui.button("Prev", on_click=lambda: on_move(-1)).props("flat icon-right=chevron_left")
             # asked again whenever the room changes
             previous.bind_enabled_from(self, "room", backward=lambda _: has_room(-1))
             label = ui.label().classes("text-xl font-bold")
             label.bind_text_from(self, "room")
-            next_ = ui.button("Next", icon="chevron_right", on_click=lambda: on_move(1)).props("flat icon-right")
+            next_ = ui.button("Next", icon="chevron_right", on_click=lambda: on_move(1)).props("flat")
             next_.bind_enabled_from(self, "room", backward=lambda _: has_room(1))
 
     def set_room(self, room: str) -> None:
