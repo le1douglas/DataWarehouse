@@ -31,9 +31,11 @@ from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.status_bar import StatusBar
 
-# the walk's direction of each arrow key, by the name the browser gives it: the keys outside the fields. the
-# card passes the direction itself
-ARROW_DIRECTIONS = {"ArrowLeft": "left", "ArrowRight": "right", "ArrowUp": "up", "ArrowDown": "down"}
+# what each key does, by the name the browser gives it, outside the fields and from the card's alike
+# - an arrow key: the walk's direction through the cards of the open room
+# - page up and down: the step through the rooms, the previous and the next
+CARD_KEYS = {"ArrowLeft": "left", "ArrowRight": "right", "ArrowUp": "up", "ArrowDown": "down"}
+ROOM_KEYS = {"PageUp": -1, "PageDown": 1}
 
 
 @ui.page("/walk/{name}")
@@ -51,10 +53,11 @@ def draw_walk_page(name: str) -> None:
     # local to the page. one visitor at a time works on the csv
     walk = Walk(WALKS[name], JournalEntryCsv(csv_path))
 
-    def go_to_room(name: str) -> None:
-        """Moves to the room: what is typed in every card is kept, so nothing to ask."""
-        walk.go_to_room(name)
-        show_room()
+    def move_room(step: int) -> None:
+        """Moves to the room step rooms away: what is typed in every card is kept, so nothing to ask."""
+        # drawn again only when the room changed
+        if walk.move_room(step):
+            show_room()
 
     def select(position: AbsolutePosition) -> None:
         walk.select(position)
@@ -65,9 +68,16 @@ def draw_walk_page(name: str) -> None:
         if walk.move(direction):
             show_room()
 
-    def move_by_key(event: events.KeyEventArguments) -> None:
-        if event.action.keydown and event.key.name in ARROW_DIRECTIONS:
-            move(ARROW_DIRECTIONS[event.key.name])
+    def press(key: str) -> None:
+        """A key of CARD_KEYS or ROOM_KEYS, by the name the browser gives it. Any other: nothing."""
+        if key in CARD_KEYS:
+            move(CARD_KEYS[key])
+        elif key in ROOM_KEYS:
+            move_room(ROOM_KEYS[key])
+
+    def press_by_key(event: events.KeyEventArguments) -> None:
+        if event.action.keydown:
+            press(event.key.name)
 
     def confirm() -> None:
         # Confirm and Enter both come here
@@ -111,7 +121,7 @@ def draw_walk_page(name: str) -> None:
                     on_confirm=confirm,
                     on_skip=skip,
                     on_delete=lambda position=position: ask_delete(position),
-                    on_move=move,
+                    on_key=press,
                 )
                 # selected by a key, a confirm or a delete, it may be out of view, such as on the mother walk
                 if position == walk.selected:
@@ -127,14 +137,14 @@ def draw_walk_page(name: str) -> None:
     with status_bar.left:
         ui.button("Back", icon="arrow_back", on_click=lambda: ui.navigate.to("/")).props("flat")
     with status_bar.center:
-        room_selector = RoomSelector(walk.rooms, walk.open_room, on_select=go_to_room)
+        room_selector = RoomSelector(walk.open_room, has_room=walk.has_room, on_move=move_room)
     with status_bar.right:
         ui.button("Review", icon="table_view", on_click=lambda: ui.navigate.to(f"/walk/{name}/review")).props("flat")
 
     # one dialog for the page: a delete
     confirm_dialog = ConfirmDialog()
 
-    # the arrow keys outside the fields. in the ml the card passes them on, in the remarks they stay with the text
-    ui.keyboard(on_key=move_by_key)
+    # the keys outside the fields. in the fields the card passes them on (JournalEntryCard)
+    ui.keyboard(on_key=press_by_key)
 
     room_panels = RoomPanels(draw_cards, walk.get_room_index())

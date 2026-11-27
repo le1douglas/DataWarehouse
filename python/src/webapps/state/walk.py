@@ -78,6 +78,19 @@ class Walk:
         self.open_room = name
         self.select(self._find_selectable(-1, 1, wrap=False))
 
+    def has_room(self, step: int) -> bool:
+        """There is a room step rooms from the open one: -1 the one before, 1 the next. The rooms stop at the
+        first and the last."""
+        return 0 <= self.get_room_index() + step < len(self.rooms)
+
+    def move_room(self, step: int) -> bool:
+        """Opens the room step rooms from the open one, as go_to_room. True when it moved: none there, and nothing
+        changes."""
+        if not self.has_room(step):
+            return False
+        self.go_to_room(self.rooms[self.get_room_index() + step])
+        return True
+
     def is_complete(self) -> bool:
         """Every entry of every room is confirmed."""
         return all(entry.is_confirmed() for entry in self.entries.values())
@@ -136,11 +149,9 @@ class Walk:
         """The next unconfirmed entry of the open room after the one just confirmed, round the room as the right
         arrow goes. When it is complete, the next room is opened, the last room excepted: nothing selected then."""
         position = self._find_selectable(self._get_selected_index(), 1, wrap=True)
-        index = self.get_room_index() + 1
-        if position is None and index < len(self.rooms):
-            self.go_to_room(self.rooms[index])
-        else:
-            self.select(position)
+        if position is None and self.move_room(1):
+            return
+        self.select(position)
 
     def _get_selected_index(self) -> int:
         """The place of the selected entry in the open room, 0 for the first. Only called with one selected."""
