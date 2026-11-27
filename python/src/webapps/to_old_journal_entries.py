@@ -3,7 +3,8 @@ schema. Written by the review page's Export, next to the new csv, until nothing 
 
 The old format has no spot, bench or reading_status:
 - a spot is told only by its place in its room, so the rows are in the walk's order
-- a skipped entry has no row, as a skipped room had none
+- a room with every entry skipped has no row, as a skipped room had none
+- a skipped entry in a room with a measured one has a row, with 0 for ml, ec, ph and temp
 """
 
 import csv
@@ -33,7 +34,8 @@ OLD_CSV_COLUMNS = (
 def write_old_journal_entries(rows: list[dict[str, str]], walk: WalkSettings, target: Path) -> None:
     """Writes the rows of the new csv to target in the old format, overwriting a file there. Makes the folder of
     target when missing."""
-    kept = [row for row in rows if row["reading_status"] != SKIPPED]
+    measured_rooms = {row["room"] for row in rows if row["reading_status"] != SKIPPED}
+    kept = [row for row in rows if row["room"] in measured_rooms]
     kept.sort(key=lambda row: _walk_position(row, walk))
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("w", newline="") as file:
@@ -53,7 +55,10 @@ def _to_old_row(row: dict[str, str]) -> dict[str, str]:
     - notes: the ml, then the remarks
     - n.a is empty, as the old format has none
     - tags: the room
+    - skipped: 0 for ml, ec, ph and temp
     """
+    if row["reading_status"] == SKIPPED:
+        row = {**row, "ml": "0", "ec": "0", "ph": "0", "temperature": "0"}
     notes = " ".join(value for value in (_old_value(row["ml"]), row["remarks"]) if value)
     old_row = dict.fromkeys(OLD_CSV_COLUMNS, "")
     old_row.update(
