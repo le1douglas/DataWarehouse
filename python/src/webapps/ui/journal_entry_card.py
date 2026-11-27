@@ -7,6 +7,7 @@ from nicegui import ui
 
 from webapps.state.journal_entry import ML_DIGITS, NOT_RECEIVED, AbsolutePosition, JournalEntry
 from webapps.state.journal_entry_csv import NOT_AVAILABLE, format_live_value
+from webapps.state.walk import DIRECTION_STEPS
 
 # the live values shown, by the name the pen gives them
 LABELS = {"ph": "pH", "ec": "EC", "temperature": "Temp"}
@@ -21,8 +22,6 @@ STREAMING_PACE = "animation-duration: 1s"
 UNCONFIRMED_LOOK = "cursor-pointer"
 # the live values of an entry without a reading, greyed out: they are written n.a
 GREYED_OUT = "opacity-30"
-# the arrow keys the ml passes on, by their Vue key modifier: the name the browser gives them
-ARROW_KEYS = {"left": "ArrowLeft", "right": "ArrowRight", "up": "ArrowUp", "down": "ArrowDown"}
 
 
 class JournalEntryCard(ui.card):
@@ -34,7 +33,7 @@ class JournalEntryCard(ui.card):
     - confirmed (its reading_status not in_progress): read only, and Delete (on_delete). a skipped one greyed out
     - selected: bound to the entry, so the live values and the typing show by themselves, the live values
       blinking. Confirm, or Enter in a field (on_confirm), enabled while is_confirm_allowed says so, and Skip
-      (on_skip). an arrow key in the ml moves to another card (on_move, the key's name)
+      (on_skip). an arrow key in the ml moves to another card (on_move, the walk's direction)
     - unconfirmed: bound to the entry too, no live values: the walk clears them when it is deselected. Confirm and
       Skip disabled. a tap anywhere on it selects it (on_select)
     """
@@ -135,8 +134,9 @@ class JournalEntryCard(ui.card):
             field.on("keydown.enter", on_confirm)
         # - the ml only: a few digits, its cursor hardly needed
         # - in the remarks the arrow keys stay with the text
-        for modifier, key in ARROW_KEYS.items():
-            self._ml.on(f"keydown.{modifier}", lambda key=key: on_move(key))
+        # - the walk's directions are Vue's key modifiers of the arrow keys
+        for direction in DIRECTION_STEPS:
+            self._ml.on(f"keydown.{direction}", lambda direction=direction: on_move(direction))
         confirm, skip = self._draw_confirm_and_skip()
         confirm.on_click(on_confirm)
         confirm.bind_enabled_from(self, "is_confirm_allowed")

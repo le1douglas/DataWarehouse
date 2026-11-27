@@ -31,9 +31,9 @@ from webapps.ui.room_panels import RoomPanels
 from webapps.ui.room_selector import RoomSelector
 from webapps.ui.status_bar import StatusBar
 
-# the step of each arrow key through the open room, by the grid of two columns: left and right in walk order, up
-# and down in the same column. one column, on a narrow screen, is not followed: a keyboard means a wide one
-ARROW_STEPS = {"ArrowLeft": -1, "ArrowRight": 1, "ArrowUp": -2, "ArrowDown": 2}
+# the walk's direction of each arrow key, by the name the browser gives it: the keys outside the fields. the
+# card passes the direction itself
+ARROW_DIRECTIONS = {"ArrowLeft": "left", "ArrowRight": "right", "ArrowUp": "up", "ArrowDown": "down"}
 
 
 @ui.page("/walk/{name}")
@@ -60,16 +60,14 @@ def draw_walk_page(name: str) -> None:
         walk.select(position)
         show_room()
 
-    def move(key: str) -> None:
-        """Selects the nearest unconfirmed card the arrow key points to, as a tap would. None there: nothing
-        changes."""
-        position = walk.find_selectable(ARROW_STEPS[key])
-        if position is not None:
-            select(position)
+    def move(direction: str) -> None:
+        # drawn again only when the selection moved
+        if walk.move(direction):
+            show_room()
 
     def move_by_key(event: events.KeyEventArguments) -> None:
-        if event.action.keydown and event.key.name in ARROW_STEPS:
-            move(event.key.name)
+        if event.action.keydown and event.key.name in ARROW_DIRECTIONS:
+            move(ARROW_DIRECTIONS[event.key.name])
 
     def confirm() -> None:
         # Confirm and Enter both come here
