@@ -27,7 +27,7 @@ x-airflow-env: &airflow_env
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
   # mounted from the repo in dev, copied into the image in prod
-  AIRFLOW__CORE__DAGS_FOLDER: /usr/app/DataWarehouseAirflow/dags
+  AIRFLOW__CORE__DAGS_FOLDER: /usr/app/airflow/dags
   # where a running task reports its state
   AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
   # the password is PGPASSWORD, not in the connection string, where an @ or / would break it
@@ -92,11 +92,11 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
-      - ../Database/00_create_airflow_database.sql:/docker-entrypoint-initdb.d/00_create_airflow_database.sql:ro
-      - ../Database/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
-      - ../Database/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
+      - ../postgres/00_create_airflow_database.sql:/docker-entrypoint-initdb.d/00_create_airflow_database.sql:ro
+      - ../postgres/00_create_meltano_database.sql:/docker-entrypoint-initdb.d/00_create_meltano_database.sql:ro
+      - ../postgres/01_create_schemas_and_tables.sql:/docker-entrypoint-initdb.d/01_create_schemas_and_tables.sql:ro
       # prod writes a dump here, dev restores it. ignored by git. a convenience for dev, not prod's backups
-      - ../Database/dumps:/dumps
+      - ../postgres/dumps:/dumps
     # checked over tcp: on the first start the init scripts run on a server that listens only on its socket, so a
     # socket check would pass before the databases exist
     healthcheck:

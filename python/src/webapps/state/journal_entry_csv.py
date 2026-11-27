@@ -14,7 +14,7 @@ from pathlib import Path
 from webapps.settings import TIMEZONE
 from webapps.state.journal_entry import METRICS, AbsolutePosition, JournalEntry
 
-# the columns of dw_bronze.brnz_journal_entries (Database/01_create_schemas_and_tables.sql)
+# the columns of dw_bronze.brnz_journal_entries (postgres/01_create_schemas_and_tables.sql)
 CSV_COLUMNS = (
     "date_time",
     "device",

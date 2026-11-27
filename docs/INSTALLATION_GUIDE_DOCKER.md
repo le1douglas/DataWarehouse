@@ -84,7 +84,7 @@ From a new Windows 11 PC to a running dev and prod stack, with Excel and VS Code
     missing, starts Airflow and the web app, runs `meltano install` and `dbt debug` in the Airflow scheduler, and ends
     with the setup build. `airflow-init`, started by `up` before the other Airflow components, installs the dbt packages
     and refreshes Airflow's manifest, which the DAGs are drawn from
-    (`DataWarehouseAirflow/dags/utils/dbt_task_group.py`), into `/dbt-state/dev/airflow-manifest` (see
+    (`airflow/dags/utils/dbt_task_group.py`), into `/dbt-state/dev/airflow-manifest` (see
     **Daily workflow**)
   - First run takes a few minutes; safe to run again; stops at the first failing step
   - Ends with `dev setup done`
@@ -235,14 +235,14 @@ Setup is done.
   `http://localhost:8090`, prod `http://localhost:8091`): the DAG → **Trigger**. A new DAG starts paused: unpause it
   first. From the dev container, `airflow dags trigger load_<dataset>` does the same
 - Each dataset has its own file in `USER_FILES_DIR` (`docker/.env`), its own extractor in
-  `DataWarehouseMeltano/meltano.yml` and its own bronze table. Dev and prod each read their own folder:
+  `meltano/meltano.yml` and its own bronze table. Dev and prod each read their own folder:
 
   | Dataset | DAG | File | Extractor | Bronze table |
   | --- | --- | --- | --- | --- |
   | Journal entries | `load_journal_entries` | `manual/journal_entries/journal_entries.csv` | `tap-csv-journal-entries` | `brnz_journal_entries` |
   | Plants batches | `load_plants_batches` | `manual/plants_batches/plants_batches.csv` | `tap-csv-plants-batches` | `brnz_plants_batches` |
 
-- The run, one task after the other (`DataWarehouseAirflow/dags/load_datasets.py`):
+- The run, one task after the other (`airflow/dags/load_datasets.py`):
   - `no_open_load`: stops the run when the dataset has a load still `landed` or `accepted` (see pitfalls)
   - `make_load_id`, `ingest`: a new uuidv7, and Meltano appends the file to bronze with it as `load_id` on every row
   - `landed`, `audit`: `stg_<dataset>` holds that load alone, and its data tests judge it. One Airflow task per dbt
@@ -282,12 +282,12 @@ Setup is done.
 All in the dev container, from `/usr/app`:
 
 - `pytest` (no tests yet), `ruff check`, `ruff format`
-- `sqlfluff format DataWarehouseDbt/models`, `sqlfluff lint DataWarehouseDbt/models` (the database must be up)
+- `sqlfluff format data_build_tool/models`, `sqlfluff lint data_build_tool/models` (the database must be up)
 - `meltano config print tap-csv` shows a plugin's config as the run sees it, env vars filled in
 
 ### Dev as a copy of prod
 
-- Both stacks up: `powershell -ExecutionPolicy Bypass -File Database\dumps\refresh_dev_from_prod.ps1`
+- Both stacks up: `powershell -ExecutionPolicy Bypass -File postgres\dumps\refresh_dev_from_prod.ps1`
 
 ### A new release in prod
 
@@ -297,7 +297,7 @@ All in the dev container, from `/usr/app`:
   created by itself only on a new volume), then check as in section 5
 
   ```powershell
-  Get-Content Database\00_create_meltano_database.sql | docker exec -i dw-prod-postgres-1 psql -U postgres -d postgres
+  Get-Content postgres\00_create_meltano_database.sql | docker exec -i dw-prod-postgres-1 psql -U postgres -d postgres
   ```
 
 ---
@@ -346,7 +346,7 @@ All in the dev container, from `/usr/app`:
 - **A Meltano plugin added or changed in `meltano.yml`, the run does not see it:** `meltano install` in the dev
   container. In dev the plugins live in the `dw-dev_meltano-plugins` volume, not in the repo: their venvs hold linux
   symlinks that Windows and OneDrive cannot read, and that broke the image build when they were in
-  `DataWarehouseMeltano/.meltano`.
+  `meltano/.meltano`.
 - **`meltano add extractor tap-csv` fails with `Utility 'extractor' is not known`:** Meltano 4 takes the type as an
   option: `meltano add --plugin-type extractor tap-csv`. Then pin `pip_url` to a version in `meltano.yml`.
 - **Never `down -v` on prod:** it deletes the database.

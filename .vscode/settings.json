@@ -4,7 +4,7 @@
     // - airflow puts the dags folder on it, so the dags import utils/ from it
     // - PYTHONPATH of the images has python/src, so the web apps import webapps from it
     "python.analysis.extraPaths": [
-        "DataWarehouseAirflow/dags",
+        "airflow/dags",
         "python/src"
     ],
     "dbt.perspectiveTheme": "Vintage"

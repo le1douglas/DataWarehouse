@@ -1,5 +1,5 @@
 -- runs on the postgres container's first start, on an empty volume
--- by hand: psql -v ON_ERROR_STOP=1 -f Database/01_create_schemas_and_tables.sql
+-- by hand: psql -v ON_ERROR_STOP=1 -f postgres/01_create_schemas_and_tables.sql
 -- from an editor's SQL tab, a failure leaves the transaction open: run ROLLBACK
 --
 -- creates only what dbt does not:
@@ -22,7 +22,7 @@ CREATE SCHEMA IF NOT EXISTS dw_bronze;
 -- the data as the source sent it:
 -- - all text and nullable: every rule is a dbt data test, which reports the row instead of failing the insert
 -- - row_id is set here, since meltano does not send it
--- - load_id has no default, so a run without MELTANO_RUN_ID fails (DataWarehouseMeltano/meltano.yml)
+-- - load_id has no default, so a run without MELTANO_RUN_ID fails (meltano/meltano.yml)
 CREATE TABLE IF NOT EXISTS dw_bronze.brnz_journal_entries (
     row_id UUID NOT NULL DEFAULT uuidv7(),
     load_id UUID NOT NULL,

@@ -25,7 +25,7 @@ _OPEN_STATES = ("landed", "accepted")
 
 
 def _connect():
-    # dbt's connection (DataWarehouseDbt/profiles.yml), set on the scheduler (docker/compose.yaml)
+    # dbt's connection (data_build_tool/profiles.yml), set on the scheduler (docker/compose.yaml)
     return psycopg2.connect(
         host=os.environ["DBT_HOST"],
         port=os.environ["DBT_PORT"],

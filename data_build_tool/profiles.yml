@@ -1,5 +1,5 @@
 # every value is an environment variable, from x-dbt-env in docker/compose.yaml
-DataWarehouseDbt:
+data_build_tool:
   # one target for every environment: each environment has its own connection
   target: dw
   outputs:

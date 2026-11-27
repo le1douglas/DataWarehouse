@@ -42,7 +42,7 @@ def dbt_task_group(
             },
         ),
         profile_config=ProfileConfig(
-            profile_name="DataWarehouseDbt",
+            profile_name="data_build_tool",
             target_name="dw",
             profiles_yml_filepath=_DBT_PROFILES_DIR / "profiles.yml",
         ),

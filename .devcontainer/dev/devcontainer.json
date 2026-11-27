@@ -81,7 +81,7 @@
         },
         // meltano.yml's schema, at the version in requirements-meltano.txt: change both together
         "yaml.schemas": {
-          "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "DataWarehouseMeltano/meltano.yml"
+          "https://raw.githubusercontent.com/meltano/meltano/v4.4.1/src/meltano/schemas/meltano.schema.json": "meltano/meltano.yml"
         }
       }
     }

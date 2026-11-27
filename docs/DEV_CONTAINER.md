@@ -171,7 +171,7 @@ a dbt change that touches a contract shows before it is built. A reader gets its
 the web apps read none yet.
 
 The web apps → warehouse contract is the dataset's input definition, as for any source: where the tap reads the file
-and the entity it loads into (`DataWarehouseMeltano/meltano.yml`), and the columns, types and data tests in
+and the entity it loads into (`meltano/meltano.yml`), and the columns, types and data tests in
 `stg_<dataset>.yml`. A csv that breaks it is refused at the audit, like any other bad file.
 
 ## 4. OpenMetadata: a vendor app inside our projects
@@ -284,7 +284,7 @@ the difference between the two environments is visible in two small files.
 | `work-in-progress` | both | what a program has not finished yet, one subfolder per program | `/work_in_progress` |
 | `airflow-logs` | both | the task logs, written by the scheduler, read by the UI | `/opt/airflow/logs` |
 | `dbt-state` | both | what dbt writes, one folder per role, each a target and logs: in `<RELEASE>/`, `airflow-manifest` (the manifest the DAGs are drawn from, written by `airflow-init` and `refresh_metadata`), `setup-build`, `interactive`, and dev's `packages`; `metadata-export`, shared by the releases (`x-dbt-env` in `docker/compose.yaml`) | `/dbt-state` |
-| `meltano-plugins` | dev | the plugin venvs, shared by the scheduler and the dev container | `DataWarehouseMeltano/.meltano` |
+| `meltano-plugins` | dev | the plugin venvs, shared by the scheduler and the dev container | `meltano/.meltano` |
 | `claude-config` | dev | Claude Code's login, settings, skills, memory | `/claude-config` |
 
 Every volume is prefixed by its project (`dw-dev_*`, `dw-prod_*`). All but `claude-config` are refilled from the repo or
@@ -293,7 +293,7 @@ the image. `claude-config` has to be carried (section 9).
 ## 8. What stays on Windows
 
 - The repo, and the folders shared with the containers: the user files folder of each environment, and
-  `Database/dumps`.
+  `postgres/dumps`.
 - Docker Desktop, Excel, and VS Code with only the Dev Containers extension. The project is opened only in the dev
   container, whose extensions are listed in `devcontainer.json`.
 - The setup scripts `docker/0*_setup_*.ps1`.

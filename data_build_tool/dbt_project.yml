@@ -1,7 +1,7 @@
-name: 'DataWarehouseDbt'
+name: 'data_build_tool'
 version: '1.0.0'
 
-profile: 'DataWarehouseDbt'
+profile: 'data_build_tool'
 
 vars:
   # appended in staging to a datetime sent without a zone
@@ -38,7 +38,7 @@ clean-targets:
   - "{{ env_var('DBT_PACKAGES_INSTALL_PATH', 'dbt_packages') }}"
 
 models:
-  DataWarehouseDbt:
+  data_build_tool:
     staging:
       +materialized: view
       +schema: bronze    # bronze's tables hold the raw data, its views are staging
@@ -72,11 +72,11 @@ models:
 # - a seed without room logs a warning that the override is ignored
 # - after a type changes, run dbt seed --full-refresh once
 seeds:
-  DataWarehouseDbt:
+  data_build_tool:
     +schema: seeds
     +column_types: {room: text}
 
 # a data test that only warns sets severity: warn in its own config, with a comment saying why
 data_tests:
-  DataWarehouseDbt:
+  data_build_tool:
     +severity: error

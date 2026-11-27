@@ -12,7 +12,7 @@ services:
   postgres:
     volumes:
       # replaces compose.yaml's mount: dev only reads prod's dumps
-      - ../Database/dumps:/dumps:ro
+      - ../postgres/dumps:/dumps:ro
 
   # each service mounts the repo over its runtime image, so an edit applies without a rebuild
   airflow-init:
@@ -33,7 +33,7 @@ services:
       - ..:/usr/app
       # meltano's plugins, in a volume: their venvs hold linux symlinks that windows and OneDrive cannot read
       # - filled from the image when new, updated by meltano install, shared with the dev container
-      - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
+      - meltano-plugins:/usr/app/meltano/.meltano
     environment:
       <<: *dbt_packages_env
 
@@ -56,7 +56,7 @@ services:
     volumes:
       - ..:/usr/app
       - dbt-state:/dbt-state
-      - meltano-plugins:/usr/app/DataWarehouseMeltano/.meltano
+      - meltano-plugins:/usr/app/meltano/.meltano
       # the paths of the x-*-mount anchors in compose.yaml
       # - the user files whole, writable: a file placed by hand, an export of the webapps
       - ${USER_FILES_DIR:?set USER_FILES_DIR in the env file}:/user_files
@@ -72,7 +72,7 @@ services:
       AIRFLOW__CORE__DEFAULT_TIMEZONE: Europe/Amsterdam
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__CORE__DAGS_FOLDER: /usr/app/DataWarehouseAirflow/dags
+      AIRFLOW__CORE__DAGS_FOLDER: /usr/app/airflow/dags
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}@postgres:5432/airflow
       AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?set AIRFLOW_JWT_SECRET in the env file}

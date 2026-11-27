@@ -491,7 +491,7 @@ $RECYCLE.BIN/
 # dbt per-user id file
 .user.yml
 
-# database dumps, anywhere: data, not code. the dev refresh keeps prod's in Database/dumps
+# database dumps, anywhere: data, not code. the dev refresh keeps prod's in postgres/dumps
 *.dump
 
 # the csv files to load and the files the programs write: data, not code, one folder of each per environment

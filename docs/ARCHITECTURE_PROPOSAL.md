@@ -409,7 +409,7 @@ publish ends the load as `failed`, a fifth state, for a person to look at. `refu
 failing task's failure callback.
 
 **dbt runs through Cosmos**, not as plain BashOperator commands: `audit` and `publish` are Cosmos task groups
-(`DataWarehouseAirflow/dags/utils/dbt_task_group.py`), one Airflow task per dbt node, each a `dbt build` of that node
+(`airflow/dags/utils/dbt_task_group.py`), one Airflow task per dbt node, each a `dbt build` of that node
 and its tests, so the UI shows which model or test refused or failed the load. The tasks are drawn from the dbt
 manifest, not from `dbt ls`: Airflow's manifest, in `/dbt-state/<RELEASE>/airflow-manifest` of the `dbt-state`
 volume, written only by `airflow-init` on every `up`. Every other dbt command has a target of its own, so none
@@ -467,14 +467,14 @@ flowchart LR
 
 | Piece | Where |
 |---|---|
-| `dw_control.ctl_loads` | `Database/01_create_schemas_and_tables.sql` |
+| `dw_control.ctl_loads` | `postgres/01_create_schemas_and_tables.sql` |
 | Loads in a state | `macros/loads_in_state.sql` |
 | `stg_<dataset>`: the open load, typed, every data test, row counts included | `models/staging/` |
 | `slvr_<dataset>`: the accepted load | `macros/select_accepted_loads.sql` |
-| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `DataWarehouseAirflow/dags/load_datasets.py` |
-| The setup build, its dbt selection, run by the setup scripts | `DataWarehouseDbt/selectors.yml`, `docker/02_setup_dev.ps1`, `docker/03_setup_prod.ps1` |
-| A dbt build as a Cosmos task group, drawn from the manifest | `DataWarehouseAirflow/dags/utils/dbt_task_group.py` |
-| Gold's keys, by hand, for its readers: every key test with dbt_constraints on, which adds every missing key | `DataWarehouseAirflow/dags/refresh_metadata.py` |
+| The load dag: no_open_load, ingest, landed, audit, accepted, publish, published | `airflow/dags/load_datasets.py` |
+| The setup build, its dbt selection, run by the setup scripts | `data_build_tool/selectors.yml`, `docker/02_setup_dev.ps1`, `docker/03_setup_prod.ps1` |
+| A dbt build as a Cosmos task group, drawn from the manifest | `airflow/dags/utils/dbt_task_group.py` |
+| Gold's keys, by hand, for its readers: every key test with dbt_constraints on, which adds every missing key | `airflow/dags/refresh_metadata.py` |
 | The `publish` pool | `airflow-init` in `docker/compose.yaml` |
 
 Removed: the `load_id` var, `-- depends_on: ref_*`, the bootstrap build that fails on purpose, snapshots (tables

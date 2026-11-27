@@ -51,7 +51,7 @@ function Invoke-SetupBuild([string[]]$Compose) {
     & docker @Compose exec -T airflow-scheduler dbt debug
     Assert-Ok 'dbt debug'
 
-    # the setup selector (DataWarehouseDbt/selectors.yml): silver and gold are created empty, or keep what they hold
+    # the setup selector (data_build_tool/selectors.yml): silver and gold are created empty, or keep what they hold
     # - its own target, setup-build, so it never writes airflow's manifest
     # - it builds what a load builds: never during a load
     # - single quotes leave the variables to bash, in the container

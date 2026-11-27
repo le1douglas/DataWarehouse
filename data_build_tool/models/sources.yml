@@ -11,7 +11,7 @@ sources:
         description: csv of plants batches, one row per plants batch, each with its planned timeline.
 
   - name: dw_control
-    description: The state of the loads, written only by Airflow (Database/01_create_schemas_and_tables.sql).
+    description: The state of the loads, written only by Airflow (postgres/01_create_schemas_and_tables.sql).
     tables:
       - name: ctl_loads
         description: The current state of every load, one row per load, updated in place by Airflow. See

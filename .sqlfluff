@@ -1,6 +1,6 @@
 # sqlfluff lints and formats the dbt sql. run from the repo root, where this file is:
-#   sqlfluff format DataWarehouseDbt/models DataWarehouseDbt/tests     (layout only: indentation, line breaks, case)
-#   sqlfluff lint DataWarehouseDbt/models                               (every rule, reported, not fixed)
+#   sqlfluff format data_build_tool/models data_build_tool/tests      (layout only: indentation, line breaks, case)
+#   sqlfluff lint data_build_tool/models                               (every rule, reported, not fixed)
 # - the dbt templater compiles each model as dbt does, so the database must be up
 # - profiles.yml is found through DBT_PROFILES_DIR, set in the dev container
 #
@@ -20,7 +20,7 @@ indent_unit = space
 exclude_rules = structure.using
 
 [sqlfluff:templater:dbt]
-project_dir = DataWarehouseDbt
+project_dir = data_build_tool
 
 [sqlfluff:indentation]
 tab_space_size = 4

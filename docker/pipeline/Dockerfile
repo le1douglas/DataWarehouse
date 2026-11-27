@@ -26,18 +26,18 @@ RUN for venv in airflow dbt meltano; do \
 # airflow, dbt and meltano from any folder, each with the python of its own venv
 ENV PATH=/opt/venvs/airflow/bin:/opt/venvs/dbt/bin:/opt/venvs/meltano/bin:$PATH \
     AIRFLOW_HOME=/opt/airflow \
-    DBT_PROJECT_DIR=/usr/app/DataWarehouseDbt \
-    DBT_PROFILES_DIR=/usr/app/DataWarehouseDbt \
-    MELTANO_PROJECT_ROOT=/usr/app/DataWarehouseMeltano \
+    DBT_PROJECT_DIR=/usr/app/data_build_tool \
+    DBT_PROFILES_DIR=/usr/app/data_build_tool \
+    MELTANO_PROJECT_ROOT=/usr/app/meltano \
     MELTANO_SEND_ANONYMOUS_USAGE_STATS=false \
     PYTHONUNBUFFERED=1
 
 FROM venvs AS runtime
 
 # at the paths the repo is mounted at in dev, so the mount hides them
-COPY DataWarehouseDbt/ /usr/app/DataWarehouseDbt/
-COPY DataWarehouseMeltano/ /usr/app/DataWarehouseMeltano/
-COPY DataWarehouseAirflow/ /usr/app/DataWarehouseAirflow/
+COPY data_build_tool/ /usr/app/data_build_tool/
+COPY meltano/ /usr/app/meltano/
+COPY airflow/ /usr/app/airflow/
 
 # - dbt parse checks the project, so a release that does not parse never becomes an image. it connects to nothing,
 #   but the profile needs every env var: placeholders, for this command only
@@ -47,7 +47,7 @@ RUN dbt deps \
     && DBT_HOST=build DBT_PORT=0 DBT_DBNAME=build DBT_USER=build DBT_ENV_SECRET_PASSWORD=build TZ=Europe/Amsterdam \
         dbt parse \
     && meltano install \
-    && rm /usr/app/DataWarehouseMeltano/.meltano/meltano.db
+    && rm /usr/app/meltano/.meltano/meltano.db
 
 WORKDIR /usr/app
 

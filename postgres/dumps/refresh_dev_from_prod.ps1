@@ -2,9 +2,9 @@
 # - writes a prod dump into this folder, then drops dev's database and recreates it from the dump
 # - dropping disconnects everyone on dev's database, such as Excel and VS Code SQL tabs
 # both stacks must be up. from the repo root:
-#   powershell -ExecutionPolicy Bypass -File Database\dumps\refresh_dev_from_prod.ps1
+#   powershell -ExecutionPolicy Bypass -File postgres\dumps\refresh_dev_from_prod.ps1
 # or, to restore a dump that is already here, without writing a new one:
-#   powershell -ExecutionPolicy Bypass -File Database\dumps\refresh_dev_from_prod.ps1 -DumpFile DataWarehouse_prod_<time>.dump
+#   powershell -ExecutionPolicy Bypass -File postgres\dumps\refresh_dev_from_prod.ps1 -DumpFile DataWarehouse_prod_<time>.dump
 # the dumps are ignored by git. prod mounts this folder read-write, dev read only
 
 param(
@@ -31,8 +31,8 @@ try {
         & docker @prod exec -T postgres pg_dump -U postgres -d $database -Fc -f "/dumps/$DumpFile"
         Assert-Ok "the prod dump"
     }
-    elseif (-not (Test-Path "Database\dumps\$DumpFile")) {
-        throw "no dump Database\dumps\$DumpFile"
+    elseif (-not (Test-Path "postgres\dumps\$DumpFile")) {
+        throw "no dump postgres\dumps\$DumpFile"
     }
 
     # - WITH (FORCE) disconnects every session in the same statement as the drop, so none can come back in between
