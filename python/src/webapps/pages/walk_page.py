@@ -20,7 +20,7 @@ from nicegui import events, ui
 
 from webapps.pens.mock_pen import MockPen, is_mock_pen_on
 from webapps.pens.one_pen import OnePen
-from webapps.settings import CSV_DIR, WALKS
+from webapps.settings import WALKS, get_work_in_progress_csv_path
 from webapps.state.journal_entry import AbsolutePosition
 from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.walk import Walk
@@ -45,13 +45,12 @@ def draw_walk_page(name: str) -> None:
         ui.navigate.to("/")
         return
     ui.page_title(f"{name.capitalize()} walk")
-    csv_path = CSV_DIR / f"journal_entries_{name}.csv"
 
     # the screen's height, so the cards can fill what the status bar leaves. more scrolls in the room panels
     ui.query(".nicegui-content").classes("h-screen")
 
     # local to the page. one visitor at a time works on the csv
-    walk = Walk(WALKS[name], JournalEntryCsv(csv_path))
+    walk = Walk(WALKS[name], JournalEntryCsv(get_work_in_progress_csv_path(name)))
 
     def move_room(step: int) -> None:
         """Moves to the room step rooms away: what is typed in every card is kept, so nothing to ask."""

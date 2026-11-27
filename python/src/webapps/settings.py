@@ -40,10 +40,17 @@ WALKS = {
 }
 # read here, not from the container's clock, which falls back to UTC silently: an empty or unknown TZ stops the app
 TIMEZONE = ZoneInfo(os.environ["TZ"])
-# the folder of the csvs of the journal entries confirmed, one per walk: journal_entries_<walk>.csv. made when missing
-# - in the work-in-progress volume (WORK_IN_PROGRESS_MOUNT), the app's own subfolder: they outlive the container, and
-#   dev and prod each have their own
-CSV_DIR = Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "webapps"
+
+
+def get_work_in_progress_csv_path(walk: str) -> Path:
+    """The csv of the walk's journal entries confirmed, by the walk's name in WALKS. Its folder made when missing.
+
+    - in the work-in-progress volume (WORK_IN_PROGRESS_MOUNT), the app's own subfolder: it outlives the container,
+      and dev and prod each have their own
+    """
+    return Path(os.environ["WORK_IN_PROGRESS_MOUNT"]) / "webapps" / f"journal_entries_{walk}.csv"
+
+
 # the folder the review page exports the csv of a walk to, <yyyy-mm-dd>-<walk>.csv: the app's subfolder of the user
 # files (USER_FILES_DIR in the env file), which the loads read. made when missing
 EXPORT_DIR = Path(os.environ["USER_FILES_MOUNT"]) / "webapps" / "journal_entries"

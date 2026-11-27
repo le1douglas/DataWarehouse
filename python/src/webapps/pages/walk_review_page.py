@@ -4,7 +4,7 @@ from datetime import datetime
 
 from nicegui import ui
 
-from webapps.settings import CSV_DIR, EXPORT_DIR, OLD_EXPORT_DIR, TIMEZONE, WALKS
+from webapps.settings import EXPORT_DIR, OLD_EXPORT_DIR, TIMEZONE, WALKS, get_work_in_progress_csv_path
 from webapps.state.journal_entry_csv import JournalEntryCsv
 from webapps.state.walk import Walk
 from webapps.to_old_journal_entries import write_old_journal_entries
@@ -21,7 +21,7 @@ def draw_walk_review_page(name: str) -> None:
     if name not in WALKS:
         ui.navigate.to("/")
         return
-    journal = JournalEntryCsv(CSV_DIR / f"journal_entries_{name}.csv")
+    journal = JournalEntryCsv(get_work_in_progress_csv_path(name))
     # read once: the grid adds, deletes and moves no row, so the walk stays as complete as it was
     is_complete = Walk(WALKS[name], journal).is_complete()
 

@@ -27,9 +27,8 @@ class SettingsDialog(ui.dialog):
 
 
 def _show_shared_settings() -> None:
-    """The timezone, the folders of the csvs and of their export, in both formats, and the mock pen."""
+    """The timezone, the folders of the export, in both formats, and the mock pen."""
     ui.input("Timezone", value=settings.TIMEZONE.key).props("readonly").classes("w-full")
-    ui.input("Csv folder", value=str(settings.CSV_DIR)).props("readonly").classes("w-full")
     ui.input("Export folder", value=str(settings.EXPORT_DIR)).props("readonly").classes("w-full")
     # temporary: the same export in the old format, as long as the review writes it
     ui.input("Old export folder", value=str(settings.OLD_EXPORT_DIR)).props("readonly").classes("w-full")
@@ -44,9 +43,10 @@ def _set_mock_pen(event: events.ValueChangeEventArguments) -> None:
 
 
 def _show_walk_settings(name: str, walk_settings: settings.WalkSettings) -> None:
-    """The walk under its name: its rooms, benches and spots, and the name of its export."""
+    """The walk under its name: its rooms, benches and spots, its csv, and the name of its export."""
     ui.label(f"{name.capitalize()} walk").classes("font-bold")
     ui.textarea("Rooms", value=", ".join(walk_settings.rooms)).props("readonly autogrow").classes("w-full")
     ui.input("Benches", value=", ".join(walk_settings.benches)).props("readonly").classes("w-full")
     ui.textarea("Spots", value=", ".join(walk_settings.spots)).props("readonly autogrow").classes("w-full")
+    ui.input("Csv", value=str(settings.get_work_in_progress_csv_path(name))).props("readonly").classes("w-full")
     ui.input("Export name", value=f"<yyyy-mm-dd>-{name}.csv").props("readonly").classes("w-full")
